@@ -16,3 +16,11 @@ dependencies = [
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+teacher = [
+    "onnxruntime>=1.32.0",
+    "opencv-python-headless>=5.1.0.95",
+    "python-bidi>=0.6.12",
+    "rapidocr==3.10.0",
+]
