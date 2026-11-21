@@ -185,7 +185,9 @@ done
 # Georgian, Armenian and Ethiopic. The serif Notos are held out.
 for f in "ofl/notosansgeorgian/NotoSansGeorgian[wdth,wght].ttf" "ofl/notosansarmenian/NotoSansArmenian[wdth,wght].ttf" \
   "ofl/notosansethiopic/NotoSansEthiopic[wdth,wght].ttf" "ofl/abyssinicasil/AbyssinicaSIL-Regular.ttf" \
-  "ofl/googlesans/GoogleSans[GRAD,opsz,wght].ttf" "ofl/menbere/Menbere[wght].ttf"; do
+  "ofl/googlesans/GoogleSans[GRAD,opsz,wght].ttf" "ofl/menbere/Menbere[wght].ttf" \
+  "ofl/iosevkacharonmono/IosevkaCharonMono-Regular.ttf" "ofl/iosevkacharonmono/IosevkaCharonMono-Bold.ttf" \
+  "ofl/hiburmono/HiburMono-Regular.ttf"; do
   get cau-train "$f" OFL-1.1
 done
 for f in "ofl/notoserifgeorgian/NotoSerifGeorgian[wdth,wght].ttf" "ofl/notoserifarmenian/NotoSerifArmenian[wdth,wght].ttf" \
@@ -206,8 +208,9 @@ done
 # DejaVu Sans Mono draws Arabic in monospace.
 cp fonts/train/DejaVuSansMono.ttf fonts/rtl-train/DejaVuSansMono.ttf
 echo "| DejaVuSansMono.ttf | rtl-train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
-# DejaVu Sans also draws Armenian and Georgian.
-for f in DejaVuSans.ttf DejaVuSans-Bold.ttf; do
+# DejaVu Sans also draws Armenian and Georgian, and DejaVu Sans Mono draws them
+# in monospace.
+for f in DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSansMono.ttf; do
   cp fonts/train/$f fonts/cau-train/$f
   echo "| $f | cau-train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
 done
@@ -223,9 +226,11 @@ fi
 for f in FreeSans.ttf FreeSansBold.ttf FreeSerif.ttf FreeSerifBold.ttf; do
   echo "| $f | cau-train | GPL-3.0-with-font-exception | $F |" >> fonts/LICENSES.md
 done
-# FreeMono draws both Hebrew and Arabic in monospace.
-unzip -o -q -j fonts/dl/freefont.zip 'freefont-20120503/FreeMono.ttf' 'freefont-20120503/FreeMonoBold.ttf' -d fonts/rtl-train
-for f in FreeMono.ttf FreeMonoBold.ttf; do
-  echo "| $f | rtl-train | GPL-3.0-with-font-exception | $F |" >> fonts/LICENSES.md
+# FreeMono draws Hebrew, Arabic, Armenian and Georgian in monospace.
+for d in rtl-train cau-train; do
+  unzip -o -q -j fonts/dl/freefont.zip 'freefont-20120503/FreeMono.ttf' 'freefont-20120503/FreeMonoBold.ttf' -d fonts/$d
+  for f in FreeMono.ttf FreeMonoBold.ttf; do
+    echo "| $f | $d | GPL-3.0-with-font-exception | $F |" >> fonts/LICENSES.md
+  done
 done
 ls fonts/train fonts/heldout | wc -l

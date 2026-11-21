@@ -240,6 +240,9 @@
 | AbyssinicaSIL-Regular.ttf | cau-train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/abyssinicasil/AbyssinicaSIL-Regular.ttf |
 | GoogleSansGRAD_opsz_wght.ttf | cau-train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/googlesans/GoogleSans%5BGRAD,opsz,wght%5D.ttf |
 | Menberewght.ttf | cau-train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/menbere/Menbere%5Bwght%5D.ttf |
+| IosevkaCharonMono-Regular.ttf | cau-train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/iosevkacharonmono/IosevkaCharonMono-Regular.ttf |
+| IosevkaCharonMono-Bold.ttf | cau-train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/iosevkacharonmono/IosevkaCharonMono-Bold.ttf |
+| HiburMono-Regular.ttf | cau-train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/hiburmono/HiburMono-Regular.ttf |
 | NotoSerifGeorgianwdth_wght.ttf | cau-heldout | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifgeorgian/NotoSerifGeorgian%5Bwdth,wght%5D.ttf |
 | NotoSerifArmenianwdth_wght.ttf | cau-heldout | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifarmenian/NotoSerifArmenian%5Bwdth,wght%5D.ttf |
 | NotoSerifEthiopicwdth_wght.ttf | cau-heldout | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notoserifethiopic/NotoSerifEthiopic%5Bwdth,wght%5D.ttf |
@@ -249,9 +252,12 @@
 | DejaVuSansMono.ttf | rtl-train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |
 | DejaVuSans.ttf | cau-train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |
 | DejaVuSans-Bold.ttf | cau-train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |
+| DejaVuSansMono.ttf | cau-train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |
 | FreeSans.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeSansBold.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeSerif.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeSerifBold.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeMono.ttf | rtl-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeMonoBold.ttf | rtl-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
+| FreeMono.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
+| FreeMonoBold.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
