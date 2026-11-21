@@ -4,6 +4,8 @@ than RAM: OUT.ink holds every line's uint8 ink map side by side (32 rows),
 OUT.npz the offsets, widths and labels, and OUT.txt the texts.
 
 Usage: python prerender.py FAMILY OUT COUNT [SEED]   (PROCS caps the workers)
+FAMILY "router" renders every routed family, each line labelled with its
+family's index.
 
 Each worker retires after four chunks, so the font faces it caches never
 grow without bound.
@@ -18,12 +20,13 @@ import time
 import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from families import generator  # noqa: E402
+from families import generator, router_generator  # noqa: E402
 
 
 def chunk(args):
     family, seed, n = args
-    gen, rng = generator(family), random.Random(seed)
+    gen = router_generator() if family == "router" else generator(family)
+    rng = random.Random(seed)
     out = []
     for _ in range(n):
         x, lab, text = gen.sample(rng)
