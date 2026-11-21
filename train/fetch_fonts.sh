@@ -80,7 +80,18 @@ for f in "ofl/notosansarabic/NotoSansArabic[wdth,wght].ttf" "ofl/notonaskharabic
   "ofl/changa/Changa[wght].ttf" "ofl/readexpro/ReadexPro[HEXP,wght].ttf" "ofl/amiri/Amiri-Regular.ttf" \
   "ofl/notosanshebrew/NotoSansHebrew[wdth,wght].ttf" "ofl/notoserifhebrew/NotoSerifHebrew[wdth,wght].ttf" \
   "ofl/rubik/Rubik[wght].ttf" "ofl/heebo/Heebo[wght].ttf" "ofl/assistant/Assistant[wght].ttf" \
-  "ofl/frankruhllibre/FrankRuhlLibre[wght].ttf"; do
+  "ofl/frankruhllibre/FrankRuhlLibre[wght].ttf" \
+  "ofl/alef/Alef-Regular.ttf" "ofl/alef/Alef-Bold.ttf" "ofl/arimo/Arimo[wght].ttf" "ofl/opensans/OpenSans[wdth,wght].ttf" \
+  "ofl/tinos/Tinos-Regular.ttf" "ofl/varelaround/VarelaRound-Regular.ttf" "ofl/miriamlibre/MiriamLibre[wght].ttf" \
+  "ofl/davidlibre/DavidLibre-Regular.ttf" "ofl/lunasima/Lunasima-Regular.ttf" "ofl/fredoka/Fredoka[wdth,wght].ttf" \
+  "ofl/secularone/SecularOne-Regular.ttf" "ofl/suezone/SuezOne-Regular.ttf" "ofl/googlesans/GoogleSans[GRAD,opsz,wght].ttf" \
+  "ofl/cascadiacode/CascadiaCode[wght].ttf" "ofl/cascadiamono/CascadiaMono[wght].ttf" \
+  "ofl/alexandria/Alexandria[wght].ttf" "ofl/beiruti/Beiruti[wght].ttf" "ofl/elmessiri/ElMessiri[wght].ttf" \
+  "ofl/estedad/Estedad[wght].ttf" "ofl/fustat/Fustat[wght].ttf" "ofl/harmattan/Harmattan-Regular.ttf" \
+  "ofl/kufam/Kufam[wght].ttf" "ofl/lateef/Lateef-Regular.ttf" "ofl/mada/Mada[wght].ttf" "ofl/markazitext/MarkaziText[wght].ttf" \
+  "ofl/notonastaliqurdu/NotoNastaliqUrdu[wght].ttf" "ofl/scheherazadenew/ScheherazadeNew-Regular.ttf" "ofl/zain/Zain-Regular.ttf" \
+  "ofl/alansans/AlanSans[wght].ttf" "ofl/firjar/Firjar[wdth,wght].ttf" "ofl/alyamama/Alyamama[wght].ttf" \
+  "ofl/reemkufi/ReemKufi[wght].ttf"; do
   get rtl-train "$f" OFL-1.1
 done
 for f in "ofl/ibmplexsansarabic/IBMPlexSansArabic-Regular.ttf" "ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Regular.ttf"; do
