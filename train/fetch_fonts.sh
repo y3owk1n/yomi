@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout
+mkdir -p fonts/train fonts/heldout fonts/fallback
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -30,7 +30,9 @@ for f in \
   "ofl/notosansmono/NotoSansMono[wdth,wght].ttf" "ofl/jetbrainsmono/JetBrainsMono[wght].ttf" \
   "ofl/sourcecodepro/SourceCodePro[wght].ttf" "ofl/robotomono/RobotoMono[wght].ttf" "ofl/firacode/FiraCode[wght].ttf" \
   "ofl/firamono/FiraMono-Regular.ttf" "ofl/firamono/FiraMono-Medium.ttf" "ofl/ptmono/PTM55FT.ttf" \
-  "ofl/inter/Inter-Italic[opsz,wght].ttf" "ofl/notosans/NotoSans-Italic[wdth,wght].ttf"; do
+  "ofl/inter/Inter-Italic[opsz,wght].ttf" "ofl/notosans/NotoSans-Italic[wdth,wght].ttf" \
+  "ofl/bevietnampro/BeVietnamPro-Regular.ttf" "ofl/bevietnampro/BeVietnamPro-SemiBold.ttf" \
+  "ofl/ptserif/PT_Serif-Web-Regular.ttf" "ofl/notosansdisplay/NotoSansDisplay[wdth,wght].ttf"; do
   get train "$f" OFL-1.1
 done
 for f in "ufl/ubuntu/Ubuntu-Regular.ttf" "ufl/ubuntu/Ubuntu-Medium.ttf" "ufl/ubuntu/Ubuntu-Bold.ttf" \
@@ -40,6 +42,13 @@ done
 for f in "ofl/ibmplexsans/IBMPlexSans[wdth,wght].ttf" "ofl/ibmplexmono/IBMPlexMono-Regular.ttf" \
   "ofl/ibmplexmono/IBMPlexMono-Medium.ttf"; do
   get heldout "$f" OFL-1.1
+done
+
+# Fallback fonts: what a line's own font lacks (arrows, Mac modifier keys,
+# check marks) renders in these, as an OS falls back.
+for f in "ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf" "ofl/notosanssymbols/NotoSansSymbols[wght].ttf" \
+  "ofl/notosansmath/NotoSansMath-Regular.ttf"; do
+  get fallback "$f" OFL-1.1
 done
 
 # DejaVu Sans and Sans Mono (Bitstream Vera licence plus public-domain changes).

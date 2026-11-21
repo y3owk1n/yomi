@@ -34,6 +34,10 @@
 | PTM55FT.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/ptmono/PTM55FT.ttf |
 | Inter-Italicopsz_wght.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter-Italic%5Bopsz,wght%5D.ttf |
 | NotoSans-Italicwdth_wght.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notosans/NotoSans-Italic%5Bwdth,wght%5D.ttf |
+| BeVietnamPro-Regular.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/bevietnampro/BeVietnamPro-Regular.ttf |
+| BeVietnamPro-SemiBold.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/bevietnampro/BeVietnamPro-SemiBold.ttf |
+| PT_Serif-Web-Regular.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/ptserif/PT_Serif-Web-Regular.ttf |
+| NotoSansDisplaywdth_wght.ttf | train | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notosansdisplay/NotoSansDisplay%5Bwdth,wght%5D.ttf |
 | Ubuntu-Regular.ttf | train | UFL-1.0 | https://raw.githubusercontent.com/google/fonts/main/ufl/ubuntu/Ubuntu-Regular.ttf |
 | Ubuntu-Medium.ttf | train | UFL-1.0 | https://raw.githubusercontent.com/google/fonts/main/ufl/ubuntu/Ubuntu-Medium.ttf |
 | Ubuntu-Bold.ttf | train | UFL-1.0 | https://raw.githubusercontent.com/google/fonts/main/ufl/ubuntu/Ubuntu-Bold.ttf |
@@ -42,6 +46,9 @@
 | IBMPlexSanswdth_wght.ttf | heldout | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexsans/IBMPlexSans%5Bwdth,wght%5D.ttf |
 | IBMPlexMono-Regular.ttf | heldout | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/IBMPlexMono-Regular.ttf |
 | IBMPlexMono-Medium.ttf | heldout | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/ibmplexmono/IBMPlexMono-Medium.ttf |
+| NotoSansSymbols2-Regular.ttf | fallback | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf |
+| NotoSansSymbolswght.ttf | fallback | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssymbols/NotoSansSymbols%5Bwght%5D.ttf |
+| NotoSansMath-Regular.ttf | fallback | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notosansmath/NotoSansMath-Regular.ttf |
 | DejaVuSans.ttf | train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |
 | DejaVuSans-Bold.ttf | train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |
 | DejaVuSansMono.ttf | train | Bitstream-Vera | https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip |

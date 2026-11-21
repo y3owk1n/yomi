@@ -1,10 +1,13 @@
 """Synthetic training lines: open fonts rendered the ways screens draw text.
 
-Each sample is one line crop, padded like a line finder's box, run through
-prep.prepare. Variation: font, weight, size at 1x and 2x, hinted FreeType or
-supersampled unhinted rendering (the macOS look), coverage gamma (font
-smoothing), light, dark and coloured themes, subpixel colour fringes, a
-neighbouring line or an outline intruding, and a few crops with no text.
+Each sample is one line crop, padded like the line finder's box, run through
+prep.prepare. A line renders in one primary font; characters it lacks fall
+back to the fallback fonts, run by run, as an OS draws them. Variation: font,
+weight, size at 1x and 2x, hinted FreeType or supersampled unhinted rendering
+(the macOS look), coverage gamma, light, dark, muted and coloured themes,
+subpixel colour fringes, a neighbouring line or an outline in the padding, and
+crops with no text at all (icons, avatars, photo detail, controls), labelled
+empty so the model reads nothing there.
 """
 import glob
 import math
@@ -12,18 +15,36 @@ import os
 import random
 
 import numpy as np
+from fontTools.ttLib import TTFont
 from PIL import Image, ImageDraw, ImageFont
 
 from prep import prepare
-from textsrc import CHARSET, TRAIN_WORDS, phrase
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ALPHABET = " " + CHARSET  # index 0 is the CTC blank, so labels are 1 + index
-CHAR_INDEX = {c: i + 1 for i, c in enumerate(ALPHABET)}
+
+
+class Alphabet:
+    """A model's characters. Label 0 is the CTC blank, 1 the space."""
+
+    def __init__(self, charset):
+        self.chars = " " + charset
+        self.index = {c: i + 1 for i, c in enumerate(self.chars)}
+
+    def labels(self, text):
+        return [self.index[c] for c in text if c in self.index]
+
+
+_cover = {}
+
+
+def coverage_of(path):
+    if path not in _cover:
+        _cover[path] = set(TTFont(path, fontNumber=0, lazy=True).getBestCmap())
+    return _cover[path]
 
 
 def fonts(split):
-    return sorted(glob.glob(os.path.join(HERE, "fonts", split, "*.ttf")))
+    return sorted(glob.glob(os.path.join(HERE, "fonts", split, "*.[ot]t[fc]")))
 
 
 class Font:
@@ -56,16 +77,41 @@ class Font:
         return f
 
 
-def coverage(text, path, px, weight, supersample, subpixel=False):
+def runs(text, primary, fallbacks):
+    """Splits text into (font path, run) by the first font covering each
+    character. None means no font has it."""
+    out = []
+    for ch in text:
+        path = primary if ord(ch) in coverage_of(primary) or ch == " " else None
+        if path is None:
+            path = next((f for f in fallbacks if ord(ch) in coverage_of(f)), None)
+        if out and out[-1][0] == path:
+            out[-1][1] += ch
+        else:
+            out.append([path, ch])
+    return out
+
+
+def coverage(text, primary, fallbacks, px, weight, supersample, subpixel=False):
     """Coverage of text on its line box and the line box height in pixels.
     Grey (h, w), or with subpixel (h, w, 3), one column of subpixels per
-    channel, the way LCD antialiasing draws."""
+    channel, the way LCD antialiasing draws. None when a character has no
+    font."""
+    rs = runs(text, primary, fallbacks)
+    if any(p is None for p, _ in rs):
+        return None, 0
     ss = 3 if subpixel else (4 if supersample else 1)
-    font = Font.get(path, px * ss, weight)
-    asc, desc = font.getmetrics()
-    w = int(math.ceil(font.getlength(text))) + 2 * ss
+    main = Font.get(primary, px * ss, weight)
+    asc, desc = main.getmetrics()
+    parts = [(Font.get(p, px * ss, weight), t) for p, t in rs]
+    w = sum(int(math.ceil(f.getlength(t))) for f, t in parts) + 2 * ss
     img = Image.new("L", (w, asc + desc + 2 * ss), 0)
-    ImageDraw.Draw(img).text((ss, ss), text, fill=255, font=font)
+    d = ImageDraw.Draw(img)
+    x = ss
+    for f, t in parts:
+        a2 = f.getmetrics()[0]
+        d.text((x, ss + asc - a2), t, fill=255, font=f)
+        x += int(math.ceil(f.getlength(t)))
     a = np.asarray(img, dtype=np.float32) / 255
     if ss > 1:
         h2, w2 = (a.shape[0] // ss) * ss, (a.shape[1] // ss) * ss
@@ -101,21 +147,22 @@ def theme(rng):
     return np.array(bg, np.float32), np.array(fg, np.float32)
 
 
-def render(rng, text, path, scale):
+def render(rng, text, primary, fallbacks, scale, other_text):
     px = round(rng.uniform(10, 18) * scale)
     weight = rng.choice([400, 400, 400, 450, 500, 600, 700])
     supersample = rng.random() < 0.5
     subpixel = rng.random() < 0.1
-    a, line_h = coverage(text, path, px, weight, supersample, subpixel)
+    a, line_h = coverage(text, primary, fallbacks, px, weight, supersample, subpixel)
+    if a is None:
+        return None
     a = a ** rng.uniform(0.6, 1.3)
     if rng.random() < 0.15:  # slight blur or smear
-        a = (a + np.roll(a, 1, axis=1) * rng.uniform(0, 0.5)) / 1.25
-        a = np.clip(a, 0, 1)
+        a = np.clip((a + np.roll(a, 1, axis=1) * rng.uniform(0, 0.5)) / 1.25, 0, 1)
     chans = a if subpixel else None
     if subpixel:
         a = a.mean(axis=2)
 
-    # line box -> padded crop, as a line finder would cut it
+    # Line box to padded crop, as the line finder cuts it.
     h, w = a.shape
     pads = [int(round(rng.uniform(0.10, 0.35) * line_h)) for _ in range(4)]
     canvas = np.zeros((h + pads[1] + pads[3], w + pads[0] + pads[2]), np.float32)
@@ -124,13 +171,15 @@ def render(rng, text, path, scale):
         sub = np.repeat(canvas[..., None], 3, axis=2)
         sub[pads[1]:pads[1] + h, pads[0]:pads[0] + w] = chans
     if rng.random() < 0.15:  # part of the line above or below
-        other, _ = coverage(phrase(rng, TRAIN_WORDS, 6), path, px, weight, supersample, False)
-        cut = rng.randint(1, max(1, pads[1] + 2))
-        strip = other[-cut:, : canvas.shape[1]] if rng.random() < 0.5 else other[:cut, : canvas.shape[1]]
-        if rng.random() < 0.5:
-            canvas[: strip.shape[0], : strip.shape[1]] = np.maximum(canvas[: strip.shape[0], : strip.shape[1]], strip)
-        else:
-            canvas[-strip.shape[0]:, : strip.shape[1]] = np.maximum(canvas[-strip.shape[0]:, : strip.shape[1]], strip)
+        other, _ = coverage(other_text, primary, fallbacks, px, weight, supersample, False)
+        if other is not None:
+            cut = rng.randint(1, max(1, pads[1] + 2))
+            strip = other[-cut:, : canvas.shape[1]] if rng.random() < 0.5 else other[:cut, : canvas.shape[1]]
+            sh, sw = strip.shape
+            if rng.random() < 0.5:
+                canvas[:sh, :sw] = np.maximum(canvas[:sh, :sw], strip)
+            else:
+                canvas[-sh:, :sw] = np.maximum(canvas[-sh:, :sw], strip)
     if rng.random() < 0.08:  # an input or button outline near the edge
         y = rng.choice([rng.randint(0, max(0, pads[1] - 1)), canvas.shape[0] - 1 - rng.randint(0, max(0, pads[3] - 1))])
         canvas[y, :] = np.maximum(canvas[y, :], rng.uniform(0.2, 0.6))
@@ -138,40 +187,89 @@ def render(rng, text, path, scale):
     bg, fg = theme(rng)
     cov = canvas[..., None]
     if subpixel:
-        sub = np.maximum(sub, canvas[..., None] * (sub == 0))  # keep intruders and outlines
-        cov = sub
+        cov = np.maximum(sub, canvas[..., None] * (sub == 0))  # keep intruders and outlines
     rgb = bg[None, None, :] * (1 - cov) + fg[None, None, :] * cov
     return np.clip(np.round(rgb), 0, 255).astype(np.uint8)
 
 
 def blank(rng, scale):
-    """A crop with no text: a flat field, an outline or a simple icon shape."""
-    h = round(rng.uniform(14, 26) * scale)
-    w = round(rng.uniform(1, 6) * h)
+    """A crop with no text: icons and outlines, an avatar, a toggle or
+    checkbox, a slice of a photo, or a flat field."""
+    h = round(rng.uniform(14, 30) * scale)
+    w = round(rng.uniform(1, 8) * h)
     bg, fg = theme(rng)
     img = Image.new("RGB", (w, h), tuple(int(c) for c in bg))
     d = ImageDraw.Draw(img)
-    for _ in range(rng.randint(0, 3)):
+    col = tuple(int(c) for c in fg)
+    kind = rng.random()
+    if kind < 0.25:  # a photo slice: smooth colour plus noise and blobs
+        a = np.zeros((h, w, 3), np.float32)
+        for c in range(3):
+            gx, gy = rng.uniform(-1, 1), rng.uniform(-1, 1)
+            yy, xx = np.mgrid[0:h, 0:w]
+            a[..., c] = rng.uniform(40, 200) + 60 * (gx * xx / w + gy * yy / h)
+        a += np.random.default_rng(rng.randrange(1 << 30)).normal(0, rng.uniform(2, 20), a.shape)
+        img = Image.fromarray(np.clip(a, 0, 255).astype(np.uint8))
+        d = ImageDraw.Draw(img)
+        for _ in range(rng.randint(0, 8)):
+            x0, y0 = rng.randint(-h, w), rng.randint(-h, h)
+            r = rng.randint(2, h)
+            d.ellipse([x0, y0, x0 + r, y0 + r], fill=tuple(rng.randint(0, 255) for _ in range(3)))
+        return np.asarray(img)
+    if kind < 0.4:  # avatar circles and toggles
+        for _ in range(rng.randint(1, 3)):
+            s = rng.randint(h // 2, h)
+            x0 = rng.randint(0, max(0, w - s))
+            if rng.random() < 0.5:
+                d.ellipse([x0, (h - s) // 2, x0 + s, (h + s) // 2], fill=col)
+            else:
+                d.rounded_rectangle([x0, (h - s) // 2, x0 + 2 * s, (h + s) // 2], radius=s // 2, outline=col, width=max(1, scale))
+                d.ellipse([x0 + 2, (h - s) // 2 + 2, x0 + s - 2, (h + s) // 2 - 2], fill=col)
+        return np.asarray(img)
+    for _ in range(rng.randint(0, 5)):  # icon-like strokes and shapes
         x0, y0 = rng.randint(0, w - 2), rng.randint(0, h - 2)
         x1, y1 = rng.randint(x0 + 1, w), rng.randint(y0 + 1, h)
-        shape = rng.choice(["rect", "ellipse", "line"])
-        col = tuple(int(c) for c in fg)
+        shape = rng.choice(["rect", "ellipse", "line", "poly"])
         if shape == "rect":
             d.rectangle([x0, y0, x1, y1], outline=col, width=max(1, scale))
         elif shape == "ellipse":
             d.ellipse([x0, y0, x1, y1], outline=col, width=max(1, scale))
-        else:
+        elif shape == "line":
             d.line([x0, y0, x1, y1], fill=col, width=max(1, scale))
+        else:
+            pts = [(rng.randint(x0, x1), rng.randint(y0, y1)) for _ in range(rng.randint(3, 6))]
+            d.polygon(pts, fill=col if rng.random() < 0.5 else None, outline=col)
     return np.asarray(img)
 
 
-def sample(rng, split="train"):
-    """(x float32 (H, W), label list[int], text)."""
-    scale = 1 if rng.random() < 0.5 else 2
-    if rng.random() < 0.04:
-        return prepare(blank(rng, scale)), [], ""
-    n = rng.choice([1, 1, 1, 2, 2, 2, 3, 3, 4, 5, 6, 8, 12])
-    text = phrase(rng, TRAIN_WORDS, n)[:70]
-    path = rng.choice(fonts(split))
-    rgb = render(rng, text, path, scale)
-    return prepare(rgb), [CHAR_INDEX[c] for c in text if c in CHAR_INDEX], text
+class Generator:
+    """Draws samples for one model family: text from textsrc.line over langs,
+    fonts from split, labels in alphabet."""
+
+    def __init__(self, charset, langs, line_fn, split="train", blank_rate=0.08):
+        self.alphabet = Alphabet(charset)
+        self.charset = set(charset)
+        self.langs, self.line_fn, self.split, self.blank_rate = langs, line_fn, split, blank_rate
+        self.primaries = fonts(split)
+        self.fallbacks = fonts("fallback")
+
+    def sample(self, rng):
+        """(x float32 (H, W), labels list[int], text)."""
+        scale = 1 if rng.random() < 0.5 else 2
+        if rng.random() < self.blank_rate:
+            return prepare(blank(rng, scale)), [], ""
+        for _ in range(20):
+            text = self.line_fn(rng, self.langs, self.charset, self.split)[:70].strip()
+            if not text:
+                continue
+            # The primary font must have every letter; signs may fall back.
+            need = {ord(c) for c in text if c.isalnum()}
+            fits = [f for f in self.primaries if need <= coverage_of(f)]
+            if not fits:
+                continue
+            primary = rng.choice(fits)
+            rgb = render(rng, text, primary, self.fallbacks, scale,
+                         self.line_fn(rng, self.langs, self.charset, self.split, 6))
+            if rgb is not None:
+                return prepare(rgb), self.alphabet.labels(text), text
+        raise RuntimeError("no font covers the generated text")
