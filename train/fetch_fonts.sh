@@ -98,7 +98,31 @@ for f in "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf" "ofl/hind/Hi
   "ofl/notosanstelugu/NotoSansTelugu[wdth,wght].ttf" "ofl/hindguntur/HindGuntur-Regular.ttf" \
   "ofl/notosanskannada/NotoSansKannada[wdth,wght].ttf" "ofl/balootamma2/BalooTamma2[wght].ttf" \
   "ofl/notosansmalayalam/NotoSansMalayalam[wdth,wght].ttf" "ofl/manjari/Manjari-Regular.ttf" \
-  "ofl/notosanssinhala/NotoSansSinhala[wdth,wght].ttf"; do
+  "ofl/notosanssinhala/NotoSansSinhala[wdth,wght].ttf" \
+  "ofl/googlesans/GoogleSans[GRAD,opsz,wght].ttf" "ofl/anekdevanagari/AnekDevanagari[wdth,wght].ttf" \
+  "ofl/poppins/Poppins-Regular.ttf" "ofl/poppins/Poppins-Bold.ttf" "ofl/martelsans/MartelSans-Regular.ttf" \
+  "ofl/khula/Khula-Regular.ttf" "ofl/palanquin/Palanquin-Regular.ttf" "ofl/yantramanav/Yantramanav-Regular.ttf" \
+  "ofl/gotu/Gotu-Regular.ttf" "ofl/kadwa/Kadwa-Regular.ttf" "ofl/eczar/Eczar[wght].ttf" \
+  "ofl/tirodevanagarimarathi/TiroDevanagariMarathi-Regular.ttf" "ofl/annapurnasil/AnnapurnaSIL-Regular.ttf" \
+  "ofl/anekbangla/AnekBangla[wdth,wght].ttf" "ofl/mina/Mina-Regular.ttf" "ofl/tirobangla/TiroBangla-Regular.ttf" \
+  "ofl/balooda2/BalooDa2[wght].ttf" "ofl/atma/Atma-Regular.ttf" \
+  "ofl/anekgurmukhi/AnekGurmukhi[wdth,wght].ttf" "ofl/muktamahee/MuktaMahee-Regular.ttf" \
+  "ofl/tirogurmukhi/TiroGurmukhi-Regular.ttf" "ofl/baloopaaji2/BalooPaaji2[wght].ttf" "ofl/braahone/BraahOne-Regular.ttf" \
+  "ofl/anekgujarati/AnekGujarati[wdth,wght].ttf" "ofl/muktavaani/MuktaVaani-Regular.ttf" "ofl/muktavaani/MuktaVaani-Bold.ttf" \
+  "ofl/rasa/Rasa[wght].ttf" "ofl/baloobhai2/BalooBhai2[wght].ttf" "ofl/farsan/Farsan-Regular.ttf" \
+  "ofl/anektamil/AnekTamil[wdth,wght].ttf" "ofl/muktamalar/MuktaMalar-Regular.ttf" "ofl/meerainimai/MeeraInimai-Regular.ttf" \
+  "ofl/pavanam/Pavanam-Regular.ttf" "ofl/tirotamil/TiroTamil-Regular.ttf" "ofl/arima/Arima[wght].ttf" \
+  "ofl/baloothambi2/BalooThambi2[wght].ttf" "ofl/karlatamilupright/KarlaTamilUpright-Regular.ttf" \
+  "ofl/anektelugu/AnekTelugu[wdth,wght].ttf" "ofl/mandali/Mandali-Regular.ttf" "ofl/ntr/NTR-Regular.ttf" \
+  "ofl/ramaraja/Ramaraja-Regular.ttf" "ofl/suranna/Suranna-Regular.ttf" "ofl/gurajada/Gurajada-Regular.ttf" \
+  "ofl/mallanna/Mallanna-Regular.ttf" "ofl/ramabhadra/Ramabhadra-Regular.ttf" "ofl/tirotelugu/TiroTelugu-Regular.ttf" \
+  "ofl/balootammudu2/BalooTammudu2[wght].ttf" "ofl/timmana/Timmana-Regular.ttf" \
+  "ofl/anekkannada/AnekKannada[wdth,wght].ttf" "ofl/hindmysuru/HindMysuru-Regular.ttf" "ofl/hubballi/Hubballi-Regular.ttf" \
+  "ofl/benne/Benne-Regular.ttf" "ofl/tirokannada/TiroKannada-Regular.ttf" \
+  "ofl/anekmalayalam/AnekMalayalam[wdth,wght].ttf" "ofl/gayathri/Gayathri-Regular.ttf" "ofl/gayathri/Gayathri-Bold.ttf" \
+  "ofl/baloochettan2/BalooChettan2[wght].ttf" \
+  "ofl/abhayalibre/AbhayaLibre-Regular.ttf" "ofl/abhayalibre/AbhayaLibre-Bold.ttf" "ofl/gemunulibre/GemunuLibre[wght].ttf" \
+  "ofl/maname/Maname-Regular.ttf" "ofl/yaldevi/Yaldevi[wght].ttf"; do
   get indic-train "$f" OFL-1.1
 done
 for f in "ofl/ibmplexsansdevanagari/IBMPlexSansDevanagari-Regular.ttf" "ofl/notoserifbengali/NotoSerifBengali[wdth,wght].ttf" \
@@ -115,7 +139,16 @@ for f in "ofl/notosansthai/NotoSansThai[wdth,wght].ttf" "ofl/notoserifthai/NotoS
   "ofl/sarabun/Sarabun-Regular.ttf" "ofl/prompt/Prompt-Regular.ttf" "ofl/kanit/Kanit-Regular.ttf" \
   "ofl/notosanslao/NotoSansLao[wdth,wght].ttf" "ofl/notosanskhmer/NotoSansKhmer[wdth,wght].ttf" \
   "ofl/battambang/Battambang-Regular.ttf" "ofl/hanuman/Hanuman[wght].ttf" "ofl/kantumruypro/KantumruyPro[wght].ttf" \
-  "ofl/notosansmyanmar/NotoSansMyanmar[wdth,wght].ttf" "ofl/padauk/Padauk-Regular.ttf"; do
+  "ofl/notosansmyanmar/NotoSansMyanmar[wdth,wght].ttf" "ofl/padauk/Padauk-Regular.ttf" "ofl/padauk/Padauk-Bold.ttf" \
+  "ofl/googlesans/GoogleSans[GRAD,opsz,wght].ttf" "ofl/notosansthailooped/NotoSansThaiLooped[wdth,wght].ttf" \
+  "ofl/anuphan/Anuphan[wght].ttf" "ofl/baijamjuree/BaiJamjuree-Regular.ttf" "ofl/mitr/Mitr-Regular.ttf" \
+  "ofl/niramit/Niramit-Regular.ttf" "ofl/taviraj/Taviraj-Regular.ttf" "ofl/trirong/Trirong-Regular.ttf" \
+  "ofl/maitree/Maitree-Regular.ttf" "ofl/athiti/Athiti-Regular.ttf" "ofl/k2d/K2D-Regular.ttf" \
+  "ofl/chakrapetch/ChakraPetch-Regular.ttf" "ofl/notosanslaolooped/NotoSansLaoLooped[wdth,wght].ttf" \
+  "ofl/phetsarath/Phetsarath-Regular.ttf" "ofl/phetsarath/Phetsarath-Bold.ttf" \
+  "ofl/kdamthmorpro/KdamThmorPro-Regular.ttf" "ofl/nokora/Nokora[wght].ttf" "ofl/kohsantepheap/KohSantepheap-Regular.ttf" \
+  "ofl/suwannaphum/Suwannaphum-Regular.ttf" "ofl/bayon/Bayon-Regular.ttf" "ofl/moulpali/Moulpali-Regular.ttf" \
+  "ofl/preahvihear/Preahvihear-Regular.ttf"; do
   get sea-train "$f" OFL-1.1
 done
 for f in "ofl/ibmplexsansthai/IBMPlexSansThai-Regular.ttf" "ofl/notoseriflao/NotoSerifLao[wdth,wght].ttf" \
@@ -125,7 +158,8 @@ done
 
 # Georgian, Armenian and Ethiopic. The serif Notos are held out.
 for f in "ofl/notosansgeorgian/NotoSansGeorgian[wdth,wght].ttf" "ofl/notosansarmenian/NotoSansArmenian[wdth,wght].ttf" \
-  "ofl/notosansethiopic/NotoSansEthiopic[wdth,wght].ttf" "ofl/abyssinicasil/AbyssinicaSIL-Regular.ttf"; do
+  "ofl/notosansethiopic/NotoSansEthiopic[wdth,wght].ttf" "ofl/abyssinicasil/AbyssinicaSIL-Regular.ttf" \
+  "ofl/googlesans/GoogleSans[GRAD,opsz,wght].ttf" "ofl/menbere/Menbere[wght].ttf"; do
   get cau-train "$f" OFL-1.1
 done
 for f in "ofl/notoserifgeorgian/NotoSerifGeorgian[wdth,wght].ttf" "ofl/notoserifarmenian/NotoSerifArmenian[wdth,wght].ttf" \
@@ -142,5 +176,22 @@ if [ ! -s fonts/train/DejaVuSans.ttf ]; then
 fi
 for f in DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSansMono.ttf; do
   echo "| $f | train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
+done
+# DejaVu Sans also draws Armenian and Georgian.
+for f in DejaVuSans.ttf DejaVuSans-Bold.ttf; do
+  cp fonts/train/$f fonts/cau-train/$f
+  echo "| $f | cau-train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
+done
+
+# GNU FreeFont (GPL-3.0 with the font exception) draws Armenian, Georgian and
+# Ethiopic. Only training uses them, and no font file or rendering ships.
+F=https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip
+if [ ! -s fonts/cau-train/FreeSerif.ttf ]; then
+  mkdir -p fonts/dl && curl -fsSL --retry 3 -o fonts/dl/freefont.zip "$F"
+  unzip -o -q -j fonts/dl/freefont.zip 'freefont-20120503/FreeSans.ttf' 'freefont-20120503/FreeSansBold.ttf' \
+    'freefont-20120503/FreeSerif.ttf' 'freefont-20120503/FreeSerifBold.ttf' -d fonts/cau-train
+fi
+for f in FreeSans.ttf FreeSansBold.ttf FreeSerif.ttf FreeSerifBold.ttf; do
+  echo "| $f | cau-train | GPL-3.0-with-font-exception | $F |" >> fonts/LICENSES.md
 done
 ls fonts/train fonts/heldout | wc -l

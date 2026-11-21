@@ -189,7 +189,7 @@ None of this ships. The library holds only the trained weights.
 
 | Input | Licence | Use |
 |---|---|---|
-| Open fonts from google/fonts, DejaVu | OFL-1.1, UFL-1.0, Bitstream Vera | rendering training lines, listed in `train/fonts/LICENSES.md` |
+| Open fonts from google/fonts, DejaVu, GNU FreeFont | OFL-1.1, UFL-1.0, Bitstream Vera, GPL-3.0 with the font exception | rendering training lines, listed in `train/fonts/LICENSES.md` |
 | wordfreq word lists | code Apache-2.0, data CC-BY-SA 4.0 | training words in 42 languages |
 | Wikipedia article intros (`wikitext.py`) | CC BY-SA 4.0 | words for the languages wordfreq lacks |
 | OpenCC | Apache-2.0 | Simplified to Traditional Chinese |
