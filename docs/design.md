@@ -140,6 +140,26 @@ uses text that no training source draws from.
 Vision accurate reads only about 10% of the Greek pages: it does not read
 Greek even with automatic language detection.
 
+## Milestone 2 to 5 gates (fixed 2026-11-21, before those models finished training)
+
+Vision accurate, with automatic language detection, is the baseline where it
+reads a script at all. Where it does not, the bar is absolute. `ui-*` sets
+are the Mac's own UI strings, never trained on. `ho-*` sets are the held-out
+fifth of the training word lists, a weaker test because their text comes from
+the same source as training. Scripts without spaces (CJK, Thai, Lao, Khmer,
+Myanmar) are scored per character, the rest per word.
+
+| Family | Set | Vision accurate (1x / 2x) | Bar |
+|---|---|---|---|
+| CJK | `ui-cjk`, 16 pages, 19,845 characters | 86.8% / 86.0% (zh_CN 88.5, zh_TW 88.6, ja 78.3, ko 95.8 at 1x) | at least Vision overall at both scales, no language more than 3 points below it |
+| Right to left | `ui-rtl`, Arabic and Hebrew | Arabic 83.6% / 89.5%, Hebrew 2.3% | Arabic at least Vision, Hebrew at least 85% |
+| Indic | `ui-indic` (Hindi), `ho-indic` (11 languages) | Hindi 92.1% / 92.4%, Marathi and Nepali 71-80%, the other scripts 8-25% | Hindi, Marathi and Nepali at least Vision, every other language at least 80% |
+| Southeast Asian | `ui-sea` (Thai), `ho-sea` | Thai 94.5% / 94.2%, Lao, Khmer and Myanmar 7-31% | Thai at least Vision, Lao, Khmer and Myanmar at least 85% |
+| Georgian, Armenian, Ethiopic | `ho-cau` | 12-21% | each language at least 90% |
+| Router | every set above, read through the routed engine | n/a | routed accuracy within 1 point of reading each set with its own family's model |
+
+Vision accurate takes 0.6 to 1.9 s per page on these sets.
+
 ## How the later milestones work
 
 - **Large alphabets (CJK).** The CJK family has 12,098 characters, from
