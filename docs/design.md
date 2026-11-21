@@ -178,8 +178,8 @@ Times are per page on the M5, with training running for yomi's.
 | Arabic | 77.0% / 81.2% | 65.6% / 80.9% | **83.6% / 89.5%** | 180, 4,500, 570 |
 | Hebrew | **81.5% / 81.6%** | no recognizer | 2.3% / 2.3% | |
 | Hindi UI | 84.3% / 85.1% | 83.1% / 86.7% | **92.1% / 92.4%** | 250, 4,500, 600 |
-| Thai UI | 92.2% / 93.2% | 96.2% / 92.2% | **94.5% / 94.2%** | 90, 8,400, 1,700 |
-| Lao, Khmer, Myanmar, held out, 1x | **86.7%, 86.4%, 63.3%** | no recognizer | 22.5%, 29.2%, 7.4% | 70, n/a, 1,000 |
+| Thai UI | **96.6% / 96.9%** | 96.2% / 92.2% | 94.5% / 94.2% | 90, 8,400, 1,700 |
+| Lao, Khmer, Myanmar, held out, 1x | **86.7%, 90.5%, 78.7%** | no recognizer | 22.5%, 29.2%, 7.4% | 70, n/a, 1,000 |
 | Georgian, Armenian, Amharic, held out, 1x | **91.6%, 80.9%, 69.2%** | no recognizer | 15.3%, 12.5%, 19.9% | 42, n/a, 720 |
 
 PaddleOCR's Latin recognizer reads Vietnamese at 40%, Romanian at 67% and
@@ -191,12 +191,14 @@ Gujarati, Punjabi, Malayalam, Sinhala, Lao, Khmer, Myanmar, Georgian,
 Armenian or Amharic. That makes it a teacher for CJK, Tamil and Telugu, and
 not for Arabic.
 
-yomi's Southeast Asian and Caucasian-Ethiopic models miss their bars. The
-first Thai model read monospace text at 61%, where Vision reads 98%. Training
-had no monospace Thai font, and with the TLWG fonts it reads 96%.
-Proportional Thai reads 92%, against Vision's 94%. Myanmar, at 63%, trained
-on three font families and is held out on a fourth, a serif. Georgian
-passes. Armenian reads 81% and Amharic 69%. The held-out serif draws some of
+Thai, Lao and Khmer pass their bars, Myanmar does not. The first Thai model
+read monospace text at 61%, where Vision reads 98%. Training had no
+monospace Thai font, and with the TLWG fonts it reads 96%. The line finder
+also merged rows of small, tightly set Thai and Myanmar, whose marks touch
+across rows. Grouping the fused blobs after the rest lifted Thai from 93% to
+97% and Myanmar from 63% to 79%. Myanmar trained on three font families
+and is held out on a fourth, a serif. Of the Caucasian-Ethiopic languages,
+Georgian passes. Armenian reads 81% and Amharic 69%. The held-out serif draws some of
 their letters unlike any training font.
 
 The held-out Georgian pages were regenerated on 2026-11-22. The generator had
@@ -218,8 +220,8 @@ Southeast Asian and Caucasian-Ethiopic recognizers, and router-3. The router gat
 | Right-to-left UI | 79.5% / 81.8% | 78.8% / 81.3% |
 | Hindi UI | 84.3% / 85.1% | 83.9% / 84.8% |
 | Indic, held out | 66.1% / 69.5% | 65.7% / 69.1% |
-| Thai UI | 92.2% / 93.2% | 91.9% / 93.0% |
-| Southeast Asian, held out | 81.9% / 80.7% | 79.9% / 78.5% |
+| Thai UI | 96.6% / 96.9% | 96.3% / 96.6% |
+| Southeast Asian, held out | 87.6% / 85.9% | 86.1% / 84.0% |
 | Caucasian-Ethiopic, held out | 80.0% / 78.6% | 79.4% / 78.3% |
 | Code | 98.0% / 98.1%, 5 extra words | 98.2% / 98.2%, 13 extra words |
 | Layout scenes | 92.1% / 91.9%, 41 extra words | 92.2% / 92.0%, 72 extra words |

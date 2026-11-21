@@ -37,7 +37,7 @@ A program links only the models it imports.
 | `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 7.2 MB | 91.9% / 92.2% of UI characters | 86.8% / 86.0% |
 | `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.7 MB | Arabic 77.2% / 81.6%, Hebrew 81.7% / 82.0% of UI words | Arabic 83.6% / 89.5%, Hebrew 2.3% |
 | `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 84.3% / 85.1% of UI words | 92.1% / 92.4% |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.9 MB | Thai 92.2% / 93.2% of UI characters | 94.5% / 94.2% |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.9 MB | Thai 96.6% / 96.9% of UI characters | 94.5% / 94.2% |
 | `models/caucasian` | Georgian, Armenian, Ethiopic | 1 MB | 91.6%, 80.9% and 69.2% of held-out words at 1x | 15%, 13% and 20% |
 | `models/latin` | printable ASCII | 0.6 MB | English only | |
 | `models/router` | names each line's script family | 0.2 MB | | |
@@ -74,9 +74,9 @@ screencapture -i -x /tmp/shot.png                  # drag a box around some text
 
 ## Status
 
-Western and CJK clear their bars against Vision. Right-to-left, Indic,
-Southeast Asian, and Georgian, Armenian and Ethiopic are packaged but below
-theirs. [docs/design.md](docs/design.md)
+Western and CJK clear their bars against Vision, and Thai, Lao, Khmer and
+Georgian clear theirs. Arabic, Hebrew, the Indic scripts, Myanmar, Armenian
+and Ethiopic are packaged but below theirs. [docs/design.md](docs/design.md)
 holds the plan, the bar each model must clear and the measurements against
 Vision, PaddleOCR, tesseract and Windows.Media.Ocr.
 
