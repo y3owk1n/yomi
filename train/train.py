@@ -2,6 +2,12 @@
 rendered in the held-out fonts.
 
 Usage: python train.py OUTDIR --family western --data data/western [--width 0.8 --steps 40000]
+
+A fine-tune starts from a checkpoint (--init) and takes fewer steps at a lower
+learning rate. It should train on the old set as well as the new one, since a
+model trained on new lines alone forgets the old ones:
+  python train.py runs/western-c --family western --init runs/western-b/best.pt \
+      --data data/western-b-600k data/western-c-200k --steps 20000
 """
 import argparse
 import json
@@ -30,16 +36,20 @@ def bucket_of(width):
 
 
 class Fixed:
-    """Batches from a pre-rendered set (prerender.Set) in fixed shape buckets,
-    reshuffled each pass."""
+    """Batches from one or more pre-rendered sets (prerender.Set) in fixed
+    shape buckets, reshuffled each pass. Lines of all the sets mix within a
+    batch."""
 
-    def __init__(self, path, seed=0):
-        self.data = Set(path)
+    def __init__(self, paths, seed=0):
+        sets = [Set(p) for p in ([paths] if isinstance(paths, str) else paths)]
         self.rng = random.Random(seed)
         self.members = {b: [] for b in BUCKETS}
-        for i, w in enumerate(self.data.widths):
-            if w <= BUCKETS[-1][1]:
-                self.members[bucket_of(w)].append(i)
+        self.lines = []
+        for d in sets:
+            for i, w in enumerate(d.widths):
+                if w <= BUCKETS[-1][1]:
+                    self.members[bucket_of(w)].append(len(self.lines))
+                    self.lines.append((d, i))
 
     def __iter__(self):
         while True:
@@ -49,7 +59,8 @@ class Fixed:
                 batches += [(w, idx[k:k + n]) for k in range(0, len(idx) - n + 1, n)]
             self.rng.shuffle(batches)
             for w, g in batches:
-                yield collate([(self.data[i][0].astype(np.float32) / 255, self.data[i][1], self.data[i][2]) for i in g], w)
+                rows = [d[i] for d, i in (self.lines[k] for k in g)]
+                yield collate([(x.astype(np.float32) / 255, lab, text) for x, lab, text in rows], w)
 
 
 def collate(b, w):
@@ -116,18 +127,47 @@ def validation(family, batch):
     return val, gen.alphabet.chars
 
 
+def init_from(model, path, meta):
+    """Loads the checkpoint at path into model. Its network must be the same
+    shape. Characters of the new alphabet that the checkpoint knows keep their
+    output rows, and new ones start untrained. Returns how many were kept."""
+    ck = torch.load(path, map_location="cpu", weights_only=False)
+    for k in ("width", "arch", "head"):
+        if ck[k] != meta[k]:
+            sys.exit(f"--init {path}: its {k} is {ck[k]}, this run's is {meta[k]}")
+    if meta["head"] == "gated" and ck["rank"] != meta["rank"]:
+        sys.exit(f"--init {path}: its rank is {ck['rank']}, this run's is {meta['rank']}")
+    # Output rows go by character. The full head's row 0 is blank, and the
+    # gated head's character layer has no blank row.
+    rows, off = (("head.chars.weight", "head.chars.bias"), 0) if meta["head"] == "gated" else (("head.weight", "head.bias"), 1)
+    old, new = ck["model"], model.state_dict()
+    known = {c: i for i, c in enumerate(ck["alphabet"])}
+    kept = [(i, known[c]) for i, c in enumerate(meta["alphabet"]) if c in known]
+    for k, v in new.items():
+        if k not in rows:
+            v.copy_(old[k])
+            continue
+        if off:
+            v[0] = old[k][0]
+        for i, j in kept:
+            v[i + off] = old[k][j + off]
+    model.load_state_dict(new)
+    return len(kept)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
     ap.add_argument("--family", required=True)
-    ap.add_argument("--data", required=True, help="pre-rendered set from prerender.py")
+    ap.add_argument("--data", required=True, nargs="+", help="pre-rendered sets from prerender.py")
+    ap.add_argument("--init", help="checkpoint to fine-tune from")
     ap.add_argument("--width", type=float, default=0.8)
     ap.add_argument("--arch", default="ctx", choices=["base", "ctx"])
     ap.add_argument("--head", default="full", choices=["full", "gated"])
     ap.add_argument("--rank", type=int, default=128)
     ap.add_argument("--steps", type=int, default=40000)
     ap.add_argument("--batch", type=int, default=64)
-    ap.add_argument("--lr", type=float, default=3e-3)
+    ap.add_argument("--lr", type=float, help="peak learning rate, 3e-3 from scratch and 1e-3 with --init")
     ap.add_argument("--device", default="mps" if torch.backends.mps.is_available() else "cpu")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -136,11 +176,16 @@ def main():
 
     val, chars = validation(a.family, a.batch)
     classes = len(chars) + 1
-    model = Recognizer(classes, a.width, a.arch, a.head, a.rank).to(dev)
-    opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.steps, pct_start=0.05)
+    model = Recognizer(classes, a.width, a.arch, a.head, a.rank)
     meta = {"width": a.width, "arch": a.arch, "head": a.head, "rank": a.rank, "classes": classes,
             "alphabet": chars, "family": a.family}
+    if a.init:
+        kept = init_from(model, a.init, meta)
+        print(json.dumps({"init": a.init, "chars_kept": kept, "chars": len(chars)}), flush=True)
+    model.to(dev)
+    lr = a.lr or (1e-3 if a.init else 3e-3)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=a.steps, pct_start=0.05)
 
     log = open(os.path.join(a.out, "log.jsonl"), "a")
     best, t0, run = 0.0, time.time(), 0.0
