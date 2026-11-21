@@ -235,6 +235,15 @@ twice. The router sends some icons to CJK, which reads a round one as 〇
 and others as Han or Hangul characters where Western reads nothing. That
 nearly doubles the stray words on the layout scenes.
 
+Two attempts at the Southeast Asian gap changed nothing. Router-4,
+fine-tuned from router-3 on lines with the current fonts, scored within 0.3
+points of it on every set. Reading a line with the runner-up family too
+whenever the first read's mean character probability fell under 0.85 to
+0.96 moved held-out Southeast Asian by at most 0.3 points and added 30 to 40
+stray words on the layout scenes. A recognizer reading a script it never
+trained on can still be sure of its characters, so comparing two reads by
+that measure does not tell which recognizer was right.
+
 ## How the later milestones work
 
 - **Large alphabets (CJK).** The CJK family has 12,098 characters, from
