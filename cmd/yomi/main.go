@@ -7,7 +7,7 @@
 //	    line per frame: {"page","scale","first_ms","median_ms",
 //	    "words":[[text,x,y,w,h,confidence]...]}, boxes in logical pixels
 //
-// NAME is a recognizer (latin, western, cjk, rtl, sea, caucasian), or auto:
+// NAME is a recognizer (latin, western, cjk, rtl, indic, sea, caucasian), or auto:
 // every recognizer, with the router choosing each line's.
 package main
 
@@ -27,6 +27,7 @@ import (
 	"github.com/y3owk1n/yomi"
 	"github.com/y3owk1n/yomi/models/caucasian"
 	"github.com/y3owk1n/yomi/models/cjk"
+	"github.com/y3owk1n/yomi/models/indic"
 	"github.com/y3owk1n/yomi/models/latin"
 	"github.com/y3owk1n/yomi/models/router"
 	"github.com/y3owk1n/yomi/models/rtl"
@@ -36,14 +37,13 @@ import (
 
 var models = map[string]func() (*yomi.Model, error){
 	"latin": latin.Model, "western": western.Model, "cjk": cjk.Model,
-	"rtl": rtl.Model, "sea": sea.Model, "caucasian": caucasian.Model,
+	"rtl": rtl.Model, "indic": indic.Model, "sea": sea.Model, "caucasian": caucasian.Model,
 }
 
-// auto returns an engine with every recognizer and the router, Western
-// reading any family it lacks.
+// auto returns an engine with every recognizer and the router.
 func auto() (*yomi.Engine, error) {
 	opts := []yomi.Option{}
-	for _, load := range []func() (*yomi.Model, error){cjk.Model, rtl.Model, sea.Model, caucasian.Model} {
+	for _, load := range []func() (*yomi.Model, error){cjk.Model, rtl.Model, indic.Model, sea.Model, caucasian.Model} {
 		m, err := load()
 		if err != nil {
 			return nil, err
@@ -86,7 +86,7 @@ func main() {
 		fail(fmt.Errorf("usage: yomi read|bench"))
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
-	name := fs.String("model", "western", "recognizer: latin, western, cjk, rtl, sea, caucasian, or auto for all of them")
+	name := fs.String("model", "western", "recognizer: latin, western, cjk, rtl, indic, sea, caucasian, or auto for all of them")
 	dir := fs.String("model-dir", "", "load the recognizer from this directory (model.json, weights.bin) instead")
 	scale := fs.Int("scale", 1, "frame pixels per logical pixel (read)")
 	reps := fs.Int("reps", 3, "timed reads after the first (bench)")
