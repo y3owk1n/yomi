@@ -10,6 +10,8 @@ dependencies = [
     "fonttools>=4.59",
     "wordfreq>=3.1",
     "opencc>=1.1",
+    "uharfbuzz>=0.57",
+    "freetype-py>=2.5",
 ]
 
 [tool.uv]
