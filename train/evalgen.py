@@ -1,22 +1,52 @@
-"""Writes the evaluation pages: UI-like HTML in the macOS system font and
-SF Mono, light and dark, 11 to 16 px. render.swift renders them in WebKit and
-collects each word's exact box and text.
+"""Writes evaluation pages: UI-like HTML in the macOS system font and SF Mono,
+light and dark, 11 to 16 px, each page in one language. render.swift renders
+them in WebKit and collects each word's exact box and text.
 
-Usage: python -I evalgen.py OUTDIR
+Sources:
+  ui:fr,de,ru,...   interface strings of this Mac's apps (uistrings.py), never
+                    used in training
+  heldout:FAMILY    training-style lines over the held-out half of the words
+
+Usage: python evalgen.py OUTDIR SOURCE [PAGES_PER_LANG] [SEED]
 """
 import html
+import json
 import os
 import random
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from textsrc import EVAL_WORDS, Docs, phrase, token  # noqa: E402
+from families import FAMILIES  # noqa: E402
+from textsrc import line  # noqa: E402
 
-out = sys.argv[1]
-if len(sys.argv) > 2:
-    _d = Docs(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../..")), sys.argv[2])
-    phrase, token = _d.phrase, _d.token
-os.makedirs(out, exist_ok=True)
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+class UIStrings:
+    def __init__(self, lang):
+        self.strings = json.load(open(os.path.join(HERE, "data", "uistrings.json")))[lang]
+
+    def phrase(self, rng, n):
+        words = []
+        while len(words) < n:
+            words += rng.choice(self.strings).split()
+        return " ".join(words[:n])
+
+    def token(self, rng):
+        return rng.choice([s for s in (rng.choice(self.strings) for _ in range(8)) if len(s.split()) <= 2] or ["OK"]).split()[0]
+
+
+class HeldOut:
+    def __init__(self, family, lang):
+        charset, langs = FAMILIES[family]
+        self.charset, self.langs = set(charset), {lang: 1}
+
+    def phrase(self, rng, n):
+        return line(rng, self.langs, self.charset, "heldout", n)
+
+    def token(self, rng):
+        return line(rng, self.langs, self.charset, "heldout", 1)
+
 
 JS = r"""
 window.__words = () => {
@@ -66,41 +96,53 @@ def esc(s):
     return html.escape(s, quote=False)
 
 
-def page(rng, size, dark):
-    words = EVAL_WORDS
-    nav = "".join(
-        f'<div class="{"on" if i == 3 else ""}">{esc(phrase(rng, words, rng.randint(1, 2)))}</div>'
-        for i in range(rng.randint(10, 22))
-    )
-    body = [f"<h3 style='margin:4px 0'>{esc(phrase(rng, words, rng.randint(2, 4)))}</h3>"]
+def page(rng, src, lang, size, dark):
+    ph, tok = src.phrase, src.token
+    nav = "".join(f'<div class="{"on" if i == 3 else ""}">{esc(ph(rng, rng.randint(1, 2)))}</div>'
+                  for i in range(rng.randint(10, 22)))
+    body = [f"<h3 style='margin:4px 0'>{esc(ph(rng, rng.randint(2, 4)))}</h3>"]
     for _ in range(rng.randint(2, 3)):
-        body.append(f"<p>{esc(phrase(rng, words, rng.randint(14, 30)))} "
-                    f"<a href=#>{esc(phrase(rng, words, 2))}</a> "
-                    f"<span class=mut>{esc(phrase(rng, words, rng.randint(4, 10)))}</span></p>")
-    body.append("<div>" + "".join(
-        f'<span class="btn {"pri" if i == 0 else ""}">{esc(phrase(rng, words, rng.randint(1, 2)))}</span>'
-        for i in range(rng.randint(3, 6))) + "</div>")
-    rows = "".join(
-        "<tr>" + "".join(f"<td{' class=mono' if c == 2 else ''}>{esc(token(rng, words))}</td>"
-                         for c in range(5)) + "</tr>"
-        for _ in range(rng.randint(5, 9)))
+        body.append(f"<p>{esc(ph(rng, rng.randint(14, 30)))} <a href=#>{esc(ph(rng, 2))}</a> "
+                    f"<span class=mut>{esc(ph(rng, rng.randint(4, 10)))}</span></p>")
+    body.append("<div>" + "".join(f'<span class="btn {"pri" if i == 0 else ""}">{esc(ph(rng, rng.randint(1, 2)))}</span>'
+                                  for i in range(rng.randint(3, 6))) + "</div>")
+    rows = "".join("<tr>" + "".join(f"<td{' class=mono' if c == 2 else ''}>{esc(tok(rng))}</td>" for c in range(5)) + "</tr>"
+                   for _ in range(rng.randint(5, 9)))
     body.append(f"<table>{rows}</table>")
-    body.append("<div class='card mono'>" + "<br>".join(
-        esc(phrase(rng, words, rng.randint(3, 8))) for _ in range(rng.randint(3, 5))) + "</div>")
-    body.append(f"<p class=mut>{esc(phrase(rng, words, rng.randint(10, 20)))}</p>")
+    body.append("<div class='card mono'>" + "<br>".join(esc(ph(rng, rng.randint(3, 8))) for _ in range(rng.randint(3, 5))) + "</div>")
+    body.append(f"<p class=mut>{esc(ph(rng, rng.randint(10, 20)))}</p>")
     cls = "dark" if dark else ""
-    return (f"<!doctype html><html><head><meta charset=utf-8><style>{CSS} body{{font-size:{size}px}}</style>"
+    return (f"<!doctype html><html lang={lang}><head><meta charset=utf-8><style>{CSS} body{{font-size:{size}px}}</style>"
             f"<script>{JS}</script></head><body class='{cls}'><nav>{nav}</nav><main>{''.join(body)}</main></body></html>")
 
 
-rng = random.Random({"docs": 20261121, "code": 20261122}.get(sys.argv[2] if len(sys.argv) > 2 else "", 20261120))
-names = []
-for i, size in enumerate([11, 11, 12, 12, 13, 13, 14, 14, 15, 16, 11, 13]):
-    for dark in (False, True):
-        name = f"p{i:02d}-{size}px{'-dark' if dark else ''}"
-        with open(os.path.join(out, name + ".html"), "w") as f:
-            f.write(page(rng, size, dark))
-        names.append(name)
-with open(os.path.join(out, "pages.txt"), "w") as f:
-    f.write("\n".join(names) + "\n")
-print(len(names), "pages in", out)
+def main():
+    out, source = sys.argv[1], sys.argv[2]
+    per = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+    rng = random.Random(int(sys.argv[4]) if len(sys.argv) > 4 else 20261122)
+    kind, arg = source.split(":", 1)
+    os.makedirs(out, exist_ok=True)
+    if kind == "ui":
+        langs = arg.split(",")
+        make = UIStrings
+    else:
+        family = arg
+        langs = list(FAMILIES[family][1])
+        make = lambda lang: HeldOut(family, lang)  # noqa: E731
+    sizes = [11, 12, 13, 14, 16]
+    names = []
+    for lang in langs:
+        src = make(lang)
+        for i in range(per):
+            size, dark = rng.choice(sizes), i % 2 == 1
+            name = f"{lang}-{i}-{size}px{'-dark' if dark else ''}"
+            with open(os.path.join(out, name + ".html"), "w") as f:
+                f.write(page(rng, src, lang.split("_")[0], size, dark))
+            names.append(name)
+    with open(os.path.join(out, "pages.txt"), "w") as f:
+        f.write("\n".join(names) + "\n")
+    print(len(names), "pages in", out)
+
+
+if __name__ == "__main__":
+    main()

@@ -3,7 +3,7 @@ recognizer. Words on one row join into a line until a gap wider than 1.2 em
 (a table column or a button edge) splits it. Each crop is padded by a
 seeded-random 10-35% of the line height on every side.
 
-Usage: python -I mklines.py EVALDIR OUTDIR
+Usage: python mklines.py EVALDIR OUTDIR
 Writes OUTDIR/{1x,2x}/NNNNN.png and OUTDIR/labels.jsonl:
   {"id":..., "scale":1|2, "page":..., "size":..., "mono":..., "text":..., "words":[...]}
 """
@@ -36,6 +36,16 @@ def lines_of(words):
             rows.append([w])
     return rows
 
+
+# The 1x frame is a 2x2 box filter of the 2x render, made once.
+for p in pages:
+    one, two = os.path.join(d, p + "@1x.png"), os.path.join(d, p + "@2x.png")
+    if not os.path.exists(one) and os.path.exists(two):
+        import numpy as np
+        a = np.asarray(Image.open(two).convert("RGB"), dtype=np.float32)
+        a = a[: a.shape[0] // 2 * 2, : a.shape[1] // 2 * 2]
+        a = a.reshape(a.shape[0] // 2, 2, a.shape[1] // 2, 2, 3).mean(axis=(1, 3))
+        Image.fromarray(np.round(a).astype(np.uint8)).save(one)
 
 labels = open(os.path.join(out, "labels.jsonl"), "w")
 n = 0
