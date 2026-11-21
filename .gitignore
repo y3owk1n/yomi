@@ -17,3 +17,4 @@ bin/
 /train/fonts/cau-heldout/
 /train/fonts/dl/
 __pycache__/
+*.test
