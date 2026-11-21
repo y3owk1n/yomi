@@ -33,15 +33,15 @@ A program links only the models it imports.
 
 | Package | Scripts | Size | Mac UI text, yomi (1x / 2x) | Vision accurate (1x / 2x) |
 |---|---|---|---|---|
-| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.9 MB | 94.4% / 94.8% of words | 86.3% / 86.3% |
-| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 7.2 MB | 90.4% / 90.8% of characters | 86.8% / 86.0% |
+| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.9 MB | 94.6% / 94.9% of words | 86.3% / 86.3% |
+| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 7.2 MB | 91.9% / 92.2% of characters | 86.8% / 86.0% |
 | `models/latin` | printable ASCII | 0.6 MB | English only | |
 
 The test pages hold Apple's own interface strings, 17 languages for Western
 and 4 for CJK, rendered by WebKit at 11 to 16 pixels in light and dark. No
 training source draws from them. Vision accurate is macOS's best mode, with
 automatic language detection. It reads Greek at 10%, where Western reads 95%,
-and Japanese at 78%, where CJK reads 91%.
+and Japanese at 78%, where CJK reads 92%.
 
 ## Try it
 
