@@ -1,8 +1,8 @@
 // Command yomi reads the text in PNG screenshots.
 //
-//	yomi read [-scale 2] FILE.png...
+//	yomi read [-model western] [-scale 2] FILE.png...
 //	    prints each file's lines, one per line of output
-//	yomi bench [-reps 3] DIR
+//	yomi bench [-model western] [-reps 3] DIR
 //	    reads DIR/pages.txt's NAME@1x.png and NAME@2x.png and writes one JSON
 //	    line per frame: {"page","scale","first_ms","median_ms",
 //	    "words":[[text,x,y,w,h,confidence]...]}, boxes in logical pixels
@@ -23,7 +23,10 @@ import (
 
 	"github.com/y3owk1n/yomi"
 	"github.com/y3owk1n/yomi/models/latin"
+	"github.com/y3owk1n/yomi/models/western"
 )
+
+var models = map[string]func() (*yomi.Model, error){"latin": latin.Model, "western": western.Model}
 
 func load(path string) (*image.RGBA, error) {
 	f, err := os.Open(path)
@@ -49,16 +52,22 @@ func main() {
 	if len(os.Args) < 2 {
 		fail(fmt.Errorf("usage: yomi read|bench"))
 	}
-	m, err := latin.Model()
+	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
+	name := fs.String("model", "western", "recognizer: latin or western")
+	scale := fs.Int("scale", 1, "frame pixels per logical pixel (read)")
+	reps := fs.Int("reps", 3, "timed reads after the first (bench)")
+	_ = fs.Parse(os.Args[2:])
+	model, ok := models[*name]
+	if !ok {
+		fail(fmt.Errorf("unknown model %q", *name))
+	}
+	m, err := model()
 	if err != nil {
 		fail(err)
 	}
 	e := yomi.New(m)
 	switch os.Args[1] {
 	case "read":
-		fs := flag.NewFlagSet("read", flag.ExitOnError)
-		scale := fs.Int("scale", 1, "frame pixels per logical pixel")
-		_ = fs.Parse(os.Args[2:])
 		for _, path := range fs.Args() {
 			img, err := load(path)
 			if err != nil {
@@ -77,9 +86,6 @@ func main() {
 			}
 		}
 	case "bench":
-		fs := flag.NewFlagSet("bench", flag.ExitOnError)
-		reps := fs.Int("reps", 3, "timed reads after the first")
-		_ = fs.Parse(os.Args[2:])
 		if err := bench(e, fs.Arg(0), *reps); err != nil {
 			fail(err)
 		}
