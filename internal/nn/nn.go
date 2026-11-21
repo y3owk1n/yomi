@@ -21,6 +21,12 @@ type layer struct {
 	C                      int
 	WOff                   int `json:"w"`
 	BOff                   int `json:"b"`
+	Rank, Classes          int // gated head: projection rank and character count
+	PWOff                  int `json:"proj_w"`
+	PBOff                  int `json:"proj_b"`
+	CWOff                  int `json:"char_w"`
+	CBOff                  int `json:"char_b"`
+	pw, pb, cw, cb         []float32
 	w, b                   []float32
 	wt                     []float32 // pointwise weights in tiles of 4 output channels: [co/4][ci][4]
 }
@@ -59,6 +65,14 @@ func Load(fsys fs.FS) (*Model, error) {
 			nw, nb = l.Cout*(l.Cin/l.Groups)*l.Kh*l.Kw, l.Cout
 		case "linectx":
 			nw, nb = l.C*l.C, l.C
+		case "gated":
+			nw, nb = l.C, 1
+			np, nc := l.Rank*l.C, l.Classes*l.Rank
+			if l.PWOff+np > len(f) || l.CWOff+nc > len(f) || l.CBOff+l.Classes > len(f) {
+				return nil, fmt.Errorf("layer %d reaches past weights.bin", i)
+			}
+			l.pw, l.pb = f[l.PWOff:l.PWOff+np], f[l.PBOff:l.PBOff+l.Rank]
+			l.cw, l.cb = f[l.CWOff:l.CWOff+nc], f[l.CBOff:l.CBOff+l.Classes]
 		default:
 			return nil, fmt.Errorf("unknown op %q", l.Op)
 		}
@@ -92,9 +106,144 @@ func (s *Scratch) get(which *[]float32, n int) []float32 {
 // Forward runs the network on an ink map of Height rows and returns the
 // logits, T rows of len(Alphabet)+1 classes, T = width / Stride.
 func (m *Model) Forward(in []float32, w int, s *Scratch) ([]float32, int, int) {
+	x := m.run(in, w, s, len(m.Layers))
+	// x is (classes, 1, T): return it as T rows of classes.
+	t, c := x.w, x.c
+	out := make([]float32, t*c)
+	for k := range c {
+		for j := range t {
+			out[j*c+k] = x.data[k*t+j]
+		}
+	}
+	return out, t, c
+}
+
+// Step is one time step's most likely class (0 is the CTC blank) and its
+// probability.
+type Step struct {
+	Class int
+	Prob  float32
+}
+
+// Steps runs the network and returns each time step's most likely class. A
+// gated head computes character logits only at the steps its blank logit
+// leaves open.
+func (m *Model) Steps(in []float32, w int, s *Scratch) []Step {
+	last := &m.Layers[len(m.Layers)-1]
+	if last.Op != "gated" {
+		logits, t, c := m.Forward(in, w, s)
+		steps := make([]Step, t)
+		for j := range t {
+			row := logits[j*c : (j+1)*c]
+			best := 0
+			for k := 1; k < c; k++ {
+				if row[k] > row[best] {
+					best = k
+				}
+			}
+			steps[j] = Step{best, softmaxAt(row, best)}
+		}
+		return steps
+	}
+	return gated(last, m.run(in, w, s, len(m.Layers)-1))
+}
+
+// gated applies a gated head to features x (C channels, one row, T steps).
+// The steps it opens share one pass over the character weights.
+func gated(l *layer, x tensor) []Step {
+	t, c := x.w, x.c
+	steps := make([]Step, t)
+	var open []int
+	var h []float32 // projections of the open steps, Rank each
+	f := make([]float32, c)
+	for j := range t {
+		for k := range c {
+			f[k] = x.data[k*t+j]
+		}
+		b := l.b[0]
+		for k, v := range f {
+			b += l.w[k] * v
+		}
+		if b >= 0 {
+			steps[j] = Step{0, sigmoid(b)}
+			continue
+		}
+		steps[j] = Step{0, 1 - sigmoid(b)} // the probability of not blank, for now
+		open = append(open, j)
+		for r := range l.Rank {
+			v := l.pb[r]
+			row := l.pw[r*c : (r+1)*c]
+			for k, fv := range f {
+				v += row[k] * fv
+			}
+			h = append(h, v)
+		}
+	}
+	if len(open) == 0 {
+		return steps
+	}
+	n := len(open)
+	best := make([]float32, n)
+	arg := make([]int, n)
+	for i := range best {
+		best[i] = float32(math.Inf(-1))
+	}
+	// Each logit counts toward the argmax and toward the softmax sum, so one
+	// pass keeps a running max and a running sum of exp per step.
+	maxv := make([]float32, n)
+	sum := make([]float64, n)
+	for i := range maxv {
+		maxv[i] = float32(math.Inf(-1))
+	}
+	for ci := range l.Classes {
+		row := l.cw[ci*l.Rank : (ci+1)*l.Rank]
+		bias := l.cb[ci]
+		for s := range n {
+			hs := h[s*l.Rank : (s+1)*l.Rank]
+			z := bias
+			for r, w := range row {
+				z += w * hs[r]
+			}
+			if z > best[s] {
+				best[s], arg[s] = z, ci
+			}
+			if z > maxv[s] {
+				sum[s] = sum[s]*math.Exp(float64(maxv[s]-z)) + 1
+				maxv[s] = z
+			} else {
+				sum[s] += math.Exp(float64(z - maxv[s]))
+			}
+		}
+	}
+	for s, j := range open {
+		p := float32(1/sum[s]) * steps[j].Prob // softmax of the best class times P(not blank)
+		pBlank := 1 - steps[j].Prob
+		if pBlank >= p {
+			steps[j] = Step{0, pBlank}
+		} else {
+			steps[j] = Step{arg[s] + 1, p}
+		}
+	}
+	return steps
+}
+
+func sigmoid(v float32) float32 { return float32(1 / (1 + math.Exp(-float64(v)))) }
+
+// softmaxAt is the softmax probability of class k in row.
+func softmaxAt(row []float32, k int) float32 {
+	m := row[k]
+	var sum float64
+	for _, v := range row {
+		sum += math.Exp(float64(v - m))
+	}
+	return float32(1 / sum)
+}
+
+// run applies the first n layers to an ink map of Height rows.
+func (m *Model) run(in []float32, w int, s *Scratch, n int) tensor {
 	x := tensor{1, m.Height, w, in}
 	useA := true
-	for i := range m.Layers {
+	for i := range n {
 		l := &m.Layers[i]
 		if l.Op == "linectx" {
 			lineContext(l, x)
@@ -120,15 +269,7 @@ func (m *Model) Forward(in []float32, w int, s *Scratch) ([]float32, int, int) {
 		}
 		x = y
 	}
-	// x is (classes, 1, T): return it as T rows of classes.
-	t, c := x.w, x.c
-	out := make([]float32, t*c)
-	for k := range c {
-		for j := range t {
-			out[j*c+k] = x.data[k*t+j]
-		}
-	}
-	return out, t, c
+	return x
 }
 
 func relu(v float32) float32 {

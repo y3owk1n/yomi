@@ -150,14 +150,14 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 		return nil
 	}
 	s := e.pool.Get().(*nn.Scratch)
-	logits, t, c := net.Forward(x, w, s)
+	steps := net.Steps(x, w, s)
 	e.pool.Put(s)
-	return decode(logits, t, c, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
+	return decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
 }
 
 // decode is greedy CTC: the best class per step, repeats and blanks dropped,
 // spaces splitting words. A word's box spans its first to last step.
-func decode(logits []float32, t, c int, alpha []rune, stride int, r image.Rectangle, w, scale int) []Word {
+func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w, scale int) []Word {
 	sx := float64(r.Dx()) / float64(w)
 	var (
 		words  []Word
@@ -179,20 +179,14 @@ func decode(logits []float32, t, c int, alpha []rune, stride int, r image.Rectan
 		})
 		cur = nil
 	}
-	for j := range t {
-		row := logits[j*c : (j+1)*c]
-		best := 0
-		for k := 1; k < c; k++ {
-			if row[k] > row[best] {
-				best = k
-			}
-		}
+	for j, st := range steps {
+		best := st.Class
 		if best != prev && best != 0 {
 			ch := alpha[best-1]
 			if ch == ' ' {
 				flush()
 			} else {
-				p := softmaxAt(row, best)
+				p := st.Prob
 				if len(cur) == 0 {
 					t0, conf = j, p
 				}
@@ -205,14 +199,4 @@ func decode(logits []float32, t, c int, alpha []rune, stride int, r image.Rectan
 	}
 	flush()
 	return words
-}
-
-// softmaxAt is the softmax probability of class k in row.
-func softmaxAt(row []float32, k int) float32 {
-	m := row[k]
-	var sum float64
-	for _, v := range row {
-		sum += math.Exp(float64(v - m))
-	}
-	return float32(1 / sum)
 }
