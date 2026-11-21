@@ -160,14 +160,42 @@ def line(rng, langs, charset, split="train", n=None):
 # Taiwan and Hong Kong Traditional with their own wording.
 CJK_LANGS = {"zh-Hans": 4, "zh-Hant": 3, "ja": 4, "ko": 3}
 _CJK_PUNCT = "，。、：；！？（）「」『』《》…・"
-_opencc = {}
+# Every Han character. A Simplified word may convert to Traditional
+# characters in the set, so the Chinese list keeps any Han character and the
+# final filter drops what the set lacks.
+_HAN = frozenset(chr(c) for c in range(0x4E00, 0xA000))
 
 
-def _traditional(text, region):
-    import opencc
-    if region not in _opencc:
-        _opencc[region] = opencc.OpenCC("s2twp" if region == "tw" else "s2hk")
-    return _opencc[region].convert(text)
+class TraditionalWords:
+    """wordfreq's Chinese list converted once to Taiwan or Hong Kong
+    Traditional, with their wording, in one OpenCC call."""
+
+    _cache = {}
+
+    def __init__(self, region, split, charset):
+        key = (region, split)
+        if key not in TraditionalWords._cache:
+            import opencc
+            simplified = Words("zh", split, _sets(charset)[1], n=60000).words
+            converted = opencc.OpenCC("s2twp" if region == "tw" else "s2hk").convert("\n".join(simplified))
+            TraditionalWords._cache[key] = [w for w in converted.split("\n") if w and all(c in charset for c in w)]
+        self.lang, self.words = "zh", TraditionalWords._cache[key]
+
+    def pick(self, rng):
+        return self.words[min(len(self.words) - 1, int(len(self.words) * rng.random() ** 2.5))]
+
+
+_frozen = {}
+
+
+def _sets(charset):
+    """The family's charset frozen, and with every Han character added, made
+    once per charset object."""
+    key = id(charset)
+    if key not in _frozen:
+        f = frozenset(charset)
+        _frozen[key] = (charset, f, f | _HAN)
+    return _frozen[key][1], _frozen[key][2]
 
 
 def cjk_line(rng, langs, charset, split="train", n=None):
@@ -176,8 +204,13 @@ def cjk_line(rng, langs, charset, split="train", n=None):
     (numbers, acronyms, English words) mixed in, as CJK interfaces write them."""
     names, weights = zip(*langs.items())
     lang = rng.choices(names, weights)[0]
-    src = {"zh-Hans": "zh", "zh-Hant": "zh"}.get(lang, lang)
-    words = Words(src, split, set(charset) | set(_range_hans()), n=60000)
+    charset, with_han = _sets(charset)
+    if lang == "zh-Hant":
+        words = TraditionalWords("tw" if rng.random() < 0.7 else "hk", split, charset)
+    elif lang == "zh-Hans":
+        words = Words("zh", split, with_han, n=60000)
+    else:
+        words = Words(lang, split, charset, n=60000)
     en = Words("en", split, charset)
     n = n or rng.choice([1, 2, 2, 3, 4, 5, 6, 8, 10, 14, 18])
     parts = []
@@ -193,17 +226,8 @@ def cjk_line(rng, langs, charset, split="train", n=None):
             tok = " " + word_token(rng, en) + " "
         sep = " " if lang == "ko" and rng.random() < 0.6 and i else ""
         parts.append(sep + tok)
-    text = "".join(parts)
-    if lang == "zh-Hant":
-        text = _traditional(text, "tw" if rng.random() < 0.7 else "hk")
-    text = " ".join(text.split())
+    text = " ".join("".join(parts).split())
     return "".join(c for c in text if c in charset or c == " ")
-
-
-def _range_hans():
-    # Simplified forms convert to Traditional ones in the set, so the word list
-    # keeps any Han character. The final filter drops what the set lacks.
-    return [chr(c) for c in range(0x4E00, 0xA000)]
 
 
 # Right-to-left lines: Arabic, Persian, Urdu and Hebrew words, with Latin
