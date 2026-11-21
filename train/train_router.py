@@ -3,7 +3,7 @@ plus none, trained so every time step of a line names the line's family. The
 engine averages the steps' log-probabilities and picks the best family, which
 needs no operation the recognizers do not already use.
 
-Usage: python train_router.py OUTDIR --data data/router [--width 0.5 --steps 15000]
+Usage: python train_router.py OUTDIR --data data/router [--width 0.5 --steps 15000] [--init CKPT]
 """
 import argparse
 import json
@@ -31,18 +31,26 @@ def line_scores(logp, ilen):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
-    ap.add_argument("--data", required=True)
+    ap.add_argument("--data", required=True, nargs="+", help="pre-rendered router sets")
     ap.add_argument("--width", type=float, default=0.5)
     ap.add_argument("--steps", type=int, default=15000)
-    ap.add_argument("--lr", type=float, default=3e-3)
+    ap.add_argument("--lr", type=float, help="peak learning rate, 3e-3 from scratch and 1e-3 with --init")
+    ap.add_argument("--init", help="router checkpoint to fine-tune from")
     ap.add_argument("--device", default="mps" if torch.backends.mps.is_available() else "cpu")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.manual_seed(0)
     dev = torch.device(a.device)
-    model = Recognizer(len(LABELS), a.width, "ctx").to(dev)
-    opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
-    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.steps, pct_start=0.05)
+    model = Recognizer(len(LABELS), a.width, "ctx")
+    if a.init:
+        ck = torch.load(a.init, map_location="cpu", weights_only=False)
+        if ck["labels"] != LABELS or ck["width"] != a.width:
+            sys.exit(f"--init {a.init}: its labels or width differ from this run's")
+        model.load_state_dict(ck["model"])
+    model.to(dev)
+    lr = a.lr or (1e-3 if a.init else 3e-3)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
+    sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=a.steps, pct_start=0.05)
     meta = {"width": a.width, "arch": "ctx", "head": "full", "classes": len(LABELS), "alphabet": "",
             "labels": LABELS, "family": "router"}
     log = open(os.path.join(a.out, "log.jsonl"), "a")
