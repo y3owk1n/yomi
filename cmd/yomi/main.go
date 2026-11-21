@@ -47,7 +47,7 @@ func fail(err error) {
 
 func main() {
 	if len(os.Args) < 2 {
-		fail(fmt.Errorf("usage: yomi read|bench ..."))
+		fail(fmt.Errorf("usage: yomi read|bench"))
 	}
 	m, err := latin.Model()
 	if err != nil {
