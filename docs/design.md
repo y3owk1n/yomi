@@ -205,6 +205,33 @@ Georgian never does, and a third of the ground-truth words began with a
 Mtavruli capital. The words and layout are the same. Vision's score did not
 change.
 
+## Routed reads (measured 2026-11-22)
+
+One engine with Western as its base, the CJK, right-to-left, Southeast Asian
+and Caucasian-Ethiopic recognizers, and router-3. The router gate allows a
+1-point loss against each set's own model.
+
+| Set | Own model (1x / 2x) | Routed (1x / 2x) |
+|---|---|---|
+| Western UI | 94.6% / 94.9% | 94.3% / 94.6% |
+| CJK UI | 91.9% / 92.2% | 91.8% / 92.1% |
+| Right-to-left UI | 79.5% / 81.8% | 78.8% / 81.3% |
+| Thai UI | 92.2% / 93.2% | 91.9% / 93.0% |
+| Southeast Asian, held out | 81.9% / 80.7% | 80.1% / 78.6% |
+| Caucasian-Ethiopic, held out | 80.0% / 78.6% | 79.4% / 78.3% |
+| Code | 98.0% / 98.1%, 5 extra words | 98.2% / 98.2%, 13 extra words |
+| Layout scenes | 92.1% / 91.9%, 41 extra words | 92.2% / 92.0%, 72 extra words |
+
+Southeast Asian misses the gate. Router-3 sends some Myanmar, Lao and
+Khmer lines in the held-out serif fonts to Western, and finds no text in a
+few Khmer ones. A line whose runner-up family comes within 2 nats per step
+of the first is read by both recognizers, and the surer read kept. That
+recovers 0.7 points on those pages and reads about 4% of Western UI lines
+twice. The router sends some icons to CJK, which reads a round one as 〇
+and others as Han or Hangul characters where Western reads nothing. That
+nearly doubles the stray words on the layout scenes. Indic is not routed
+yet.
+
 ## How the later milestones work
 
 - **Large alphabets (CJK).** The CJK family has 12,098 characters, from
