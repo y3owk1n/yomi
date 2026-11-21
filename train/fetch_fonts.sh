@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout fonts/fallback
+mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -49,6 +49,27 @@ done
 for f in "ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf" "ofl/notosanssymbols/NotoSansSymbols[wght].ttf" \
   "ofl/notosansmath/NotoSansMath-Regular.ttf"; do
   get fallback "$f" OFL-1.1
+done
+
+# CJK: Simplified and Traditional Chinese, Japanese and Korean, in sans,
+# serif, rounded and handwriting-like styles. IBM Plex JP and KR and Noto Sans
+# HK are held out for validation.
+for f in "ofl/notosanssc/NotoSansSC[wght].ttf" "ofl/notosanstc/NotoSansTC[wght].ttf" \
+  "ofl/notosansjp/NotoSansJP[wght].ttf" "ofl/notosanskr/NotoSansKR[wght].ttf" \
+  "ofl/notoserifsc/NotoSerifSC[wght].ttf" "ofl/notoseriftc/NotoSerifTC[wght].ttf" \
+  "ofl/notoserifjp/NotoSerifJP[wght].ttf" "ofl/notoserifkr/NotoSerifKR[wght].ttf" \
+  "ofl/mplus1p/MPLUS1p-Regular.ttf" "ofl/mplus1p/MPLUS1p-Bold.ttf" "ofl/mplusrounded1c/MPLUSRounded1c-Regular.ttf" \
+  "ofl/zenkakugothicnew/ZenKakuGothicNew-Regular.ttf" "ofl/zenkakugothicnew/ZenKakuGothicNew-Medium.ttf" \
+  "ofl/bizudpgothic/BIZUDPGothic-Regular.ttf" "ofl/bizudpgothic/BIZUDPGothic-Bold.ttf" \
+  "ofl/sawarabigothic/SawarabiGothic-Regular.ttf" "ofl/kleeone/KleeOne-Regular.ttf" \
+  "ofl/nanumgothic/NanumGothic-Regular.ttf" "ofl/nanumgothic/NanumGothic-Bold.ttf" \
+  "ofl/nanummyeongjo/NanumMyeongjo-Regular.ttf" "ofl/gothica1/GothicA1-Regular.ttf" "ofl/gothica1/GothicA1-Medium.ttf" \
+  "ofl/lxgwwenkaitc/LXGWWenKaiTC-Regular.ttf"; do
+  get cjk-train "$f" OFL-1.1
+done
+for f in "ofl/ibmplexsansjp/IBMPlexSansJP-Regular.ttf" "ofl/ibmplexsanskr/IBMPlexSansKR-Regular.ttf" \
+  "ofl/notosanshk/NotoSansHK[wght].ttf"; do
+  get cjk-heldout "$f" OFL-1.1
 done
 
 # DejaVu Sans and Sans Mono (Bitstream Vera licence plus public-domain changes).

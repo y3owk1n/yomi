@@ -5,5 +5,7 @@ bin/
 /train/fonts/train/
 /train/fonts/heldout/
 /train/fonts/fallback/
+/train/fonts/cjk-train/
+/train/fonts/cjk-heldout/
 /train/fonts/dl/
 __pycache__/

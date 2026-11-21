@@ -243,14 +243,15 @@ def blank(rng, scale):
 
 
 class Generator:
-    """Draws samples for one model family: text from textsrc.line over langs,
-    fonts from split, labels in alphabet."""
+    """Draws samples for one model family: text from line_fn over langs (the
+    split half of the words), primary fonts from the folders, labels in the
+    family's alphabet."""
 
-    def __init__(self, charset, langs, line_fn, split="train", blank_rate=0.08):
+    def __init__(self, charset, langs, line_fn, folders, blank_rate=0.08, split="train"):
         self.alphabet = Alphabet(charset)
         self.charset = set(charset)
         self.langs, self.line_fn, self.split, self.blank_rate = langs, line_fn, split, blank_rate
-        self.primaries = fonts(split)
+        self.primaries = [f for d in folders for f in fonts(d)]
         self.fallbacks = fonts("fallback")
 
     def sample(self, rng):

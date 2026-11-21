@@ -139,3 +139,53 @@ def line(rng, langs, charset, split="train", n=None):
         else:
             out.append(ui_token(rng, words))
     return " ".join(out)
+
+
+# CJK lines. wordfreq's zh list is Simplified, and OpenCC converts it to
+# Taiwan and Hong Kong Traditional with their own wording.
+CJK_LANGS = {"zh-Hans": 4, "zh-Hant": 3, "ja": 4, "ko": 3}
+_CJK_PUNCT = "，。、：；！？（）「」『』《》…・"
+_opencc = {}
+
+
+def _traditional(text, region):
+    import opencc
+    if region not in _opencc:
+        _opencc[region] = opencc.OpenCC("s2twp" if region == "tw" else "s2hk")
+    return _opencc[region].convert(text)
+
+
+def cjk_line(rng, langs, charset, split="train", n=None):
+    """One line of Chinese, Japanese or Korean UI-like text: words run
+    together (Korean mostly spaced), CJK punctuation, and Latin tokens
+    (numbers, acronyms, English words) mixed in, as CJK interfaces write them."""
+    names, weights = zip(*langs.items())
+    lang = rng.choices(names, weights)[0]
+    src = {"zh-Hans": "zh", "zh-Hant": "zh"}.get(lang, lang)
+    words = Words(src, split, set(charset) | set(_range_hans()), n=60000)
+    en = Words("en", split, charset)
+    n = n or rng.choice([1, 2, 2, 3, 4, 5, 6, 8, 10, 14, 18])
+    parts = []
+    for i in range(n):
+        r = rng.random()
+        if r < 0.78:
+            tok = words.pick(rng)
+        elif r < 0.86:
+            tok = rng.choice(_CJK_PUNCT)
+        elif r < 0.93:
+            tok = " " + ui_token(rng, en) + " "
+        else:
+            tok = " " + word_token(rng, en) + " "
+        sep = " " if lang == "ko" and rng.random() < 0.6 and i else ""
+        parts.append(sep + tok)
+    text = "".join(parts)
+    if lang == "zh-Hant":
+        text = _traditional(text, "tw" if rng.random() < 0.7 else "hk")
+    text = " ".join(text.split())
+    return "".join(c for c in text if c in charset or c == " ")
+
+
+def _range_hans():
+    # Simplified forms convert to Traditional ones in the set, so the word list
+    # keeps any Han character. The final filter drops what the set lacks.
+    return [chr(c) for c in range(0x4E00, 0xA000)]

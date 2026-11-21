@@ -17,7 +17,6 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from families import FAMILIES  # noqa: E402
-from textsrc import line  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -38,14 +37,14 @@ class UIStrings:
 
 class HeldOut:
     def __init__(self, family, lang):
-        charset, langs = FAMILIES[family]
+        charset, _, self.line_fn, _ = FAMILIES[family]
         self.charset, self.langs = set(charset), {lang: 1}
 
     def phrase(self, rng, n):
-        return line(rng, self.langs, self.charset, "heldout", n)
+        return self.line_fn(rng, self.langs, self.charset, "heldout", n)
 
     def token(self, rng):
-        return line(rng, self.langs, self.charset, "heldout", 1)
+        return self.line_fn(rng, self.langs, self.charset, "heldout", 1)
 
 
 JS = r"""
