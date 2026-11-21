@@ -43,10 +43,12 @@ func LoadModel(fsys fs.FS) (*Model, error) {
 }
 
 // Word is one word read off a frame. Box is in logical pixels (frame pixels
-// divided by the scale Read was given). Chars holds one box per character of
-// Text, left to right. Each spans from halfway to the character before it to
-// halfway to the one after, so the boxes tile Box. Confidence is 0 to 1, the
-// lowest probability the recognizer gave any of the word's characters.
+// divided by the scale Read was given). Text is in logical order, so an
+// Arabic or Hebrew word reads as written, not as drawn. Chars holds one box
+// per character of Text, in Text's order. Each spans from halfway to the
+// character drawn before it to halfway to the one drawn after, so the boxes
+// tile Box. Confidence is 0 to 1, the lowest probability the recognizer gave
+// any of the word's characters.
 type Word struct {
 	Text       string
 	Box        image.Rectangle
@@ -54,7 +56,8 @@ type Word struct {
 	Confidence float32
 }
 
-// Line is a line of words, left to right, with the box it was read from.
+// Line is a line of words in the order they sit on screen, left to right,
+// with the box it was read from.
 type Line struct {
 	Box   image.Rectangle
 	Words []Word
@@ -157,6 +160,9 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 	e.pool.Put(s)
 	words := decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
 	settleScripts(words)
+	for i := range words {
+		logicalOrder(&words[i])
+	}
 	return words
 }
 

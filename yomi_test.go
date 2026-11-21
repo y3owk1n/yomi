@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/yomi"
 	"github.com/y3owk1n/yomi/models/cjk"
 	"github.com/y3owk1n/yomi/models/latin"
+	"github.com/y3owk1n/yomi/models/rtl"
 	"github.com/y3owk1n/yomi/models/western"
 )
 
@@ -85,8 +86,9 @@ func TestEngine_Read_ReadsUIFixtures(t *testing.T) {
 }
 
 // TestEngine_Read_WordBoxesCoverTheirText checks that each read word's box
-// lies inside the frame, in logical pixels, that its character boxes tile it
-// left to right, one per character, and that confidence is a probability.
+// lies inside the frame, in logical pixels, that its character boxes tile it,
+// one per character, and that confidence is a probability. The frame is Latin,
+// so the boxes run left to right in Text's order.
 func TestEngine_Read_WordBoxesCoverTheirText(t *testing.T) {
 	frame := loadFrame(t, "testdata/fixtures/4k-16.5pt.png")
 	lines, err := engine(t).Read(context.Background(), frame, 2)
@@ -243,6 +245,32 @@ func TestEngine_Read_KeepsTightlySetThaiRowsApart(t *testing.T) {
 	for _, want := range []string{"16", "iPhone"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("read %q, want it to hold %q", got, want)
+		}
+	}
+}
+
+// TestEngine_Read_GivesRightToLeftWordsInLogicalOrder reads Arabic labels
+// beside Latin ones and expects each Arabic word as it is written, first
+// letter first, though the recognizer scans it from its last letter, and the
+// Latin words left to right.
+func TestEngine_Read_GivesRightToLeftWordsInLogicalOrder(t *testing.T) {
+	m, err := rtl.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/arabic@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := map[string]bool{}
+	for _, l := range lines {
+		for _, w := range l.Words {
+			read[w.Text] = true
+		}
+	}
+	for _, want := range []string{"حذف", "متابعة", "OK", "SSH", "تسجيل", "مراقب"} {
+		if !read[want] {
+			t.Errorf("did not read %q; read:\n%s", want, text(lines))
 		}
 	}
 }
