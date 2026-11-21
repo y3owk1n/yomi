@@ -180,7 +180,7 @@ Times are per page on the M5, with training running for yomi's.
 | Hindi UI | 83.7% / 84.1% | 83.1% / 86.7% | **92.1% / 92.4%** | 250, 4,500, 600 |
 | Thai UI | 91.1% / 92.2% | 96.2% / 92.2% | **94.5% / 94.2%** | 90, 8,400, 1,700 |
 | Lao, Khmer, Myanmar, held out, 1x | **88.6%, 84.5%, 51.5%** | no recognizer | 22.5%, 29.2%, 7.4% | 70, n/a, 1,000 |
-| Georgian, Armenian, Amharic, held out, 1x | **85.6%, 77.1%, 67.9%** | no recognizer | 14.4%, 11.5%, 19.7% | 42, n/a, 720 |
+| Georgian, Armenian, Amharic, held out, 1x | **92.3%, 79.7%, 67.9%** | no recognizer | 15.3%, 12.5%, 19.9% | 42, n/a, 720 |
 
 PaddleOCR's Latin recognizer reads Vietnamese at 40%, Romanian at 67% and
 Turkish at 71%, where yomi reads 89 to 97%, and its CJK lead is 8 points on
@@ -194,8 +194,15 @@ not for Arabic.
 yomi's first Southeast Asian and Caucasian-Ethiopic models miss their bars.
 Thai reads monospace text at 61%, where Vision reads 98%, and proportional
 text at 92%, against Vision's 94%. Myanmar trained on two font families and
-is held out on a third, a serif. Amharic reads 68%, the lowest of the
-Caucasian-Ethiopic languages.
+is held out on a third, a serif. Georgian passes. Armenian reads 80% and
+Amharic 68%. The held-out serif draws some of their letters unlike any
+training font.
+
+The held-out Georgian pages were regenerated on 2026-11-22. The generator had
+capitalized the first letter of Georgian words as it does Latin, which
+Georgian never does, and a third of the ground-truth words began with a
+Mtavruli capital. The words and layout are the same. Vision's score did not
+change.
 
 ## How the later milestones work
 
