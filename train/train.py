@@ -102,6 +102,8 @@ def main():
     ap.add_argument("--data", required=True, help="pre-rendered set from prerender.py")
     ap.add_argument("--width", type=float, default=0.8)
     ap.add_argument("--arch", default="ctx", choices=["base", "ctx"])
+    ap.add_argument("--head", default="full", choices=["full", "gated"])
+    ap.add_argument("--rank", type=int, default=128)
     ap.add_argument("--steps", type=int, default=40000)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--lr", type=float, default=3e-3)
@@ -113,11 +115,12 @@ def main():
 
     val, chars = validation(a.family, a.batch)
     classes = len(chars) + 1
-    model = Recognizer(classes, a.width, a.arch).to(dev)
+    model = Recognizer(classes, a.width, a.arch, a.head, a.rank).to(dev)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.steps, pct_start=0.05)
     ctc = nn.CTCLoss(blank=0, zero_infinity=True)
-    meta = {"width": a.width, "arch": a.arch, "classes": classes, "alphabet": chars, "family": a.family}
+    meta = {"width": a.width, "arch": a.arch, "head": a.head, "rank": a.rank, "classes": classes,
+            "alphabet": chars, "family": a.family}
 
     log = open(os.path.join(a.out, "log.jsonl"), "a")
     best, t0, run = 0.0, time.time(), 0.0

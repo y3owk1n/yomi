@@ -6,6 +6,7 @@ Input (N, 1, 32, W) ink map. Output (N, T, C) log-probabilities, T = W // 4.
 """
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 def dw_block(cin, cout, stride, k=3):
@@ -36,10 +37,30 @@ class LineContext(nn.Module):
         return x + torch.relu(self.fc(m))
 
 
-class Recognizer(nn.Module):
-    def __init__(self, classes, width=1.0, arch="base"):
+class GatedHead(nn.Module):
+    """A head for alphabets of thousands of characters. A one-output layer
+    gives each step's blank logit b. Where a character is likely, a low-rank
+    pair of layers gives the character logits z. The log-probabilities are
+    log P(blank) = log sigmoid(b) and log P(c) = log sigmoid(-b) +
+    log softmax(z)_c, so CTC trains it as usual, and inference computes z only
+    at the steps where b < 0."""
+
+    def __init__(self, cin, classes, rank):
         super().__init__()
-        self.arch = arch
+        self.blank = nn.Conv2d(cin, 1, 1)
+        self.proj = nn.Conv2d(cin, rank, 1)
+        self.chars = nn.Conv2d(rank, classes - 1, 1)
+
+    def forward(self, x):
+        b = self.blank(x)
+        z = self.chars(self.proj(x))
+        return torch.cat([F.logsigmoid(b), F.logsigmoid(-b) + z.log_softmax(1)], 1)
+
+
+class Recognizer(nn.Module):
+    def __init__(self, classes, width=1.0, arch="base", head="full", rank=128):
+        super().__init__()
+        self.arch, self.head_kind = arch, head
         c = [max(8, int(round(v * width))) for v in (16, 32, 64, 64, 128, 128, 192)]
         self.features = nn.Sequential(
             nn.Conv2d(1, c[0], 3, 2, 1, bias=False), nn.BatchNorm2d(c[0]), nn.ReLU(inplace=True),  # 16 x W/2
@@ -68,7 +89,7 @@ class Recognizer(nn.Module):
                 nn.Conv2d(c[6], c[6], 1, bias=False), nn.BatchNorm2d(c[6]), nn.ReLU(inplace=True),
             )
             self.line2 = LineContext(c[6])
-        self.head = nn.Conv2d(c[6], classes, 1)
+        self.head = GatedHead(c[6], classes, rank) if head == "gated" else nn.Conv2d(c[6], classes, 1)
 
     def forward(self, x, lengths=None):
         x = self.collapse(self.features(x))
@@ -78,7 +99,8 @@ class Recognizer(nn.Module):
             x = self.line2(self.wide(x), lengths)
         else:
             x = self.context(x)
-        return self.head(x).squeeze(2).permute(0, 2, 1).log_softmax(-1)
+        out = self.head(x).squeeze(2).permute(0, 2, 1)
+        return out if self.head_kind == "gated" else out.log_softmax(-1)
 
 
 def macs(model, width):
