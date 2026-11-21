@@ -13,6 +13,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from families import generator  # noqa: E402
@@ -59,6 +60,25 @@ def collate(b, w):
     tlen = torch.tensor([len(s[1]) for s in b], dtype=torch.long)
     ilen = torch.tensor([s[0].shape[1] // 4 for s in b], dtype=torch.long)
     return torch.from_numpy(x), targets, ilen, tlen, [s[2] for s in b]
+
+
+def ctc_loss(logp, targets, ilen, tlen, dev):
+    """Mean CTC loss over the batch, each line's divided by its label length.
+
+    CTC reads only the blank column and the columns of the characters in the
+    batch's targets, so only those cross to the CPU, where CTC runs (MPS has
+    none). PyTorch's CTC backward also adds exp(log p) to every column it is
+    given, which cancels only when those columns are a whole log-softmax. The
+    correction term below removes it, so the gradient is exact for any subset
+    of columns and for the gated head."""
+    cols, inv = torch.unique(targets, return_inverse=True)
+    cols = torch.cat([torch.zeros(1, dtype=cols.dtype), cols])
+    lp = logp.index_select(2, cols.to(dev)).permute(1, 0, 2).float().cpu()  # (T, N, K)
+    nll = F.ctc_loss(lp, inv + 1, ilen, tlen, blank=0, reduction="none", zero_infinity=True)
+    w = 1 / (tlen.clamp(min=1).float() * len(tlen))
+    valid = (torch.arange(lp.shape[0])[:, None] < ilen[None, :]).float()[..., None]  # (T, N, 1)
+    corr = ((lp.detach().exp() * lp * valid).sum((0, 2)) * w).sum()
+    return (nll * w).sum() - corr + corr.detach()
 
 
 def decode(logp, ilen, chars):
@@ -119,7 +139,6 @@ def main():
     model = Recognizer(classes, a.width, a.arch, a.head, a.rank).to(dev)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.steps, pct_start=0.05)
-    ctc = nn.CTCLoss(blank=0, zero_infinity=True)
     meta = {"width": a.width, "arch": a.arch, "head": a.head, "rank": a.rank, "classes": classes,
             "alphabet": chars, "family": a.family}
 
@@ -128,7 +147,7 @@ def main():
     for step, (x, tg, il, tl, _) in enumerate(Fixed(a.data), 1):
         model.train()
         logp = model(x.to(dev), il)
-        loss = ctc(logp.permute(1, 0, 2).float().cpu(), tg, il, tl)
+        loss = ctc_loss(logp, tg, il, tl, dev)
         opt.zero_grad(set_to_none=True)
         loss.backward()
         nn.utils.clip_grad_norm_(model.parameters(), 5.0)
