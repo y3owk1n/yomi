@@ -43,11 +43,14 @@ func LoadModel(fsys fs.FS) (*Model, error) {
 }
 
 // Word is one word read off a frame. Box is in logical pixels (frame pixels
-// divided by the scale Read was given). Confidence is 0 to 1: the lowest
-// probability the recognizer gave any of the word's characters.
+// divided by the scale Read was given). Chars holds one box per character of
+// Text, left to right. Each spans from halfway to the character before it to
+// halfway to the one after, so the boxes tile Box. Confidence is 0 to 1, the
+// lowest probability the recognizer gave any of the word's characters.
 type Word struct {
 	Text       string
 	Box        image.Rectangle
+	Chars      []image.Rectangle
 	Confidence float32
 }
 
@@ -158,28 +161,43 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 }
 
 // decode is greedy CTC: the best class per step, repeats and blanks dropped,
-// spaces splitting words. A word's box spans its first to last step.
+// spaces splitting words. A word's box spans its first to last character's
+// step, and each character's box meets its neighbours' halfway between steps.
 func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w, scale int) []Word {
 	sx := float64(r.Dx()) / float64(w)
+	// x is the frame column where step t starts, in logical pixels.
+	x := func(t float64) int {
+		return int(math.Round((float64(r.Min.X) + t*float64(stride)*sx) / float64(scale)))
+	}
+	y0, y1 := r.Min.Y/scale, r.Max.Y/scale
 	var (
-		words  []Word
-		cur    []rune
-		conf   float32
-		t0, t1 int
-		prev   int
+		words []Word
+		cur   []rune
+		at    []int // the step each character of cur was read at
+		conf  float32
+		prev  int
 	)
 	flush := func() {
 		if len(cur) == 0 {
 			return
 		}
-		x0 := float64(r.Min.X) + float64(t0*stride)*sx
-		x1 := float64(r.Min.X) + float64((t1+1)*stride)*sx
+		chars := make([]image.Rectangle, len(cur))
+		left := x(float64(at[0]))
+		for i := range cur {
+			right := x(float64(at[i] + 1))
+			if i+1 < len(cur) {
+				right = x(float64(at[i]+at[i+1]+1) / 2)
+			}
+			chars[i] = image.Rect(left, y0, max(right, left+1), y1)
+			left = chars[i].Max.X
+		}
 		words = append(words, Word{
 			Text:       string(cur),
-			Box:        image.Rect(int(x0)/scale, r.Min.Y/scale, int(math.Ceil(x1))/scale, r.Max.Y/scale),
+			Box:        image.Rect(chars[0].Min.X, y0, chars[len(chars)-1].Max.X, y1),
+			Chars:      chars,
 			Confidence: conf,
 		})
-		cur = nil
+		cur, at = nil, nil
 	}
 	for j, st := range steps {
 		best := st.Class
@@ -188,13 +206,12 @@ func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w, sca
 			if ch == ' ' {
 				flush()
 			} else {
-				p := st.Prob
 				if len(cur) == 0 {
-					t0, conf = j, p
+					conf = st.Prob
 				}
-				conf = min(conf, p)
+				conf = min(conf, st.Prob)
 				cur = append(cur, ch)
-				t1 = j
+				at = append(at, j)
 			}
 		}
 		prev = best

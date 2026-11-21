@@ -84,8 +84,8 @@ func TestEngine_Read_ReadsUIFixtures(t *testing.T) {
 }
 
 // TestEngine_Read_WordBoxesCoverTheirText checks that each read word's box
-// lies inside the frame, in logical pixels, and that confidence is a
-// probability.
+// lies inside the frame, in logical pixels, that its character boxes tile it
+// left to right, one per character, and that confidence is a probability.
 func TestEngine_Read_WordBoxesCoverTheirText(t *testing.T) {
 	frame := loadFrame(t, "testdata/fixtures/4k-16.5pt.png")
 	lines, err := engine(t).Read(context.Background(), frame, 2)
@@ -102,6 +102,19 @@ func TestEngine_Read_WordBoxesCoverTheirText(t *testing.T) {
 			}
 			if w.Confidence <= 0 || w.Confidence > 1 {
 				t.Errorf("word %q confidence %v", w.Text, w.Confidence)
+			}
+			if len(w.Chars) != len([]rune(w.Text)) {
+				t.Fatalf("word %q has %d character boxes", w.Text, len(w.Chars))
+			}
+			x := w.Box.Min.X
+			for i, c := range w.Chars {
+				if c.Min.X != x || c.Empty() || !c.In(w.Box) {
+					t.Errorf("word %q character %d box %v does not continue at x=%d inside %v", w.Text, i, c, x, w.Box)
+				}
+				x = c.Max.X
+			}
+			if x != w.Box.Max.X {
+				t.Errorf("word %q character boxes end at %d, word at %d", w.Text, x, w.Box.Max.X)
 			}
 		}
 	}
