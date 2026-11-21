@@ -159,7 +159,17 @@ def line(rng, langs, charset, split="train", n=None):
 # CJK lines. wordfreq's zh list is Simplified, and OpenCC converts it to
 # Taiwan and Hong Kong Traditional with their own wording.
 CJK_LANGS = {"zh-Hans": 4, "zh-Hant": 3, "ja": 4, "ko": 3}
-_CJK_PUNCT = "，。、：；！？（）「」『』《》…・"
+# Each language's own punctuation, wide or narrow as its interfaces set it.
+# Chinese quotes with curly marks, Taiwan and Japan with corner brackets, and
+# Korean uses narrow ASCII marks. Interfaces in all four also mix in ASCII.
+_CJK_PUNCT = {
+    "zh-Hans": "，。、：；！？（）“”‘’《》…·",
+    "zh-Hant": "，。、：；！？（）「」『』“”《》…",
+    "ja": "、。：！？（）「」『』【】…・",
+    "ko": ".,?!():;“”‘’…·",
+}
+_ASCII_PUNCT = ".,;:!?()\"'/"
+_PAIRS = {"“": "”", "‘": "’", "「": "」", "『": "』", "（": "）", "(": ")", "《": "》", "【": "】"}
 # Every Han character. A Simplified word may convert to Traditional
 # characters in the set, so the Chinese list keeps any Han character and the
 # final filter drops what the set lacks.
@@ -200,8 +210,9 @@ def _sets(charset):
 
 def cjk_line(rng, langs, charset, split="train", n=None):
     """One line of Chinese, Japanese or Korean UI-like text: words run
-    together (Korean mostly spaced), CJK punctuation, and Latin tokens
-    (numbers, acronyms, English words) mixed in, as CJK interfaces write them."""
+    together (Korean mostly spaced), the language's punctuation with quotes and
+    brackets around a word, and Latin tokens (numbers, acronyms, English words)
+    mixed in, as CJK interfaces write them."""
     names, weights = zip(*langs.items())
     lang = rng.choices(names, weights)[0]
     charset, with_han = _sets(charset)
@@ -219,7 +230,11 @@ def cjk_line(rng, langs, charset, split="train", n=None):
         if r < 0.78:
             tok = words.pick(rng)
         elif r < 0.86:
-            tok = rng.choice(_CJK_PUNCT)
+            tok = rng.choice(_ASCII_PUNCT if rng.random() < 0.2 else _CJK_PUNCT[lang])
+            if tok in _PAIRS:
+                tok += words.pick(rng) + _PAIRS[tok]
+            elif tok in _PAIRS.values():
+                continue
         elif r < 0.93:
             tok = " " + ui_token(rng, en) + " "
         else:
