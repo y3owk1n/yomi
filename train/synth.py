@@ -1,7 +1,7 @@
 """Synthetic training lines: open fonts rendered the ways screens draw text.
 
 Each sample is one line crop, padded like the line finder's box, run through
-prep.prepare. A line renders in one primary font; characters it lacks fall
+prep.prepare. A line renders in one primary font. Characters it lacks fall
 back to the fallback fonts, run by run, as an OS draws them. Variation: font,
 weight, size at 1x and 2x, hinted FreeType or supersampled unhinted rendering
 (the macOS look), coverage gamma, light, dark, muted and coloured themes,
@@ -147,6 +147,38 @@ def theme(rng):
     return np.array(bg, np.float32), np.array(fg, np.float32)
 
 
+def control(rng, size):
+    """Coverage (size, w) of a UI control that sits beside a label: a radio
+    ring, a checked or empty checkbox, a check mark, a toggle or a chevron."""
+    w = size * 2 if rng.random() < 0.15 else size
+    img = Image.new("L", (w * 4, size * 4), 0)
+    d = ImageDraw.Draw(img)
+    S, W = size * 4, w * 4
+    lw = max(4, S // 8)
+    kind = rng.random()
+    if W > S:  # toggle
+        d.rounded_rectangle([2, S // 6, W - 2, S - S // 6], radius=S // 3, outline=255, width=lw)
+        x = rng.choice([S // 6, W - S + S // 6])
+        d.ellipse([x, S // 4, x + S // 2, S - S // 4], fill=255)
+    elif kind < 0.35:  # radio, empty or selected
+        d.ellipse([S // 8, S // 8, S - S // 8, S - S // 8], outline=255, width=lw)
+        if rng.random() < 0.5:
+            d.ellipse([S // 3, S // 3, S - S // 3, S - S // 3], fill=255)
+    elif kind < 0.7:  # checkbox, empty or checked
+        d.rounded_rectangle([S // 8, S // 8, S - S // 8, S - S // 8], radius=S // 8, outline=255, width=lw)
+        if rng.random() < 0.5:
+            d.line([(S // 4, S // 2), (S // 2.2, S - S // 4), (S - S // 4, S // 4)], fill=255, width=lw)
+    elif kind < 0.85:  # a bare check mark
+        d.line([(S // 6, S // 2), (S // 2.4, S - S // 5), (S - S // 6, S // 5)], fill=255, width=lw)
+    else:  # chevron
+        if rng.random() < 0.5:
+            d.line([(S // 3, S // 5), (S - S // 3, S // 2), (S // 3, S - S // 5)], fill=255, width=lw)
+        else:
+            d.line([(S // 5, S // 3), (S // 2, S - S // 3), (S - S // 5, S // 3)], fill=255, width=lw)
+    a = np.asarray(img, dtype=np.float32) / 255
+    return a.reshape(size, 4, w, 4).mean(axis=(1, 3))
+
+
 def render(rng, text, primary, fallbacks, scale, other_text):
     px = round(rng.uniform(10, 18) * scale)
     weight = rng.choice([400, 400, 400, 450, 500, 600, 700])
@@ -161,6 +193,21 @@ def render(rng, text, primary, fallbacks, scale, other_text):
     chans = a if subpixel else None
     if subpixel:
         a = a.mean(axis=2)
+    if rng.random() < 0.12:
+        # A control beside the label, as radio buttons and checkboxes sit in
+        # forms. The label stays the text alone, so the model learns to read
+        # nothing there.
+        size = max(6, int(line_h * rng.uniform(0.55, 0.8)))
+        ctl = control(rng, size)
+        gap = int(line_h * rng.uniform(0.25, 0.6))
+        y0 = max(0, (a.shape[0] - size) // 2 + int(line_h * rng.uniform(-0.05, 0.1)))
+        col = np.zeros((a.shape[0], ctl.shape[1] + gap), np.float32)
+        col[y0:y0 + size, :ctl.shape[1]] = ctl[: a.shape[0] - y0]
+        before = rng.random() < 0.8
+        a = np.hstack([col, a] if before else [a, col[:, ::-1]])
+        if subpixel:
+            c3 = np.repeat(col[..., None], 3, axis=2)
+            chans = np.concatenate([c3, chans] if before else [chans, c3[:, ::-1]], axis=1)
 
     # Line box to padded crop, as the line finder cuts it.
     h, w = a.shape
@@ -263,7 +310,7 @@ class Generator:
             text = self.line_fn(rng, self.langs, self.charset, self.split)[:70].strip()
             if not text:
                 continue
-            # The primary font must have every letter; signs may fall back.
+            # The primary font must have every letter. Signs may fall back.
             need = {ord(c) for c in text if c.isalnum()}
             fits = [f for f in self.primaries if need <= coverage_of(f)]
             if not fits:
