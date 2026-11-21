@@ -4,7 +4,11 @@ than RAM: OUT.ink holds every line's uint8 ink map side by side (32 rows),
 OUT.npz the offsets, widths and labels, and OUT.txt the texts.
 
 Usage: python prerender.py FAMILY OUT COUNT [SEED]   (PROCS caps the workers)
+
+Each worker retires after four chunks, so the font faces it caches never
+grow without bound.
 """
+import array
 import multiprocessing as mp
 import os
 import random
@@ -52,9 +56,11 @@ if __name__ == "__main__":
     per = 2000
     jobs = [(family, base * 100000 + i, per) for i in range((count + per - 1) // per)]
     t = time.time()
-    offsets, widths, labels, label_offsets, texts = [], [], [], [0], []
+    # Labels run to tens of millions of entries, so they live in a compact
+    # array, not a list of Python ints.
+    offsets, widths, labels, label_offsets, texts = [], [], array.array("i"), [0], []
     total = 0
-    with open(path + ".ink.cols", "wb") as cols, mp.Pool(int(os.environ.get("PROCS", os.cpu_count()))) as pool:
+    with open(path + ".ink.cols", "wb") as cols, mp.Pool(int(os.environ.get("PROCS", os.cpu_count())), maxtasksperchild=4) as pool:
         # Lines arrive in any order. Each goes to a scratch file column by
         # column (W x 32), which is transposed into the final file at the end.
         for i, part in enumerate(pool.imap_unordered(chunk, jobs), 1):
@@ -65,7 +71,7 @@ if __name__ == "__main__":
                 widths.append(x.shape[1])
                 total += x.shape[1]
                 cols.write(np.ascontiguousarray(x.T).tobytes())
-                labels += lab
+                labels.extend(lab)
                 label_offsets.append(len(labels))
                 texts.append(text.replace("\n", " "))
             if i % 20 == 0:

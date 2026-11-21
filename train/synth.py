@@ -72,7 +72,9 @@ class Font:
                     else:
                         vals.append(a["default"])
                 f.set_variation_by_axes(vals)
-            if len(cls._cache) > 4000:
+            # A face holds its font's tables. CJK fonts are 10 to 23 MB, so the
+            # cache stays small enough for several workers to share RAM.
+            if len(cls._cache) > 300:
                 cls._cache.clear()
             cls._cache[key] = f
         return f
