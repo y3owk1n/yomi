@@ -228,7 +228,10 @@ def render(rng, text, primary, fallbacks, scale, other_text, shaped=False):
         sub[pads[1]:pads[1] + h, pads[0]:pads[0] + w] = chans
     if rng.random() < 0.15:  # part of the line above or below
         if shaped:
-            other = shaping.coverage(other_text, primary, px, weight)[0]
+            # Shaped text has no fallback font, so a neighbour the font
+            # cannot draw is left out rather than drawn as missing glyphs.
+            fits = all(ord(c) in coverage_of(primary) for c in other_text if not c.isspace())
+            other = shaping.coverage(other_text, primary, px, weight)[0] if fits else None
         else:
             other, _ = coverage(other_text, primary, fallbacks, px, weight, supersample, False)
         if other is not None:
@@ -323,8 +326,9 @@ class Generator:
             text = self.line_fn(rng, self.langs, self.charset, self.split)[:70].strip()
             if not text:
                 continue
-            # The primary font must have every letter. Signs may fall back.
-            need = {ord(c) for c in text if c.isalnum()}
+            # The primary font must have every letter. Signs may fall back,
+            # except in shaped text, which renders in one font.
+            need = {ord(c) for c in text if not c.isspace() and (self.shaped or c.isalnum())}
             fits = [f for f in self.primaries if need <= coverage_of(f)]
             if not fits:
                 continue
