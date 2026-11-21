@@ -9,5 +9,11 @@ bin/
 /train/fonts/cjk-heldout/
 /train/fonts/rtl-train/
 /train/fonts/rtl-heldout/
+/train/fonts/indic-train/
+/train/fonts/indic-heldout/
+/train/fonts/sea-train/
+/train/fonts/sea-heldout/
+/train/fonts/cau-train/
+/train/fonts/cau-heldout/
 /train/fonts/dl/
 __pycache__/

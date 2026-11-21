@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout
+mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -85,6 +85,52 @@ for f in "ofl/notosansarabic/NotoSansArabic[wdth,wght].ttf" "ofl/notonaskharabic
 done
 for f in "ofl/ibmplexsansarabic/IBMPlexSansArabic-Regular.ttf" "ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Regular.ttf"; do
   get rtl-heldout "$f" OFL-1.1
+done
+
+# Indic: Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada,
+# Malayalam and Sinhala. The serif Notos and IBM Plex Devanagari are held out.
+for f in "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf" "ofl/hind/Hind-Regular.ttf" "ofl/hind/Hind-SemiBold.ttf" \
+  "ofl/mukta/Mukta-Regular.ttf" "ofl/baloo2/Baloo2[wght].ttf" "ofl/tirodevanagarihindi/TiroDevanagariHindi-Regular.ttf" \
+  "ofl/notosansbengali/NotoSansBengali[wdth,wght].ttf" "ofl/hindsiliguri/HindSiliguri-Regular.ttf" \
+  "ofl/notosansgurmukhi/NotoSansGurmukhi[wdth,wght].ttf" "ofl/notosansgujarati/NotoSansGujarati[wdth,wght].ttf" \
+  "ofl/hindvadodara/HindVadodara-Regular.ttf" "ofl/notosanstamil/NotoSansTamil[wdth,wght].ttf" \
+  "ofl/hindmadurai/HindMadurai-Regular.ttf" "ofl/catamaran/Catamaran[wght].ttf" \
+  "ofl/notosanstelugu/NotoSansTelugu[wdth,wght].ttf" "ofl/hindguntur/HindGuntur-Regular.ttf" \
+  "ofl/notosanskannada/NotoSansKannada[wdth,wght].ttf" "ofl/balootamma2/BalooTamma2[wght].ttf" \
+  "ofl/notosansmalayalam/NotoSansMalayalam[wdth,wght].ttf" "ofl/manjari/Manjari-Regular.ttf" \
+  "ofl/notosanssinhala/NotoSansSinhala[wdth,wght].ttf"; do
+  get indic-train "$f" OFL-1.1
+done
+for f in "ofl/ibmplexsansdevanagari/IBMPlexSansDevanagari-Regular.ttf" "ofl/notoserifbengali/NotoSerifBengali[wdth,wght].ttf" \
+  "ofl/notoserifgurmukhi/NotoSerifGurmukhi[wght].ttf" "ofl/notoserifgujarati/NotoSerifGujarati[wght].ttf" \
+  "ofl/notoseriftamil/NotoSerifTamil[wdth,wght].ttf" "ofl/notoseriftelugu/NotoSerifTelugu[wght].ttf" \
+  "ofl/notoserifkannada/NotoSerifKannada[wght].ttf" "ofl/notoserifmalayalam/NotoSerifMalayalam[wght].ttf" \
+  "ofl/notoserifsinhala/NotoSerifSinhala[wdth,wght].ttf"; do
+  get indic-heldout "$f" OFL-1.1
+done
+
+# Southeast Asian: Thai, Lao, Khmer and Myanmar. IBM Plex Thai and the serif
+# Notos are held out.
+for f in "ofl/notosansthai/NotoSansThai[wdth,wght].ttf" "ofl/notoserifthai/NotoSerifThai[wdth,wght].ttf" \
+  "ofl/sarabun/Sarabun-Regular.ttf" "ofl/prompt/Prompt-Regular.ttf" "ofl/kanit/Kanit-Regular.ttf" \
+  "ofl/notosanslao/NotoSansLao[wdth,wght].ttf" "ofl/notosanskhmer/NotoSansKhmer[wdth,wght].ttf" \
+  "ofl/battambang/Battambang-Regular.ttf" "ofl/hanuman/Hanuman[wght].ttf" "ofl/kantumruypro/KantumruyPro[wght].ttf" \
+  "ofl/notosansmyanmar/NotoSansMyanmar[wdth,wght].ttf" "ofl/padauk/Padauk-Regular.ttf"; do
+  get sea-train "$f" OFL-1.1
+done
+for f in "ofl/ibmplexsansthai/IBMPlexSansThai-Regular.ttf" "ofl/notoseriflao/NotoSerifLao[wdth,wght].ttf" \
+  "ofl/notoserifkhmer/NotoSerifKhmer[wdth,wght].ttf" "ofl/notoserifmyanmar/NotoSerifMyanmar-Regular.ttf"; do
+  get sea-heldout "$f" OFL-1.1
+done
+
+# Georgian, Armenian and Ethiopic. The serif Notos are held out.
+for f in "ofl/notosansgeorgian/NotoSansGeorgian[wdth,wght].ttf" "ofl/notosansarmenian/NotoSansArmenian[wdth,wght].ttf" \
+  "ofl/notosansethiopic/NotoSansEthiopic[wdth,wght].ttf" "ofl/abyssinicasil/AbyssinicaSIL-Regular.ttf"; do
+  get cau-train "$f" OFL-1.1
+done
+for f in "ofl/notoserifgeorgian/NotoSerifGeorgian[wdth,wght].ttf" "ofl/notoserifarmenian/NotoSerifArmenian[wdth,wght].ttf" \
+  "ofl/notoserifethiopic/NotoSerifEthiopic[wdth,wght].ttf"; do
+  get cau-heldout "$f" OFL-1.1
 done
 
 # DejaVu Sans and Sans Mono (Bitstream Vera licence plus public-domain changes).

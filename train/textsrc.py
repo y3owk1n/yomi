@@ -42,16 +42,26 @@ def _fix(lang, w):
     return unicodedata.normalize("NFC", w)
 
 
+def _wiki(lang, n):
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "wiki", lang + ".txt")
+    with open(path, encoding="utf-8") as f:
+        return f.read().split("\n")[:n]
+
+
 class Words:
-    """One language's words, train or held-out half, ordered by frequency."""
+    """One language's words, train or held-out half, ordered by frequency:
+    wordfreq's list, or the Wikipedia list wikitext.py fetched for languages
+    wordfreq lacks."""
 
     _cache = {}
 
     def __init__(self, lang, split, charset, n=40000):
         key = (lang, split, n)
         if key not in Words._cache:
+            source = wordfreq.top_n_list(lang, n) if lang in wordfreq.available_languages() else _wiki(lang, n)
             ws = []
-            for w in wordfreq.top_n_list(lang, n):
+            for w in source:
                 w = _fix(lang, w)
                 if w and all(c in charset for c in w) and (_held_out(w) == (split == "heldout")):
                     ws.append(w)
@@ -225,3 +235,8 @@ def rtl_line(rng, langs, charset, split="train", n=None):
         else:
             out.append(ui_token(rng, en))
     return "".join(c for c in " ".join(out) if c in charset or c == " ")
+
+
+INDIC_LANGS = {"hi": 4, "mr": 2, "ne": 1, "bn": 3, "pa": 1.5, "gu": 1.5, "ta": 2, "te": 2, "kn": 1.5, "ml": 1.5, "si": 1}
+SEA_LANGS = {"th": 4, "lo": 1.5, "km": 2, "my": 2}
+CAUCASIAN_ETHIOPIC_LANGS = {"ka": 2, "hy": 2, "am": 2}

@@ -77,3 +77,28 @@ ARABIC = (_range(0x621, 0x63A) + _range(0x640, 0x652) + "ٰ" + _range(0x660, 0x6
           + "ٹپچڈڑژکگںھہۂۃیےۓۀ" + _range(0x6F0, 0x6F9) + "،؛؟۔")
 HEBREW = _range(0x5D0, 0x5EA) + "׳״־"
 RTL = "".join(dict.fromkeys(ASCII + ARABIC + HEBREW + UI_SIGNS + "«»"))
+
+
+def _block(*ranges):
+    """The assigned, NFC-stable letters, marks and digits of the ranges.
+    Precomposed letters NFC decomposes (Devanagari's nukta letters) stay out:
+    a model reads the base letter and the nukta."""
+    out = []
+    for a, b in ranges:
+        for c in range(a, b + 1):
+            ch = chr(c)
+            if unicodedata.name(ch, "") and unicodedata.category(ch)[0] in "LMNP" and unicodedata.normalize("NFC", ch) == ch:
+                out.append(ch)
+    return "".join(out)
+
+
+# Devanagari (Hindi, Marathi, Nepali), Bengali, Gurmukhi, Gujarati, Tamil,
+# Telugu, Kannada, Malayalam and Sinhala.
+INDIC = "".join(dict.fromkeys(ASCII + UI_SIGNS + _block(
+    (0x900, 0x97F), (0x980, 0x9FF), (0xA00, 0xA7F), (0xA80, 0xAFF), (0xB80, 0xBFF),
+    (0xC00, 0xC7F), (0xC80, 0xCFF), (0xD00, 0xD7F), (0xD80, 0xDFF))))
+# Thai, Lao, Khmer and Myanmar.
+SEA = "".join(dict.fromkeys(ASCII + UI_SIGNS + _block((0xE01, 0xE5B), (0xE80, 0xEDF), (0x1780, 0x17F9), (0x1000, 0x109F))))
+# Georgian (with Mtavruli capitals), Armenian and Ethiopic.
+CAUCASIAN_ETHIOPIC = "".join(dict.fromkeys(ASCII + UI_SIGNS + _block(
+    (0x10A0, 0x10FF), (0x1C90, 0x1CBF), (0x531, 0x58A), (0x1200, 0x137C))))
