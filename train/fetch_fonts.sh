@@ -87,6 +87,32 @@ for f in "ofl/ibmplexsansarabic/IBMPlexSansArabic-Regular.ttf" "ofl/ibmplexsansh
   get rtl-heldout "$f" OFL-1.1
 done
 
+# Monospace Arabic and Hebrew, as terminals and code editors draw them. Each
+# letter takes one cell, which spreads Hebrew letters apart and stretches
+# Arabic joins.
+for f in "ofl/cousine/Cousine-Regular.ttf" "ofl/cousine/Cousine-Bold.ttf"; do
+  get rtl-train "$f" OFL-1.1
+done
+fetch() { # url member... copies each OFL-1.1 member of the archive into fonts/rtl-train
+  url=$1; shift
+  [ -s "fonts/dl/$(basename "$url")" ] || curl -fsSL --retry 3 -o "fonts/dl/$(basename "$url")" "$url"
+  for m in "$@"; do
+    case "$url" in
+      *.zip) unzip -o -q -j "fonts/dl/$(basename "$url")" "$m" -d fonts/rtl-train ;;
+      *.tar.gz) tar xzf "fonts/dl/$(basename "$url")" -C fonts/rtl-train --strip-components 1 "$m" ;;
+    esac
+    echo "| $(basename "$m") | rtl-train | OFL-1.1 | $url |" >> fonts/LICENSES.md
+  done
+}
+mkdir -p fonts/dl
+fetch https://github.com/aiaf/kawkab-mono/releases/download/v0.501/kawkab-mono-0.501.zip \
+  kawkab-mono-0.501/KawkabMono-Regular.ttf kawkab-mono-0.501/KawkabMono-Bold.ttf
+fetch https://github.com/aliftype/amiri-typewriter/releases/download/v1.1/AmiriTypewriter-1.1.zip \
+  AmiriTypewriter-1.1/AmiriTypewriter-Regular.ttf AmiriTypewriter-1.1/AmiriTypewriter-Bold.ttf
+fetch https://github.com/rastikerdar/vazir-code-font/releases/download/v1.1.2/vazir-code-font-v1.1.2.zip Vazir-Code.ttf
+fetch https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz \
+  liberation-fonts-ttf-2.1.5/LiberationMono-Regular.ttf liberation-fonts-ttf-2.1.5/LiberationMono-Bold.ttf
+
 # Indic: Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada,
 # Malayalam and Sinhala. The serif Notos and IBM Plex Devanagari are held out.
 for f in "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf" "ofl/hind/Hind-Regular.ttf" "ofl/hind/Hind-SemiBold.ttf" \
@@ -177,6 +203,9 @@ fi
 for f in DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSansMono.ttf; do
   echo "| $f | train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
 done
+# DejaVu Sans Mono draws Arabic in monospace.
+cp fonts/train/DejaVuSansMono.ttf fonts/rtl-train/DejaVuSansMono.ttf
+echo "| DejaVuSansMono.ttf | rtl-train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
 # DejaVu Sans also draws Armenian and Georgian.
 for f in DejaVuSans.ttf DejaVuSans-Bold.ttf; do
   cp fonts/train/$f fonts/cau-train/$f
@@ -193,5 +222,10 @@ if [ ! -s fonts/cau-train/FreeSerif.ttf ]; then
 fi
 for f in FreeSans.ttf FreeSansBold.ttf FreeSerif.ttf FreeSerifBold.ttf; do
   echo "| $f | cau-train | GPL-3.0-with-font-exception | $F |" >> fonts/LICENSES.md
+done
+# FreeMono draws both Hebrew and Arabic in monospace.
+unzip -o -q -j fonts/dl/freefont.zip 'freefont-20120503/FreeMono.ttf' 'freefont-20120503/FreeMonoBold.ttf' -d fonts/rtl-train
+for f in FreeMono.ttf FreeMonoBold.ttf; do
+  echo "| $f | rtl-train | GPL-3.0-with-font-exception | $F |" >> fonts/LICENSES.md
 done
 ls fonts/train fonts/heldout | wc -l
