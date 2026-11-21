@@ -16,12 +16,12 @@ import torch
 import torch.nn as nn
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from model import LineContext, Recognizer  # noqa: E402
+from model import GatedHead, LineContext, Recognizer  # noqa: E402
 
 ck, out = sys.argv[1], sys.argv[2]
 os.makedirs(os.path.join(out, "check"), exist_ok=True)
 st = torch.load(ck, map_location="cpu")
-m = Recognizer(st["classes"], st["width"], st.get("arch", "base")).eval()
+m = Recognizer(st["classes"], st["width"], st.get("arch", "base"), st.get("head", "full"), st.get("rank", 128)).eval()
 m.load_state_dict(st["model"])
 
 blob = bytearray()
@@ -80,7 +80,17 @@ if m.arch == "ctx":
     line_context(m.line2)
 else:
     seq(m.context)
-seq(nn.Sequential(m.head))
+if isinstance(m.head, GatedHead):
+    h = m.head
+    flat = lambda c: c.weight.detach().double()[:, :, 0, 0].numpy()  # noqa: E731
+    layers.append({
+        "op": "gated", "c": h.blank.in_channels, "rank": h.proj.out_channels, "classes": h.chars.out_channels,
+        "w": put(flat(h.blank)), "b": put(h.blank.bias.detach().double().numpy()),
+        "proj_w": put(flat(h.proj)), "proj_b": put(h.proj.bias.detach().double().numpy()),
+        "char_w": put(flat(h.chars)), "char_b": put(h.chars.bias.detach().double().numpy()),
+    })
+else:
+    seq(nn.Sequential(m.head))
 
 with open(os.path.join(out, "weights.bin"), "wb") as f:
     f.write(blob)
@@ -97,14 +107,23 @@ gen, rng = generator(sys.argv[3] if len(sys.argv) > 3 else st["family"], "heldou
 with torch.no_grad():
     for n in range(8):
         x = gen.sample(rng)[0]
+        base = os.path.join(out, "check", f"{n:05d}")
+        np.ascontiguousarray(x, dtype="<f4").tofile(base + ".in")
+        if isinstance(m.head, GatedHead):
+            # The reference is each step's argmax class and its probability.
+            logp = m(torch.from_numpy(x)[None, None])[0]
+            prob, cls = logp.exp().max(-1)
+            np.ascontiguousarray(cls.numpy(), dtype="<i4").tofile(base + ".classes")
+            np.ascontiguousarray(prob.numpy(), dtype="<f4").tofile(base + ".probs")
+            json.dump({"h": x.shape[0], "w": x.shape[1], "t": int(cls.shape[0]), "c": st["classes"]},
+                      open(base + ".json", "w"))
+            continue
         feats = m.collapse(m.features(torch.from_numpy(x)[None, None]))
         if m.arch == "ctx":
             feats = m.line2(m.wide(m.context(m.line1(feats))))
         else:
             feats = m.context(feats)
         logits = m.head(feats)[0, :, 0, :].T.numpy()  # (T, C)
-        base = os.path.join(out, "check", f"{n:05d}")
-        np.ascontiguousarray(x, dtype="<f4").tofile(base + ".in")
         np.ascontiguousarray(logits, dtype="<f4").tofile(base + ".logits")
         json.dump({"h": x.shape[0], "w": x.shape[1], "t": logits.shape[0], "c": logits.shape[1]},
                   open(base + ".json", "w"))
