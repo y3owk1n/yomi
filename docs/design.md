@@ -160,6 +160,35 @@ Myanmar) are scored per character, the rest per word.
 
 Vision accurate takes 0.6 to 1.9 s per page on these sets.
 
+## Against PaddleOCR (measured 2026-11-22)
+
+The same Mac UI and held-out pages, read by three engines: Vision accurate,
+PaddleOCR and yomi. PaddleOCR runs through `train/paddle.py`, which uses
+rapidocr 3.10 on ONNX Runtime. It reads Chinese and Japanese with PP-OCRv6
+small and every other language with its PP-OCRv5 or v4 recognizer, chosen
+from the page's language. yomi has to work the language out itself.
+Western, right-to-left and Indic count words, CJK and Thai characters. CJK
+counts yomi's words as one box per character, as PaddleOCR returns them.
+Times are per page on the M5, with training running for yomi's.
+
+| Set | yomi | PaddleOCR | Vision accurate | yomi, PaddleOCR, Vision ms |
+|---|---|---|---|---|
+| Western, 17 languages | **94.6% / 94.9%** | 85.9% / 86.8% | 86.3% / 86.3% | 130, 4,200, 90 |
+| CJK | 92.5% / 92.7% | **96.3% / 96.8%** | 86.8% / 86.0% | 550, 9,600, 1,600 |
+| Arabic | 77.0% / 81.2% | 65.6% / 80.9% | **83.6% / 89.5%** | 180, 4,500, 570 |
+| Hebrew | **81.5% / 81.6%** | no recognizer | 2.3% / 2.3% | |
+| Hindi UI | 83.7% / 84.1% | 83.1% / 86.7% | **92.1% / 92.4%** | 250, 4,500, 600 |
+| Thai UI | training | 96.2% / 92.2% | 94.5% / 94.2% | |
+
+PaddleOCR's Latin recognizer reads Vietnamese at 40%, Romanian at 67% and
+Turkish at 71%, where yomi reads 89 to 97%, and its CJK lead is 8 points on
+Simplified Chinese. Of the 11 held-out Indic languages it has recognizers for
+6. It reads Tamil and Telugu better than yomi, 78% and 76% at 2x against 71%
+and 49%, and Kannada at 18%, where yomi reads 68%. It has none for Hebrew, Bengali,
+Gujarati, Punjabi, Malayalam, Sinhala, Lao, Khmer, Myanmar, Georgian,
+Armenian or Amharic. That makes it a teacher for CJK, Tamil and Telugu, and
+not for Arabic.
+
 ## How the later milestones work
 
 - **Large alphabets (CJK).** The CJK family has 12,098 characters, from
