@@ -1,7 +1,8 @@
 """Renders a fixed synthetic training set once, on every core, so training
 steps do no rendering. Lines go to disk, not memory, so a set can be larger
-than RAM: OUT.ink holds every line's uint8 ink map side by side (32 rows),
-OUT.npz the offsets, widths and labels, and OUT.txt the texts.
+than RAM. OUT.lines holds every line's uint8 ink map one after another, each
+stored column by column (width x 32), so reading a line is one contiguous
+read. OUT.npz holds the offsets, widths and labels, and OUT.txt the texts.
 
 Usage: python prerender.py FAMILY OUT COUNT [SEED]   (PROCS caps the workers)
 FAMILY "router" renders every routed family, each line labelled with its
@@ -41,7 +42,7 @@ class Set:
         meta = np.load(path + ".npz")
         self.offsets, self.widths = meta["offsets"], meta["widths"]
         self.label_offsets, self.labels = meta["label_offsets"], meta["labels"]
-        self.ink = np.memmap(path + ".ink", dtype=np.uint8, mode="r").reshape(32, -1)
+        self.lines = np.memmap(path + ".lines", dtype=np.uint8, mode="r").reshape(-1, 32)
         self.texts = open(path + ".txt", encoding="utf-8").read().split("\n")
 
     def __len__(self):
@@ -49,7 +50,7 @@ class Set:
 
     def __getitem__(self, i):
         o, w = self.offsets[i], self.widths[i]
-        return (np.asarray(self.ink[:, o:o + w]), self.labels[self.label_offsets[i]:self.label_offsets[i + 1]].tolist(),
+        return (np.asarray(self.lines[o:o + w]).T, self.labels[self.label_offsets[i]:self.label_offsets[i + 1]].tolist(),
                 self.texts[i])
 
 
@@ -63,9 +64,8 @@ if __name__ == "__main__":
     # array, not a list of Python ints.
     offsets, widths, labels, label_offsets, texts = [], [], array.array("i"), [0], []
     total = 0
-    with open(path + ".ink.cols", "wb") as cols, mp.Pool(int(os.environ.get("PROCS", os.cpu_count())), maxtasksperchild=4) as pool:
-        # Lines arrive in any order. Each goes to a scratch file column by
-        # column (W x 32), which is transposed into the final file at the end.
+    with open(path + ".lines", "wb") as cols, mp.Pool(int(os.environ.get("PROCS", os.cpu_count())), maxtasksperchild=4) as pool:
+        # Lines arrive in any order, and each is appended column by column.
         for i, part in enumerate(pool.imap_unordered(chunk, jobs), 1):
             for x, lab, text in part:
                 if len(widths) == count:
@@ -79,14 +79,6 @@ if __name__ == "__main__":
                 texts.append(text.replace("\n", " "))
             if i % 20 == 0:
                 print(f"{len(widths)} samples, {len(widths) / (time.time() - t):.0f}/s", flush=True)
-    src = np.memmap(path + ".ink.cols", dtype=np.uint8, mode="r").reshape(total, 32)
-    ink = np.memmap(path + ".ink", dtype=np.uint8, mode="w+", shape=(32, total))
-    step = 1 << 20
-    for s in range(0, total, step):
-        ink[:, s:s + step] = src[s:s + step].T
-    ink.flush()
-    del src
-    os.remove(path + ".ink.cols")
     np.savez(path + ".npz", offsets=np.array(offsets, np.int64), widths=np.array(widths, np.int32),
              labels=np.array(labels, np.int32), label_offsets=np.array(label_offsets, np.int64))
     open(path + ".txt", "w", encoding="utf-8").write("\n".join(texts))
