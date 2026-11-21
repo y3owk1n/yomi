@@ -1,8 +1,8 @@
 # Training
 
-Moved from Neru's `research/ocr-engine/proto/`, where the current latin model
-was trained. Scripts still carry paths from there; they get cleaned up in
-milestone 1.
+These scripts come from Neru's `research/ocr-engine/proto/`, where the
+current latin model was trained. Some still carry paths from there. Milestone 1
+cleans them up.
 
 - `fetch_fonts.sh` downloads the open training and held-out fonts
   (`fonts/LICENSES.md`).

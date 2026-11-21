@@ -1,8 +1,8 @@
 # yomi design
 
-yomi is an OCR library for screen frames, written for Neru: pure Go, no cgo,
-weights embedded, the same engine on macOS, Linux and Windows. Neru pulls it
-in as a Go module.
+yomi is an OCR library for screen frames, written for Neru. It is pure Go
+with no cgo, ships its weights embedded, and runs the same engine on macOS,
+Linux and Windows. Neru imports it as a Go module.
 
 ## Goals
 
@@ -12,14 +12,14 @@ in as a Go module.
 - Lightweight: a few MB per script family, nothing to download or install.
 - One code path everywhere. No Vision, no tesseract, no Windows.Media.Ocr.
 
-Non-goals: documents, photos, handwriting, rotated or curved text, layout
-analysis beyond lines.
+yomi does not read documents, photos, handwriting, or rotated or curved
+text, and it does no layout analysis beyond finding lines.
 
 ## Why build it (measured, 2026-11-21)
 
 Whole-page reads of the same pages on each platform, word-exact accuracy,
 median ms per page. Linux and Windows are UTM VMs on an M5 (4 vCPU each), so
-compare times within a platform. Full tables and harnesses: Neru's
+compare times within a platform. The full tables and harnesses are in Neru's
 `research/ocr-engine/README.md` (Benchmark) and `proto/bench/`.
 
 | Platform | Engine | Fresh text 1x | Fresh text 2x | Windows render | Fixtures | ms / page 1x, 2x |
@@ -33,15 +33,15 @@ compare times within a platform. Full tables and harnesses: Neru's
 | Windows | Windows.Media.Ocr (Neru today) | 88.9% | 98.1% | 78.0% | 8/8 | 44, 88 |
 | Windows | **yomi (latin)** | **97.7%** | 97.7% | **88.4%** | 6/8 | **36, 39** |
 
-So the starting point: ahead of every native engine at 1x, level at 2x, about
-one point behind PP-OCRv6 tiny at 25-40x its speed, printable ASCII only, and
-two fixture phrases short ("CLI" read as "CLl" at 11 pt).
+yomi starts ahead of every native engine at 1x and level with them at 2x. It
+is about one point behind PP-OCRv6 tiny and 25-40x faster. It reads printable
+ASCII only, and two fixture phrases fail because "CLI" at 11 pt reads as "CLl".
 
-Third-party engines considered and why not (sources in the research README):
-PP-OCR is the most accurate but needs ONNX Runtime or ncnn through cgo and
-runs 0.6-3 s a page; ocrs is Latin-only and says "early preview"; tesseract is
-slow and weak at 1x; pure-Go engines do not exist; vision-language models are
-hundreds of millions of parameters.
+The research README cites the sources for the third-party engines that were
+ruled out. PP-OCR is the most accurate, but it needs ONNX Runtime or ncnn
+through cgo and takes 0.6-3 s a page. ocrs reads Latin only and calls itself
+an early preview. Tesseract is slow and weak at 1x. No pure-Go engine exists.
+Vision-language models have hundreds of millions of parameters.
 
 ## Architecture
 
@@ -65,67 +65,73 @@ frame (RGBA, scale)
   `go:embed`, loaded once. A program imports only the families it reads.
 - `train/`: the Python pipeline (PyTorch, Pillow with raqm for shaping) that
   renders synthetic lines from open fonts, trains, and exports
-  `model.json` + `weights.bin`. Fonts are fetched, not committed; their
-  licences are recorded in `train/fonts/LICENSES.md`.
+  `model.json` and `weights.bin`. `fetch_fonts.sh` downloads the fonts, so
+  the repository holds none. `train/fonts/LICENSES.md` records each licence.
 
-Measured properties of the current engine: identical text to the PyTorch
-model on 3,054 of 3,054 test crops (`TestModel_Forward_MatchesTrainingReference`
-pins the logits), 24 ms a page on 10 M5 cores, 42 ms on 4, 130 ms on 1.
+The Go engine reads the same text as the PyTorch model on 3,054 of 3,054
+test crops, and `TestModel_Forward_MatchesTrainingReference` pins the logits.
+A page takes 24 ms on 10 M5 cores, 42 ms on 4 and 130 ms on 1.
 
 ## What Neru needs from it
 
-From `internal/ports/vision.go` and vim mode: words with boxes in reading
-order grouped into lines (Neru's `line_pieces.go` derives per-character cells,
-background and borders from the frame), a fast and an accurate level (one
-read can answer both), confidence for `hints.vision.minimum_confidence`,
-cancellation, and CJK, where vim's romanized search and initials apply.
+Neru's `internal/ports/vision.go` and vim mode need these from an engine:
+
+- words with boxes, in reading order, grouped into lines. Neru's
+  `line_pieces.go` derives per-character cells, background and borders from
+  the frame itself.
+- a fast and an accurate level. One read can answer both.
+- a confidence per word, for `hints.vision.minimum_confidence`.
+- cancellation.
+- CJK, which vim's romanized search and initials work on.
 
 ## Milestones
 
-Each milestone freezes its gate before training, on a test set sealed from
-text no training source uses, and reports against the native engines on all
-three platforms with the same harness.
+Each milestone fixes its pass criteria before training starts. Its test set
+uses text that no training source draws from, and its report compares yomi
+with the native engines on all three platforms through the same harness.
 
-0. **Repo and port** (this commit). Library API, the latin model embedded,
-   reference test, fixtures test, cgo-free builds for six targets. Done.
+0. **Repo and port.** Done. The library API, the latin model embedded, the
+   reference and fixture tests, and cgo-free builds for six targets.
 1. **Western scripts at their best.** One model over Latin with accents,
-   Cyrillic and Greek (about 350 classes). Targeted data for I/l/1 and
-   acronyms, non-text crops labelled empty (stray words on icons and photos
-   are the main open cost: 60-170 per 11 layout pages for every engine), more
-   layout templates for the line finder. Gate: Neru's fixture test 8/8,
-   fresh-text accuracy no worse than today, extras halved, an accents/Cyrillic/
-   Greek set at least as good as Vision accurate. Also decides one model per
-   family versus one shared model, by comparing ASCII accuracy against the
-   current model.
+   Cyrillic and Greek, about 350 classes. Training adds targeted data for
+   I/l/1 and acronyms, labels non-text crops as empty, and the line finder
+   gets more layout templates. Stray words on icons and photos are the main
+   open cost, 60-170 per 11 layout pages for every engine. The gate: Neru's
+   fixture test reads 8 of 8, fresh-text accuracy is no worse than today,
+   stray words halve, and a set of accented, Cyrillic and Greek text reads at
+   least as well as Vision accurate. Comparing ASCII accuracy with the current
+   model decides between one model per family and one shared model.
 2. **CJK.** zh-Hans, zh-Hant, ja, ko (about 12,000 classes, a factorized
-   head so its cost stays bounded). Line finder checked on CJK first (no
-   word spaces, no baseline in the Latin sense). Character accuracy as the
-   metric. Open fonts for training (Noto Sans/Serif CJK, LXGW WenKai, Nanum,
-   M PLUS), system fonts for evaluation only. Gate: at least Vision accurate
-   on macOS, above tesseract and Windows.Media.Ocr on their platforms.
-3. **Right to left.** Arabic, Persian, Urdu, Hebrew: shaping in training,
-   logical-order labels, mixed-direction lines.
+   head keeps its cost bounded). The line finder gets checked on CJK first,
+   since CJK has no word spaces and no Latin baseline. The metric is
+   character accuracy. Training uses open fonts (Noto Sans and Serif CJK,
+   LXGW WenKai, Nanum, M PLUS), and system fonts serve only for evaluation.
+   The gate is at least Vision accurate on macOS, and above tesseract and
+   Windows.Media.Ocr on their platforms.
+3. **Right to left.** Arabic, Persian, Urdu and Hebrew. Training shapes
+   the text, labels follow logical order, and lines may mix directions.
 4. **South and Southeast Asian scripts.** The nine Indic scripts, Thai, Lao,
-   Khmer, Myanmar (stacked marks, no spaces in some), plus Georgian,
-   Armenian and Ethiopic: the rest of what Neru's tesseract locale map reads.
+   Khmer and Myanmar (stacked marks, and some write no spaces), plus
+   Georgian, Armenian and Ethiopic. That covers the rest of Neru's tesseract
+   locale map.
 5. **Script routing.** A tiny classifier per line picks the model, so a page
    mixing scripts reads without locale configuration.
-6. **Neru integration.** A VisionPort adapter on yomi with native capture
-   unchanged, then tesseract, the WinRT OCR code and Vision text recognition
-   removed. Requires x86 timing on real hardware first (all timing so far is
-   Apple Silicon; amd64 has half the vector registers the pointwise kernel
-   uses).
+6. **Neru integration.** A VisionPort adapter on yomi keeps native capture.
+   Then tesseract, the WinRT OCR code and Vision text recognition go. This
+   needs x86 timing on real hardware first. All timing so far is Apple
+   Silicon, and amd64 has half the vector registers the pointwise kernel
+   uses.
 
 ## Known risks
 
-- CJK at 1x and 11-13 px: strokes merge. Expect the widest gap to Vision
-  there.
+- CJK strokes merge at 1x and 11-13 px, so the gap to Vision will be
+  widest there.
 - The line finder is tuned on one family of layouts. Real screens (icons,
   KPI numerals, ellipsized text) cost it about 3 points today.
 - Every evaluation page so far is synthetic HTML. Real app captures are
   needed before integration.
 
-## Decisions taken without asking (change any)
+## Open decisions
 
 - Name `yomi` (Japanese for reading), module `github.com/y3owk1n/yomi`, local
   repository only, nothing pushed.

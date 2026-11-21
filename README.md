@@ -1,8 +1,8 @@
 # yomi
 
-OCR for screen frames in pure Go. No cgo, no downloads, weights embedded,
-the same engine on macOS, Linux and Windows. Built for
-[Neru](https://github.com/y3owk1n/neru).
+yomi reads text off screen frames. It is pure Go with no cgo, ships its
+weights embedded, downloads nothing, and runs the same engine on macOS, Linux
+and Windows. It is built for [Neru](https://github.com/y3owk1n/neru).
 
 ```go
 m, err := latin.Model() // github.com/y3owk1n/yomi/models/latin
@@ -18,9 +18,9 @@ for _, l := range lines {
 }
 ```
 
-Status: printable ASCII. More scripts, CJK first after Western, are planned
-in [docs/design.md](docs/design.md), with the measurements against Vision,
-tesseract and Windows.Media.Ocr that motivate it.
+It reads printable ASCII today. [docs/design.md](docs/design.md) plans the
+other scripts, Western first and then CJK, and holds the measurements against
+Vision, tesseract and Windows.Media.Ocr.
 
 The training pipeline lives in `train/`.
 
