@@ -1,4 +1,4 @@
-"""The model families yomi trains: each pairs a character set with the
+"""The model families yomi trains. Each pairs a character set with the
 languages its training lines draw from and the font folders it renders in."""
 from charsets import ASCII, CAUCASIAN_ETHIOPIC, CJK, INDIC, RTL, SEA, WESTERN
 from synth import Generator
@@ -33,11 +33,14 @@ ROUTED = ["western", "cjk", "rtl", "indic", "sea", "caucasian-ethiopic"]
 
 
 class RouterGenerator:
-    """Lines from every routed family, each labelled with its family's index
-    (none is the last index), for the router."""
+    """Draws lines from every routed family for the router. Each line's label
+    is the first routed family whose alphabet covers every character drawn, so
+    a Latin-only line from any family counts as Western. Routing is scored the
+    same way. None is the last index."""
 
     def __init__(self, split="train"):
         self.gens = [generator(f, split, blank_rate=0) for f in ROUTED]
+        self.alphabets = [set(FAMILIES[f][0]) for f in ROUTED]
         self.split = split
 
     def sample(self, rng):
@@ -48,6 +51,8 @@ class RouterGenerator:
             return x, [len(ROUTED)], "none"
         i = rng.randrange(len(ROUTED))
         x, _, text = self.gens[i].sample(rng)
+        drawn = {c for c in text if not c.isspace()}
+        i = next((j for j, a in enumerate(self.alphabets) if drawn <= a), i)
         return x, [i], ROUTED[i]
 
 
