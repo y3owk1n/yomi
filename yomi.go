@@ -152,7 +152,9 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 	s := e.pool.Get().(*nn.Scratch)
 	steps := net.Steps(x, w, s)
 	e.pool.Put(s)
-	return decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
+	words := decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
+	settleScripts(words)
+	return words
 }
 
 // decode is greedy CTC: the best class per step, repeats and blanks dropped,

@@ -12,6 +12,7 @@ import (
 
 	"github.com/y3owk1n/yomi"
 	"github.com/y3owk1n/yomi/models/latin"
+	"github.com/y3owk1n/yomi/models/western"
 )
 
 func loadFrame(t *testing.T, path string) *image.RGBA {
@@ -117,5 +118,33 @@ func TestEngine_Read_CanceledContextReadsNothing(t *testing.T) {
 	lines, err := engine(t).Read(ctx, loadFrame(t, "testdata/fixtures/1080p-13pt.png"), 1)
 	if !errors.Is(err, context.Canceled) || lines != nil {
 		t.Fatalf("Read = %d lines, %v; want nil, context.Canceled", len(lines), err)
+	}
+}
+
+// TestEngine_Read_SettlesLookalikesOnTheWordsScript reads Russian, English
+// and Greek lines made largely of letters that draw alike across the three
+// scripts (С and C, о and o and ο) and expects every letter in its word's own
+// script, compared as code points.
+func TestEngine_Read_SettlesLookalikesOnTheWordsScript(t *testing.T) {
+	m, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/lookalikes@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"Сохранить копию", "Copy screen", "Ελληνικά κείμενα"}
+	if len(lines) != len(want) {
+		t.Fatalf("read %d lines, want %d:\n%s", len(lines), len(want), text(lines))
+	}
+	for i, l := range lines {
+		var words []string
+		for _, w := range l.Words {
+			words = append(words, w.Text)
+		}
+		if got := strings.Join(words, " "); got != want[i] {
+			t.Errorf("line %d = %q (%U), want %q (%U)", i, got, []rune(got), want[i], []rune(want[i]))
+		}
 	}
 }
