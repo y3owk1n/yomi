@@ -201,8 +201,7 @@ func blobs(e []bool, w, h int) []blob {
 	for i := range parent {
 		parent[i] = -1
 	}
-	var find func(int32) int32
-	find = func(a int32) int32 {
+	find := func(a int32) int32 {
 		for parent[a] != a {
 			parent[a] = parent[parent[a]]
 			a = parent[a]

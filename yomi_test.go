@@ -20,8 +20,8 @@ func loadFrame(t *testing.T, path string) *image.RGBA {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
 	src, err := png.Decode(f)
+	_ = f.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
