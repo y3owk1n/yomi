@@ -74,7 +74,7 @@ class Font:
                 f.set_variation_by_axes(vals)
             # A face holds its font's tables. CJK fonts are 10 to 23 MB, so the
             # cache stays small enough for several workers to share RAM.
-            if len(cls._cache) > 300:
+            if len(cls._cache) > 40:
                 cls._cache.clear()
             cls._cache[key] = f
         return f
@@ -186,7 +186,7 @@ def render(rng, text, primary, fallbacks, scale, other_text, shaped=False):
     """The line as an RGB crop, and its label: text as written, or in visual
     order for shaped lines."""
     px = round(rng.uniform(10, 18) * scale)
-    weight = rng.choice([400, 400, 400, 450, 500, 600, 700])
+    weight = rng.choice([400, 400, 400, 500, 700])
     supersample = rng.random() < 0.5
     subpixel = not shaped and rng.random() < 0.1
     label = text
