@@ -131,6 +131,9 @@ def word_token(rng, words):
     return w
 
 
+_DANDA = {"hi", "mr", "ne", "bn", "pa"}
+
+
 def line(rng, langs, charset, split="train", n=None):
     """One line of text: mostly words of one language, with UI tokens and the
     occasional English word mixed in."""
@@ -148,6 +151,9 @@ def line(rng, langs, charset, split="train", n=None):
             out.append(word_token(rng, en))
         else:
             out.append(ui_token(rng, words))
+    if lang in _DANDA and rng.random() < 0.3:
+        # These languages end a sentence with a danda, written against the word.
+        out[-1] = out[-1].rstrip(".,:;!?") + "।"
     if lang in ("es", "ca") and rng.random() < 0.25:
         # Spanish opens a question or exclamation with an inverted mark.
         mark = rng.choice("?!")
