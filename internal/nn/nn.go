@@ -36,7 +36,11 @@ type Model struct {
 	Height   int    `json:"height"`
 	Stride   int    `json:"stride"`
 	Alphabet string `json:"alphabet"`
-	Layers   []layer
+	// Family names the scripts a recognizer reads. Labels names a router's
+	// classes, the families it tells apart.
+	Family string   `json:"family"`
+	Labels []string `json:"labels"`
+	Layers []layer
 }
 
 // Load reads model.json and weights.bin from fsys.

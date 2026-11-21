@@ -2,6 +2,7 @@
  "height": 32,
  "stride": 4,
  "alphabet": " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~",
+ "family": "latin",
  "layers": [
   {
    "op": "conv",

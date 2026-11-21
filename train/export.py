@@ -94,16 +94,19 @@ else:
 
 with open(os.path.join(out, "weights.bin"), "wb") as f:
     f.write(blob)
-json.dump({"height": 32, "stride": 4, "alphabet": st["alphabet"], "layers": layers},
+json.dump({"height": 32, "stride": 4, "alphabet": st["alphabet"], "family": st["family"], "labels": st.get("labels"),
+           "layers": layers},
           open(os.path.join(out, "model.json"), "w"), indent=1)
 print(f"{len(layers)} layers, {len(blob) / 1e6:.2f} MB")
 
 # Check crops: prepared inputs and PyTorch logits (pre-softmax head output).
 import random  # noqa: E402
 
-from families import generator  # noqa: E402
+from families import generator, router_generator  # noqa: E402
 
-gen, rng = generator(sys.argv[3] if len(sys.argv) > 3 else st["family"], "heldout", blank_rate=0), random.Random(5)
+family = sys.argv[3] if len(sys.argv) > 3 else st["family"]
+gen = router_generator("heldout") if family == "router" else generator(family, "heldout", blank_rate=0)
+rng = random.Random(5)
 with torch.no_grad():
     for n in range(8):
         x = gen.sample(rng)[0]
