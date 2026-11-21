@@ -140,6 +140,43 @@ uses text that no training source draws from.
 Vision accurate reads only about 10% of the Greek pages: it does not read
 Greek even with automatic language detection.
 
+## How the later milestones work
+
+- **Large alphabets (CJK).** The CJK family has 12,098 characters, from
+  GB2312, Big5 level 1, JIS X 0208 level 1 and KS X 1001, plus kana,
+  punctuation and what the Mac's own CJK UI strings use (over 99.9% of
+  their characters). A full output layer would cost more than the rest of the
+  network, so the CJK model uses a gated head. A one-output layer gives each
+  step's blank logit, and a low-rank pair of layers gives the character
+  logits only where a character can win (`internal/nn`, `train/model.py`).
+  Training is ordinary CTC, and the Go decision is the exact argmax.
+- **Shaping.** Arabic, Hebrew, the Indic scripts, Thai, Lao, Khmer and
+  Myanmar render through HarfBuzz (uharfbuzz) and FreeType (freetype-py),
+  both pip wheels, so nothing comes from a system package manager. Lines lay
+  out in visual order and their labels follow it. The engine turns
+  right-to-left words back into logical order.
+- **Lookalikes.** Latin, Cyrillic and Greek letters that draw the same take
+  the script of the rest of their word, or of their line.
+- **Routing.** A router is the recognizer's network with one class per
+  family plus none. Every step learns its line's family, and the engine
+  averages the steps and reads the line with that family's recognizer.
+- **Character boxes.** Each word carries one box per character, meeting its
+  neighbours halfway between the steps they were read at, for vim mode.
+
+## What training uses, and its licences
+
+None of this ships. The library holds only the trained weights.
+
+| Input | Licence | Use |
+|---|---|---|
+| Open fonts from google/fonts, DejaVu | OFL-1.1, UFL-1.0, Bitstream Vera | rendering training lines, listed in `train/fonts/LICENSES.md` |
+| wordfreq word lists | code Apache-2.0, data CC-BY-SA 4.0 | training words in 42 languages |
+| Wikipedia article intros (`wikitext.py`) | CC BY-SA 4.0 | words for the languages wordfreq lacks |
+| OpenCC | Apache-2.0 | Simplified to Traditional Chinese |
+| uharfbuzz, freetype-py | Apache-2.0, BSD | shaping and rasterizing |
+| PyTorch, NumPy, Pillow, fontTools | BSD, BSD, MIT-CMU, MIT | training |
+| The Mac's system app strings (`uistrings.py`) | Apple's | evaluation only, never committed or trained on |
+
 ## Known risks
 
 - CJK strokes merge at 1x and 11-13 px, so the gap to Vision will be
