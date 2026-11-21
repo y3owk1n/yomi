@@ -187,37 +187,28 @@ func gated(l *layer, x tensor) []Step {
 		return steps
 	}
 	n := len(open)
-	best := make([]float32, n)
+	z := charLogits(l, h, n)
 	arg := make([]int, n)
-	for i := range best {
-		best[i] = float32(math.Inf(-1))
-	}
-	// Each logit counts toward the argmax and toward the softmax sum, so one
-	// pass keeps a running max and a running sum of exp per step.
-	maxv := make([]float32, n)
 	sum := make([]float64, n)
-	for i := range maxv {
-		maxv[i] = float32(math.Inf(-1))
-	}
-	for ci := range l.Classes {
-		row := l.cw[ci*l.Rank : (ci+1)*l.Rank]
-		bias := l.cb[ci]
-		for s := range n {
-			hs := h[s*l.Rank : (s+1)*l.Rank]
-			z := bias
-			for r, w := range row {
-				z += w * hs[r]
-			}
-			if z > best[s] {
-				best[s], arg[s] = z, ci
-			}
-			if z > maxv[s] {
-				sum[s] = sum[s]*math.Exp(float64(maxv[s]-z)) + 1
-				maxv[s] = z
-			} else {
-				sum[s] += math.Exp(float64(z - maxv[s]))
+	for s := range n {
+		row := z[s*l.Classes : (s+1)*l.Classes]
+		best := 0
+		for ci, v := range row {
+			if v > row[best] {
+				best = ci
 			}
 		}
+		// Classes more than 20 below the best add under exp(-20) each, under
+		// 3e-5 together even for twelve thousand classes, so the softmax sum
+		// skips them.
+		top, floor := row[best], row[best]-20
+		var total float64
+		for _, v := range row {
+			if v > floor {
+				total += math.Exp(float64(v - top))
+			}
+		}
+		arg[s], sum[s] = best, total
 	}
 	for s, j := range open {
 		p := float32(1/sum[s]) * steps[j].Prob // softmax of the best class times P(not blank)
@@ -229,6 +220,70 @@ func gated(l *layer, x tensor) []Step {
 		}
 	}
 	return steps
+}
+
+// charLogits computes the character logits of n open steps, whose
+// projections h holds (Rank each): z[s*Classes+c] = cb[c] + cw[c] . h[s]. It
+// works in register tiles of four classes by four steps, reading each class's
+// weights once per four steps.
+func charLogits(l *layer, h []float32, n int) []float32 {
+	r, c := l.Rank, l.Classes
+	z := make([]float32, n*c)
+	ci := 0
+	for ; ci+4 <= c; ci += 4 {
+		w0, w1, w2, w3 := l.cw[ci*r:(ci+1)*r], l.cw[(ci+1)*r:(ci+2)*r], l.cw[(ci+2)*r:(ci+3)*r], l.cw[(ci+3)*r:(ci+4)*r]
+		b0, b1, b2, b3 := l.cb[ci], l.cb[ci+1], l.cb[ci+2], l.cb[ci+3]
+		s := 0
+		for ; s+4 <= n; s += 4 {
+			h0, h1, h2, h3 := h[s*r:(s+1)*r], h[(s+1)*r:(s+2)*r], h[(s+2)*r:(s+3)*r], h[(s+3)*r:(s+4)*r]
+			var a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33 float32
+			for k := range r {
+				x0, x1, x2, x3 := h0[k], h1[k], h2[k], h3[k]
+				v0, v1, v2, v3 := w0[k], w1[k], w2[k], w3[k]
+				a00 += v0 * x0
+				a01 += v0 * x1
+				a02 += v0 * x2
+				a03 += v0 * x3
+				a10 += v1 * x0
+				a11 += v1 * x1
+				a12 += v1 * x2
+				a13 += v1 * x3
+				a20 += v2 * x0
+				a21 += v2 * x1
+				a22 += v2 * x2
+				a23 += v2 * x3
+				a30 += v3 * x0
+				a31 += v3 * x1
+				a32 += v3 * x2
+				a33 += v3 * x3
+			}
+			z[s*c+ci], z[s*c+ci+1], z[s*c+ci+2], z[s*c+ci+3] = b0+a00, b1+a10, b2+a20, b3+a30
+			z[(s+1)*c+ci], z[(s+1)*c+ci+1], z[(s+1)*c+ci+2], z[(s+1)*c+ci+3] = b0+a01, b1+a11, b2+a21, b3+a31
+			z[(s+2)*c+ci], z[(s+2)*c+ci+1], z[(s+2)*c+ci+2], z[(s+2)*c+ci+3] = b0+a02, b1+a12, b2+a22, b3+a32
+			z[(s+3)*c+ci], z[(s+3)*c+ci+1], z[(s+3)*c+ci+2], z[(s+3)*c+ci+3] = b0+a03, b1+a13, b2+a23, b3+a33
+		}
+		for ; s < n; s++ {
+			hs := h[s*r : (s+1)*r]
+			for i, w := range [][]float32{w0, w1, w2, w3} {
+				v := l.cb[ci+i]
+				for k, x := range hs {
+					v += w[k] * x
+				}
+				z[s*c+ci+i] = v
+			}
+		}
+	}
+	for ; ci < c; ci++ {
+		w := l.cw[ci*r : (ci+1)*r]
+		for s := range n {
+			v := l.cb[ci]
+			for k, x := range h[s*r : (s+1)*r] {
+				v += w[k] * x
+			}
+			z[s*c+ci] = v
+		}
+	}
+	return z
 }
 
 func sigmoid(v float32) float32 { return float32(1 / (1 + math.Exp(-float64(v)))) }
