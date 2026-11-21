@@ -16,7 +16,7 @@ import torch
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from families import ROUTED  # noqa: E402
 from model import Recognizer  # noqa: E402
-from train import Fixed  # noqa: E402
+from train import Fixed, prefetched  # noqa: E402
 
 LABELS = ROUTED + ["none"]
 
@@ -47,7 +47,7 @@ def main():
             "labels": LABELS, "family": "router"}
     log = open(os.path.join(a.out, "log.jsonl"), "a")
     t0, run, hits, seen = time.time(), 0.0, 0, 0
-    for step, (x, tg, il, tl, _) in enumerate(Fixed(a.data), 1):
+    for step, (x, tg, il, tl, _) in enumerate(prefetched(Fixed(a.data)), 1):
         model.train()
         logp = model(x.to(dev), il)  # (N, T, C)
         y = tg.to(dev)  # one label per line

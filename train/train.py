@@ -12,8 +12,10 @@ model trained on new lines alone forgets the old ones:
 import argparse
 import json
 import os
+import queue
 import random
 import sys
+import threading
 import time
 
 import numpy as np
@@ -61,6 +63,15 @@ class Fixed:
             for w, g in batches:
                 rows = [d[i] for d, i in (self.lines[k] for k in g)]
                 yield collate([(x.astype(np.float32) / 255, lab, text) for x, lab, text in rows], w)
+
+
+def prefetched(batches, depth=8):
+    """Yields from batches while a background thread reads ahead, so loading
+    the next batches overlaps the GPU's work on this one."""
+    q = queue.Queue(depth)
+    threading.Thread(target=lambda: [q.put(b) for b in batches], daemon=True).start()
+    while True:
+        yield q.get()
 
 
 def collate(b, w):
@@ -161,6 +172,7 @@ def main():
     ap.add_argument("--family", required=True)
     ap.add_argument("--data", required=True, nargs="+", help="pre-rendered sets from prerender.py")
     ap.add_argument("--init", help="checkpoint to fine-tune from")
+    ap.add_argument("--resume", action="store_true", help="continue OUTDIR's run from its last.pt")
     ap.add_argument("--width", type=float, default=0.8)
     ap.add_argument("--arch", default="ctx", choices=["base", "ctx"])
     ap.add_argument("--head", default="full", choices=["full", "gated"])
@@ -186,10 +198,30 @@ def main():
     lr = a.lr or (1e-3 if a.init else 3e-3)
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=a.steps, pct_start=0.05)
+    start, best = 0, 0.0
+    if a.resume:
+        # A resume takes the run's own arguments. The weights, the step and
+        # the schedule's place come back. A checkpoint from before the
+        # optimizer was saved restarts its moments and steps the schedule
+        # forward to the same place.
+        ck = torch.load(os.path.join(a.out, "last.pt"), map_location="cpu", weights_only=False)
+        init_from(model, os.path.join(a.out, "last.pt"), meta)
+        start = ck["step"]
+        if start >= a.steps:
+            sys.exit(f"--resume: {a.out} already ran {start} of {a.steps} steps")
+        if "opt" in ck:
+            opt.load_state_dict(ck["opt"])
+            sched.load_state_dict(ck["sched"])
+        else:
+            for _ in range(start):
+                sched.step()
+        with open(os.path.join(a.out, "log.jsonl")) as f:
+            best = max((json.loads(line)["val_word"] for line in f if "val_word" in line), default=0.0)
+        print(json.dumps({"resume": start, "best": best}), flush=True)
 
     log = open(os.path.join(a.out, "log.jsonl"), "a")
-    best, t0, run = 0.0, time.time(), 0.0
-    for step, (x, tg, il, tl, _) in enumerate(Fixed(a.data), 1):
+    t0, run = time.time(), 0.0
+    for step, (x, tg, il, tl, _) in enumerate(prefetched(Fixed(a.data, seed=start)), start + 1):
         model.train()
         logp = model(x.to(dev), il)
         loss = ctc_loss(logp, tg, il, tl, dev)
@@ -198,7 +230,7 @@ def main():
         nn.utils.clip_grad_norm_(model.parameters(), 5.0)
         opt.step()
         sched.step()
-        run = 0.98 * run + 0.02 * loss.item() if step > 1 else loss.item()
+        run = 0.98 * run + 0.02 * loss.item() if step > start + 1 else loss.item()
         if step % 1000 == 0 or step == a.steps:
             model.eval()
             preds, texts = [], []
@@ -212,7 +244,7 @@ def main():
             print(json.dumps(rec), flush=True)
             log.write(json.dumps(rec) + "\n")
             log.flush()
-            state = dict(meta, model=model.state_dict(), step=step)
+            state = dict(meta, model=model.state_dict(), step=step, opt=opt.state_dict(), sched=sched.state_dict())
             torch.save(state, os.path.join(a.out, "last.pt"))
             if acc >= best:
                 best = acc
