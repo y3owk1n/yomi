@@ -1,12 +1,11 @@
 """Trains a recognizer on a pre-rendered set (prerender.py), validating on lines
 rendered in the held-out fonts.
 
-Usage: python train.py OUTDIR --family western --data data/western.pkl [--width 0.8 --steps 40000]
+Usage: python train.py OUTDIR --family western --data data/western [--width 0.8 --steps 40000]
 """
 import argparse
 import json
 import os
-import pickle
 import random
 import sys
 import time
@@ -18,6 +17,7 @@ import torch.nn as nn
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from families import generator  # noqa: E402
 from model import Recognizer  # noqa: E402
+from prerender import Set  # noqa: E402
 
 # (batch, width) shapes. MPS recompiles for every new input shape, which made
 # varying shapes 20x slower per step, so every batch takes one of these.
@@ -29,15 +29,16 @@ def bucket_of(width):
 
 
 class Fixed:
-    """Batches from a pre-rendered set in fixed shape buckets, reshuffled each pass."""
+    """Batches from a pre-rendered set (prerender.Set) in fixed shape buckets,
+    reshuffled each pass."""
 
     def __init__(self, path, seed=0):
-        with open(path, "rb") as f:
-            self.data = [s for s in pickle.load(f) if s[0].shape[1] <= BUCKETS[-1][1]]
+        self.data = Set(path)
         self.rng = random.Random(seed)
         self.members = {b: [] for b in BUCKETS}
-        for i, s in enumerate(self.data):
-            self.members[bucket_of(s[0].shape[1])].append(i)
+        for i, w in enumerate(self.data.widths):
+            if w <= BUCKETS[-1][1]:
+                self.members[bucket_of(w)].append(i)
 
     def __iter__(self):
         while True:
