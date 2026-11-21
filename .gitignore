@@ -4,5 +4,6 @@ bin/
 /train/runs/
 /train/fonts/train/
 /train/fonts/heldout/
+/train/fonts/fallback/
 /train/fonts/dl/
 __pycache__/
