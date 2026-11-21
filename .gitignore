@@ -1,0 +1,8 @@
+bin/
+/train/.venv/
+/train/data/
+/train/runs/
+/train/fonts/train/
+/train/fonts/heldout/
+/train/fonts/dl/
+__pycache__/
