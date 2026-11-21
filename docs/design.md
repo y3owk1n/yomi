@@ -122,6 +122,24 @@ with the native engines on all three platforms through the same harness.
    Silicon, and amd64 has half the vector registers the pointwise kernel
    uses.
 
+## Milestone 1 gate (fixed 2026-11-21, before training)
+
+The western model replaces the latin model only if all of these hold. The
+sets live in `train/data/`, and `evalgen.py` rebuilds them. The UI-string set
+uses text that no training source draws from.
+
+| Criterion | Set | Baseline | Bar |
+|---|---|---|---|
+| Neru's fixtures, word for word | `testdata/fixtures`, 4 frames | 6 of 8 phrases | 8 of 8 |
+| Western UI text | `ui-western`: 34 pages, 17 languages, 6,050 words | Vision accurate 86.3% / 86.3% (1x / 2x), latin model 56.7% / 56.5% | at least Vision accurate overall at both scales, and no language more than 3 points below Vision accurate |
+| English is no worse | `code`, 4,655 words | 97.7% / 97.7% | at least 97.2% at both scales |
+| Linux rendering is no worse | `linux`, 4,653 words | 97.9% | at least 97.4% |
+| Fewer stray words | `layout`, 11 app scenes | 140 / 127 extra words | at most 70 at both scales |
+| Speed | `code` at 2x, all cores, this M5 | 22.6 ms median | at most 30 ms |
+
+Vision accurate reads only about 10% of the Greek pages: it does not read
+Greek even with automatic language detection.
+
 ## Known risks
 
 - CJK strokes merge at 1x and 11-13 px, so the gap to Vision will be
