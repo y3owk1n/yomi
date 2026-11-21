@@ -1,0 +1,55 @@
+#!/bin/sh
+# Downloads the training and held-out fonts into fonts/. All OFL-1.1 unless the
+# line says otherwise. fonts/LICENSES.md records name, licence and source URL.
+set -eu
+cd "$(dirname "$0")"
+mkdir -p fonts/train fonts/heldout
+G=https://raw.githubusercontent.com/google/fonts/main
+: > fonts/LICENSES.md
+echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
+echo "|---|---|---|---|" >> fonts/LICENSES.md
+
+get() { # split path licence
+  name=$(basename "$2")
+  out="fonts/$1/$(printf %s "$name" | tr -d '[]' | tr ',' '_')"
+  url="$G/$(printf %s "$2" | sed 's/\[/%5B/g; s/\]/%5D/g')"
+  [ -s "$out" ] || curl -fsSL --retry 3 -o "$out" "$url"
+  echo "| $(basename "$out") | $1 | $3 | $url |" >> fonts/LICENSES.md
+}
+
+for f in \
+  "ofl/inter/Inter[opsz,wght].ttf" "ofl/notosans/NotoSans[wdth,wght].ttf" \
+  "ofl/roboto/Roboto[wdth,wght].ttf" "ofl/opensans/OpenSans[wdth,wght].ttf" \
+  "ofl/sourcesans3/SourceSans3[wght].ttf" "ofl/lato/Lato-Regular.ttf" "ofl/lato/Lato-Bold.ttf" \
+  "ofl/firasans/FiraSans-Regular.ttf" "ofl/firasans/FiraSans-Medium.ttf" "ofl/firasans/FiraSans-Bold.ttf" \
+  "ofl/cantarell/Cantarell-Regular.ttf" "ofl/cantarell/Cantarell-Bold.ttf" \
+  "ofl/worksans/WorkSans[wght].ttf" "ofl/ptsans/PT_Sans-Web-Regular.ttf" "ofl/ptsans/PT_Sans-Web-Bold.ttf" \
+  "ofl/publicsans/PublicSans[wght].ttf" "ofl/arimo/Arimo[wght].ttf" "ofl/nunitosans/NunitoSans[YTLC,opsz,wdth,wght].ttf" \
+  "ofl/dmsans/DMSans[opsz,wght].ttf" "ofl/librefranklin/LibreFranklin[wght].ttf" "ofl/karla/Karla[wght].ttf" \
+  "ofl/notoserif/NotoSerif[wdth,wght].ttf" "ofl/sourceserif4/SourceSerif4[opsz,wght].ttf" "ofl/tinos/Tinos-Regular.ttf" \
+  "ofl/notosansmono/NotoSansMono[wdth,wght].ttf" "ofl/jetbrainsmono/JetBrainsMono[wght].ttf" \
+  "ofl/sourcecodepro/SourceCodePro[wght].ttf" "ofl/robotomono/RobotoMono[wght].ttf" "ofl/firacode/FiraCode[wght].ttf" \
+  "ofl/firamono/FiraMono-Regular.ttf" "ofl/firamono/FiraMono-Medium.ttf" "ofl/ptmono/PTM55FT.ttf" \
+  "ofl/inter/Inter-Italic[opsz,wght].ttf" "ofl/notosans/NotoSans-Italic[wdth,wght].ttf"; do
+  get train "$f" OFL-1.1
+done
+for f in "ufl/ubuntu/Ubuntu-Regular.ttf" "ufl/ubuntu/Ubuntu-Medium.ttf" "ufl/ubuntu/Ubuntu-Bold.ttf" \
+  "ufl/ubuntumono/UbuntuMono-Regular.ttf" "ufl/ubuntumono/UbuntuMono-Bold.ttf"; do
+  get train "$f" UFL-1.0
+done
+for f in "ofl/ibmplexsans/IBMPlexSans[wdth,wght].ttf" "ofl/ibmplexmono/IBMPlexMono-Regular.ttf" \
+  "ofl/ibmplexmono/IBMPlexMono-Medium.ttf"; do
+  get heldout "$f" OFL-1.1
+done
+
+# DejaVu Sans and Sans Mono (Bitstream Vera licence plus public-domain changes).
+D=https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.zip
+if [ ! -s fonts/train/DejaVuSans.ttf ]; then
+  mkdir -p fonts/dl && curl -fsSL --retry 3 -o fonts/dl/dejavu.zip "$D"
+  unzip -o -q -j fonts/dl/dejavu.zip 'dejavu-fonts-ttf-2.37/ttf/DejaVuSans.ttf' \
+    'dejavu-fonts-ttf-2.37/ttf/DejaVuSans-Bold.ttf' 'dejavu-fonts-ttf-2.37/ttf/DejaVuSansMono.ttf' -d fonts/train
+fi
+for f in DejaVuSans.ttf DejaVuSans-Bold.ttf DejaVuSansMono.ttf; do
+  echo "| $f | train | Bitstream-Vera | $D |" >> fonts/LICENSES.md
+done
+ls fonts/train fonts/heldout | wc -l
