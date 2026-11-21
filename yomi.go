@@ -139,7 +139,7 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line
 }
 
 // ReadLine reads box, a region of frame in logical pixels holding one line of
-// text, without line finding: a second look at a known line.
+// text, without line finding, for a second look at a known line.
 func (e *Engine) ReadLine(frame *image.RGBA, box image.Rectangle, scale int) []Word {
 	return e.readBox(frame, box, max(1, scale))
 }
@@ -160,9 +160,16 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 	return words
 }
 
+// loneFloor is the confidence a one-character word needs. On the layout
+// scenes it halves the stray words and costs one real word in 6,050 on the UI
+// set.
+const loneFloor = 0.5
+
 // decode is greedy CTC: the best class per step, repeats and blanks dropped,
 // spaces splitting words. A word's box spans its first to last character's
 // step, and each character's box meets its neighbours' halfway between steps.
+// It drops a lone character read below loneFloor, since that is nearly always
+// an icon, such as a checkbox read as O or a search glass read as Q.
 func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w, scale int) []Word {
 	sx := float64(r.Dx()) / float64(w)
 	// x is the frame column where step t starts, in logical pixels.
@@ -178,7 +185,8 @@ func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w, sca
 		prev  int
 	)
 	flush := func() {
-		if len(cur) == 0 {
+		if len(cur) == 0 || len(cur) == 1 && conf < loneFloor {
+			cur, at = nil, nil
 			return
 		}
 		chars := make([]image.Rectangle, len(cur))

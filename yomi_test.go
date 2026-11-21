@@ -134,6 +134,22 @@ func TestEngine_Read_CanceledContextReadsNothing(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_SkipsCheckboxesBesideLabels reads a table whose rows start
+// with a checkbox, which the recognizer reads as a doubtful O.
+func TestEngine_Read_SkipsCheckboxesBesideLabels(t *testing.T) {
+	m, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/checkboxes@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := text(lines), "release spam \nfilter publish \nfilter release \nspam rename \n"; got != want {
+		t.Errorf("read %q, want %q", got, want)
+	}
+}
+
 // TestEngine_Read_SettlesLookalikesOnTheWordsScript reads Russian, English
 // and Greek lines made largely of letters that draw alike across the three
 // scripts (С and C, о and o and ο) and expects every letter in its word's own
