@@ -104,24 +104,24 @@ done
 for f in "ofl/cousine/Cousine-Regular.ttf" "ofl/cousine/Cousine-Bold.ttf"; do
   get rtl-train "$f" OFL-1.1
 done
-fetch() { # url member... copies each OFL-1.1 member of the archive into fonts/rtl-train
-  url=$1; shift
+fetch() { # split licence url member... copies each member of the archive into fonts/SPLIT
+  split=$1 licence=$2 url=$3; shift 3
   [ -s "fonts/dl/$(basename "$url")" ] || curl -fsSL --retry 3 -o "fonts/dl/$(basename "$url")" "$url"
   for m in "$@"; do
     case "$url" in
-      *.zip) unzip -o -q -j "fonts/dl/$(basename "$url")" "$m" -d fonts/rtl-train ;;
-      *.tar.gz) tar xzf "fonts/dl/$(basename "$url")" -C fonts/rtl-train --strip-components 1 "$m" ;;
+      *.zip) unzip -o -q -j "fonts/dl/$(basename "$url")" "$m" -d "fonts/$split" ;;
+      *.tar.gz) tar xzf "fonts/dl/$(basename "$url")" -C "fonts/$split" --strip-components 1 "$m" ;;
     esac
-    echo "| $(basename "$m") | rtl-train | OFL-1.1 | $url |" >> fonts/LICENSES.md
+    echo "| $(basename "$m") | $split | $licence | $url |" >> fonts/LICENSES.md
   done
 }
 mkdir -p fonts/dl
-fetch https://github.com/aiaf/kawkab-mono/releases/download/v0.501/kawkab-mono-0.501.zip \
+fetch rtl-train OFL-1.1 https://github.com/aiaf/kawkab-mono/releases/download/v0.501/kawkab-mono-0.501.zip \
   kawkab-mono-0.501/KawkabMono-Regular.ttf kawkab-mono-0.501/KawkabMono-Bold.ttf
-fetch https://github.com/aliftype/amiri-typewriter/releases/download/v1.1/AmiriTypewriter-1.1.zip \
+fetch rtl-train OFL-1.1 https://github.com/aliftype/amiri-typewriter/releases/download/v1.1/AmiriTypewriter-1.1.zip \
   AmiriTypewriter-1.1/AmiriTypewriter-Regular.ttf AmiriTypewriter-1.1/AmiriTypewriter-Bold.ttf
-fetch https://github.com/rastikerdar/vazir-code-font/releases/download/v1.1.2/vazir-code-font-v1.1.2.zip Vazir-Code.ttf
-fetch https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz \
+fetch rtl-train OFL-1.1 https://github.com/rastikerdar/vazir-code-font/releases/download/v1.1.2/vazir-code-font-v1.1.2.zip Vazir-Code.ttf
+fetch rtl-train OFL-1.1 https://github.com/liberationfonts/liberation-fonts/files/7261482/liberation-fonts-ttf-2.1.5.tar.gz \
   liberation-fonts-ttf-2.1.5/LiberationMono-Regular.ttf liberation-fonts-ttf-2.1.5/LiberationMono-Bold.ttf
 
 # Indic: Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada,
@@ -188,6 +188,18 @@ for f in "ofl/notosansthai/NotoSansThai[wdth,wght].ttf" "ofl/notoserifthai/NotoS
   "ofl/preahvihear/Preahvihear-Regular.ttf"; do
   get sea-train "$f" OFL-1.1
 done
+# The TLWG Thai fonts are GPL-2.0 or later with the font exception, and only
+# training uses them, as with GNU FreeFont below. Tlwg Mono, Typewriter, Typo
+# and Typist give every Thai letter and mark its own cell, as monospace Thai
+# on macOS does.
+T=https://github.com/tlwg/fonts-tlwg/releases/download/v0.7.4/ttf-tlwg-0.7.4.zip
+for f in TlwgMono TlwgMono-Bold TlwgTypewriter TlwgTypewriter-Bold TlwgTypo TlwgTypo-Bold TlwgTypist TlwgTypist-Bold \
+  Garuda Garuda-Bold Loma Loma-Bold Waree Waree-Bold Umpush Umpush-Bold Kinnari Kinnari-Bold \
+  Norasi Norasi-Bold Laksaman Laksaman-Bold Sawasdee Sawasdee-Bold; do
+  fetch sea-train GPL-2.0-with-font-exception "$T" "ttf-tlwg-0.7.4/$f.ttf"
+done
+fetch sea-train OFL-1.1 https://github.com/silnrsi/font-padauk/releases/download/v6.000/PadaukBook-6.000.zip \
+  PadaukBook-6.000/PadaukBook-Regular.ttf PadaukBook-6.000/PadaukBook-Bold.ttf
 for f in "ofl/ibmplexsansthai/IBMPlexSansThai-Regular.ttf" "ofl/notoseriflao/NotoSerifLao[wdth,wght].ttf" \
   "ofl/notoserifkhmer/NotoSerifKhmer[wdth,wght].ttf" "ofl/notoserifmyanmar/NotoSerifMyanmar-Regular.ttf"; do
   get sea-heldout "$f" OFL-1.1
