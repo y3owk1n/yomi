@@ -269,6 +269,37 @@ type line struct {
 
 func (l line) h() int { return l.y1 - l.y0 + 1 }
 
+func (l line) w() int { return l.x1 - l.x0 + 1 }
+
+// mergeStacked merges lines that lie mostly over one another. A CJK glyph
+// stacks separate parts, such as a Hangul syllable's final consonant, and a
+// part too low to join its line's core seeds a second line along the bottom
+// of the first, which would read the same text again. Lines of text never
+// overlap like this, so lines sharing over half the smaller one's height and
+// width are one line.
+func mergeStacked(lines []line) []line {
+	for merged := true; merged; {
+		merged = false
+		for i := 0; i < len(lines); i++ {
+			for j := i + 1; j < len(lines); j++ {
+				a, b := lines[i], lines[j]
+				if overlap(a.y0, a.y1, b.y0, b.y1)*2 <= min(a.h(), b.h()) ||
+					overlap(a.x0, a.x1, b.x0, b.x1)*2 <= min(a.w(), b.w()) {
+					continue
+				}
+				lines[i] = line{
+					min(a.x0, b.x0), min(a.y0, b.y0), max(a.x1, b.x1), max(a.y1, b.y1),
+					a.sy0 + b.sy0, a.sy1 + b.sy1, a.n + b.n, append(a.members, b.members...),
+				}
+				lines = append(lines[:j], lines[j+1:]...)
+				merged = true
+				j--
+			}
+		}
+	}
+	return lines
+}
+
 // core is the line's band for joining: the mean top and bottom of its big
 // members. Unlike the union of their bounds, it cannot creep down a row one
 // descender at a time.
@@ -386,6 +417,8 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 			ln.members = append(ln.members, b)
 		}
 	}
+
+	lines = mergeStacked(lines)
 
 	// A small mark the pass met before any line could take it, as the tilde
 	// of "~/path" or the quote of "'word", joins a line in whose band it sits

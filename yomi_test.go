@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/y3owk1n/yomi"
+	"github.com/y3owk1n/yomi/models/cjk"
 	"github.com/y3owk1n/yomi/models/latin"
 	"github.com/y3owk1n/yomi/models/western"
 )
@@ -147,6 +148,36 @@ func TestEngine_Read_SkipsCheckboxesBesideLabels(t *testing.T) {
 	}
 	if got, want := text(lines), "release spam \nfilter publish \nfilter release \nspam rename \n"; got != want {
 		t.Errorf("read %q, want %q", got, want)
+	}
+}
+
+// TestEngine_Read_ReadsStackedGlyphsOnce reads a line of Korean, whose
+// syllables stack a final consonant under the rest, and expects no two words
+// on top of one another, as a second read of the line along its bottom would
+// leave.
+func TestEngine_Read_ReadsStackedGlyphsOnce(t *testing.T) {
+	m, err := cjk.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/hangul-stacked.png"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var words []yomi.Word
+	for _, l := range lines {
+		words = append(words, l.Words...)
+	}
+	if len(words) == 0 {
+		t.Fatal("read no words")
+	}
+	for i, a := range words {
+		for _, b := range words[i+1:] {
+			in := a.Box.Intersect(b.Box)
+			if in.Dx()*2 > min(a.Box.Dx(), b.Box.Dx()) && in.Dy()*2 > min(a.Box.Dy(), b.Box.Dy()) {
+				t.Errorf("words %q %v and %q %v lie on top of one another", a.Text, a.Box, b.Text, b.Box)
+			}
+		}
 	}
 }
 
