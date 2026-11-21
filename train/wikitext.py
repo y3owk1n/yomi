@@ -11,6 +11,7 @@ import os
 import sys
 import time
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -27,8 +28,16 @@ def fetch(lang, n):
             "prop": "extracts", "explaintext": 1, "exintro": 1, "format": "json",
         })
         req = urllib.request.Request(f"https://{lang}.wikipedia.org/w/api.php?{q}", headers={"User-Agent": UA})
-        with urllib.request.urlopen(req, timeout=30) as r:
-            pages = json.load(r).get("query", {}).get("pages", {})
+        for attempt in range(8):
+            try:
+                with urllib.request.urlopen(req, timeout=30) as r:
+                    pages = json.load(r).get("query", {}).get("pages", {})
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == 7:
+                    raise
+                # Rate limited: wait as long as the server asks, or back off.
+                time.sleep(int(e.headers.get("Retry-After") or 0) or 15 * 2 ** attempt)
         for p in pages.values():
             text = unicodedata.normalize("NFC", p.get("extract", ""))
             # Split on spaces, not \w: a word's vowel signs and other combining
@@ -39,7 +48,7 @@ def fetch(lang, n):
                 if w and len(w) <= 30 and all(unicodedata.category(c)[0] in "LM" for c in w):
                     words[w] += 1
             got += 1
-        time.sleep(1)
+        time.sleep(3)
     return words
 
 
