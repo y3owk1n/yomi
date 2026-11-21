@@ -249,6 +249,27 @@ func TestEngine_Read_KeepsTightlySetThaiRowsApart(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_KeepsTightlySetMyanmarRowsApart reads two rows of 11 px
+// Myanmar whose marks touch across the rows, and expects the Latin words in
+// each row, "pfizer" in the first and "Choice" in the second. Grouped from a
+// blob spanning both, the rows read as one line and yield nothing.
+func TestEngine_Read_KeepsTightlySetMyanmarRowsApart(t *testing.T) {
+	m, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/myanmar-tight@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"pfizer", "Choice"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("read %q, want it to hold %q", got, want)
+		}
+	}
+}
+
 // TestEngine_Read_GivesRightToLeftWordsInLogicalOrder reads Arabic labels
 // beside Latin ones and expects each Arabic word as it is written, first
 // letter first, though the recognizer scans it from its last letter, and the

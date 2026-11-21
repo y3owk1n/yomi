@@ -375,6 +375,29 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 			small = append(small, b)
 		}
 	}
+	// Blobs over 2.2 times the median glyph height wait for a second pass.
+	// At small sizes with tight leading, the marks below one row of Thai or
+	// Myanmar touch those above the next, and the blob they make spans both
+	// rows. Grouped with the rest, it can seed a line whose core covers both,
+	// which then takes in the glyphs of both rows.
+	var tall []blob
+	if len(big) > 0 {
+		hs := make([]int, len(big))
+		for i, b := range big {
+			hs[i] = b.h()
+		}
+		sort.Ints(hs)
+		mh := hs[len(hs)/2]
+		kept := big[:0]
+		for _, b := range big {
+			if b.h()*5 > mh*11 {
+				tall = append(tall, b)
+			} else {
+				kept = append(kept, b)
+			}
+		}
+		big = kept
+	}
 	// One pass left to right over every blob. Big blobs seed or join lines.
 	// Small marks (dots, commas, hyphens, quotes) only join, which extends the
 	// line so the next glyph's gap is measured from them, as in "v7.13".
@@ -432,6 +455,44 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 		ln.x0, ln.x1 = min(ln.x0, b.x0), max(ln.x1, b.x1)
 		ln.y0, ln.y1 = min(ln.y0, b.y0), max(ln.y1, b.y1)
 		if isBig[k] {
+			ln.sy0, ln.sy1, ln.n = ln.sy0+b.y0, ln.sy1+b.y1, ln.n+1
+			ln.members = append(ln.members, b)
+		}
+	}
+
+	// A tall blob joins the line whose core it overlaps most, as the first
+	// pass would have. A blob overlapping two lines' cores is marks fused
+	// across rows, so it widens its line without making it taller. A blob
+	// overlapping none, such as a heading's glyph, seeds a line.
+	sort.Slice(tall, func(i, j int) bool { return tall[i].x0 < tall[j].x0 })
+	for _, b := range tall {
+		best, bestOv, hits := -1, 0, 0
+		for i, ln := range lines {
+			c0, c1 := ln.core()
+			ch := c1 - c0 + 1
+			g := int(p.GapEm*float64(ch) + 0.5)
+			if b.x0-ln.x1 > g || ln.x0-b.x1 > g {
+				continue
+			}
+			ov := overlap(b.y0, b.y1, c0, c1)
+			if ov*2 < min(b.h(), ch) {
+				continue
+			}
+			hits++
+			if ov > bestOv {
+				best, bestOv = i, ov
+			}
+		}
+		switch {
+		case best < 0:
+			lines = append(lines, line{b.x0, b.y0, b.x1, b.y1, b.y0, b.y1, 1, []blob{b}})
+		case hits > 1:
+			ln := &lines[best]
+			ln.x0, ln.x1 = min(ln.x0, b.x0), max(ln.x1, b.x1)
+		default:
+			ln := &lines[best]
+			ln.x0, ln.x1 = min(ln.x0, b.x0), max(ln.x1, b.x1)
+			ln.y0, ln.y1 = min(ln.y0, b.y0), max(ln.y1, b.y1)
 			ln.sy0, ln.sy1, ln.n = ln.sy0+b.y0, ln.sy1+b.y1, ln.n+1
 			ln.members = append(ln.members, b)
 		}
