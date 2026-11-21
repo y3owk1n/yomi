@@ -58,17 +58,24 @@ class GatedHead(nn.Module):
 
 
 class Recognizer(nn.Module):
-    def __init__(self, classes, width=1.0, arch="base", head="full", rank=128):
+    """hstride is the input columns per output step, 4 or 2. At 4, scripts
+    with narrow letters or stacked marks get under two steps a character, and
+    CTC drops letters, so those scripts read at 2. The weights are the same at
+    either stride."""
+
+    def __init__(self, classes, width=1.0, arch="base", head="full", rank=128, hstride=4):
         super().__init__()
-        self.arch, self.head_kind = arch, head
+        if hstride not in (2, 4):
+            raise ValueError(f"hstride {hstride}, want 4 or 2")
+        self.arch, self.head_kind, self.hstride = arch, head, hstride
         c = [max(8, int(round(v * width))) for v in (16, 32, 64, 64, 128, 128, 192)]
         self.features = nn.Sequential(
             nn.Conv2d(1, c[0], 3, 2, 1, bias=False), nn.BatchNorm2d(c[0]), nn.ReLU(inplace=True),  # 16 x W/2
             dw_block(c[0], c[1], 1),                # 16 x W/2
-            dw_block(c[1], c[2], 2),                # 8 x W/4
-            dw_block(c[2], c[3], 1),                # 8 x W/4
-            dw_block(c[3], c[4], (2, 1)),           # 4 x W/4
-            dw_block(c[4], c[5], 1),                # 4 x W/4
+            dw_block(c[1], c[2], 2 if hstride == 4 else (2, 1)),  # 8 x W/hstride
+            dw_block(c[2], c[3], 1),                # 8 x W/hstride
+            dw_block(c[3], c[4], (2, 1)),           # 4 x W/hstride
+            dw_block(c[4], c[5], 1),                # 4 x W/hstride
         )
         # collapse the 4 remaining rows: depthwise 4x1, then 1x1
         self.collapse = nn.Sequential(

@@ -21,7 +21,8 @@ from model import GatedHead, LineContext, Recognizer  # noqa: E402
 ck, out = sys.argv[1], sys.argv[2]
 os.makedirs(os.path.join(out, "check"), exist_ok=True)
 st = torch.load(ck, map_location="cpu")
-m = Recognizer(st["classes"], st["width"], st.get("arch", "base"), st.get("head", "full"), st.get("rank", 128)).eval()
+hstride = st.get("hstride", 4)
+m = Recognizer(st["classes"], st["width"], st.get("arch", "base"), st.get("head", "full"), st.get("rank", 128), hstride).eval()
 m.load_state_dict(st["model"])
 
 blob = bytearray()
@@ -94,7 +95,7 @@ else:
 
 with open(os.path.join(out, "weights.bin"), "wb") as f:
     f.write(blob)
-json.dump({"height": 32, "stride": 4, "alphabet": st["alphabet"], "family": st["family"], "labels": st.get("labels"),
+json.dump({"height": 32, "stride": hstride, "alphabet": st["alphabet"], "family": st["family"], "labels": st.get("labels"),
            "layers": layers},
           open(os.path.join(out, "model.json"), "w"), indent=1)
 print(f"{len(layers)} layers, {len(blob) / 1e6:.2f} MB")

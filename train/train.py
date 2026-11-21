@@ -42,9 +42,10 @@ class Fixed:
     shape buckets, reshuffled each pass. Lines of all the sets mix within a
     batch."""
 
-    def __init__(self, paths, seed=0):
+    def __init__(self, paths, seed=0, hstride=4):
         sets = [Set(p) for p in ([paths] if isinstance(paths, str) else paths)]
         self.rng = random.Random(seed)
+        self.hstride = hstride
         self.members = {b: [] for b in BUCKETS}
         self.lines = []
         for d in sets:
@@ -62,7 +63,7 @@ class Fixed:
             self.rng.shuffle(batches)
             for w, g in batches:
                 rows = [d[i] for d, i in (self.lines[k] for k in g)]
-                yield collate([(x.astype(np.float32) / 255, lab, text) for x, lab, text in rows], w)
+                yield collate([(x.astype(np.float32) / 255, lab, text) for x, lab, text in rows], w, self.hstride)
 
 
 def prefetched(batches, depth=8):
@@ -74,13 +75,13 @@ def prefetched(batches, depth=8):
         yield q.get()
 
 
-def collate(b, w):
+def collate(b, w, hstride=4):
     x = np.zeros((len(b), 1, 32, w), np.float32)
     for i, s in enumerate(b):
         x[i, 0, :, : s[0].shape[1]] = s[0]
     targets = torch.tensor([c for s in b for c in s[1]], dtype=torch.long)
     tlen = torch.tensor([len(s[1]) for s in b], dtype=torch.long)
-    ilen = torch.tensor([s[0].shape[1] // 4 for s in b], dtype=torch.long)
+    ilen = torch.tensor([s[0].shape[1] // hstride for s in b], dtype=torch.long)
     return torch.from_numpy(x), targets, ilen, tlen, [s[2] for s in b]
 
 
@@ -124,7 +125,7 @@ def word_acc(preds, texts):
     return hit / max(1, tot)
 
 
-def validation(family, batch):
+def validation(family, batch, hstride):
     """Held-out-font lines, grouped into the training buckets so evaluation
     compiles no new shapes."""
     gen, rng, val = generator(family, "heldout"), random.Random(99), []
@@ -134,7 +135,7 @@ def validation(family, batch):
             b = bucket_of(s[0].shape[1])
             if b:
                 by.setdefault(b, []).append(s)
-        val += [collate(g, b[1]) for b, g in by.items()]
+        val += [collate(g, b[1], hstride) for b, g in by.items()]
     return val, gen.alphabet.chars
 
 
@@ -177,6 +178,7 @@ def main():
     ap.add_argument("--arch", default="ctx", choices=["base", "ctx"])
     ap.add_argument("--head", default="full", choices=["full", "gated"])
     ap.add_argument("--rank", type=int, default=128)
+    ap.add_argument("--hstride", type=int, default=4, choices=[4, 2], help="input columns per output step")
     ap.add_argument("--steps", type=int, default=40000)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--lr", type=float, help="peak learning rate, 3e-3 from scratch and 1e-3 with --init")
@@ -186,10 +188,10 @@ def main():
     torch.manual_seed(0)
     dev = torch.device(a.device)
 
-    val, chars = validation(a.family, a.batch)
+    val, chars = validation(a.family, a.batch, a.hstride)
     classes = len(chars) + 1
-    model = Recognizer(classes, a.width, a.arch, a.head, a.rank)
-    meta = {"width": a.width, "arch": a.arch, "head": a.head, "rank": a.rank, "classes": classes,
+    model = Recognizer(classes, a.width, a.arch, a.head, a.rank, a.hstride)
+    meta = {"width": a.width, "arch": a.arch, "head": a.head, "rank": a.rank, "hstride": a.hstride, "classes": classes,
             "alphabet": chars, "family": a.family}
     if a.init:
         kept = init_from(model, a.init, meta)
@@ -221,7 +223,7 @@ def main():
 
     log = open(os.path.join(a.out, "log.jsonl"), "a")
     t0, run = time.time(), 0.0
-    for step, (x, tg, il, tl, _) in enumerate(prefetched(Fixed(a.data, seed=start)), start + 1):
+    for step, (x, tg, il, tl, _) in enumerate(prefetched(Fixed(a.data, seed=start, hstride=a.hstride)), start + 1):
         model.train()
         logp = model(x.to(dev), il)
         loss = ctc_loss(logp, tg, il, tl, dev)
