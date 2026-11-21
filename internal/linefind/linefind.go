@@ -275,15 +275,17 @@ func (l line) w() int { return l.x1 - l.x0 + 1 }
 // stacks separate parts, such as a Hangul syllable's final consonant, and a
 // part too low to join its line's core seeds a second line along the bottom
 // of the first, which would read the same text again. Lines of text never
-// overlap like this, so lines sharing over half the smaller one's height and
-// width are one line.
+// overlap like this, so lines whose spans share over half the smaller one's
+// height, and whose bounds share over half its width, are one line.
 func mergeStacked(lines []line) []line {
 	for merged := true; merged; {
 		merged = false
 		for i := 0; i < len(lines); i++ {
 			for j := i + 1; j < len(lines); j++ {
 				a, b := lines[i], lines[j]
-				if overlap(a.y0, a.y1, b.y0, b.y1)*2 <= min(a.h(), b.h()) ||
+				a0, a1 := a.span()
+				b0, b1 := b.span()
+				if overlap(a0, a1, b0, b1)*2 <= min(a1-a0+1, b1-b0+1) ||
 					overlap(a.x0, a.x1, b.x0, b.x1)*2 <= min(a.w(), b.w()) {
 					continue
 				}
@@ -298,6 +300,23 @@ func mergeStacked(lines []line) []line {
 		}
 	}
 	return lines
+}
+
+// span is the vertical extent of the line's big members, leaving out any
+// taller than 2.2 core heights. At small sizes with tight leading, the Thai
+// marks below one row touch those above the next. The blob they make is 2.4
+// core heights or more, it joins one row, and its bounds would overlap the
+// next row enough to merge the two. The tallest CJK glyphs reach 1.9.
+func (l line) span() (int, int) {
+	c0, c1 := l.core()
+	ch := c1 - c0 + 1
+	y0, y1 := l.y1, l.y0
+	for _, b := range l.members {
+		if b.h()*5 <= ch*11 {
+			y0, y1 = min(y0, b.y0), max(y1, b.y1)
+		}
+	}
+	return y0, y1
 }
 
 // core is the line's band for joining: the mean top and bottom of its big

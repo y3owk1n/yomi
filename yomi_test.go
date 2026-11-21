@@ -225,3 +225,24 @@ func TestEngine_Read_SettlesLookalikesOnTheWordsScript(t *testing.T) {
 		}
 	}
 }
+
+// TestEngine_Read_KeepsTightlySetThaiRowsApart reads two rows of 11 px Thai
+// set so close that the marks below the first touch those above the second,
+// and expects the Latin words in each row, "16" in the first and "iPhone" in
+// the second. Read as one line, the two rows yield nothing.
+func TestEngine_Read_KeepsTightlySetThaiRowsApart(t *testing.T) {
+	m, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/thai-tight@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"16", "iPhone"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("read %q, want it to hold %q", got, want)
+		}
+	}
+}
