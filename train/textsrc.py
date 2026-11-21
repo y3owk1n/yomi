@@ -18,8 +18,8 @@ from charsets import ASCII, UI_SIGNS
 WESTERN_LANGS = {
     "en": 8, "de": 3, "fr": 3, "es": 3, "it": 2, "pt": 2, "nl": 1.5, "sv": 1, "da": 1,
     "nb": 1, "fi": 1, "is": 0.5, "pl": 2, "cs": 1.5, "sk": 1, "sl": 1, "hu": 1.5, "ro": 1.5,
-    "tr": 2, "ca": 1, "lt": 1, "lv": 1, "id": 1, "ms": 1, "fil": 0.5, "vi": 2, "sh": 1,
-    "ru": 4, "uk": 2, "bg": 1, "mk": 0.5, "el": 3,
+    "tr": 2, "ca": 1, "lt": 1, "lv": 1, "id": 1, "ms": 1, "fil": 0.5, "vi": 5, "sh": 1,
+    "ru": 6, "uk": 4, "bg": 1.5, "mk": 0.5, "el": 3,
 }
 
 _ACRONYMS = ("API CLI UI UX ID IDE IO AI GUI URL URI HTTP HTTPS HTML CSS JSON XML SQL SSH DNS VPN "
@@ -138,6 +138,11 @@ def line(rng, langs, charset, split="train", n=None):
             out.append(word_token(rng, en))
         else:
             out.append(ui_token(rng, words))
+    if lang in ("es", "ca") and rng.random() < 0.25:
+        # Spanish opens a question or exclamation with an inverted mark.
+        mark = rng.choice("?!")
+        out[0] = {"?": "¿", "!": "¡"}[mark] + out[0]
+        out[-1] = out[-1].rstrip(".,:;!?") + mark
     return " ".join(out)
 
 
