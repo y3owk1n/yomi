@@ -180,7 +180,7 @@ Times are per page on the M5, with training running for yomi's.
 | Hindi UI | 83.7% / 84.1% | 83.1% / 86.7% | **92.1% / 92.4%** | 250, 4,500, 600 |
 | Thai UI | 92.2% / 93.2% | 96.2% / 92.2% | **94.5% / 94.2%** | 90, 8,400, 1,700 |
 | Lao, Khmer, Myanmar, held out, 1x | **86.7%, 86.4%, 63.3%** | no recognizer | 22.5%, 29.2%, 7.4% | 70, n/a, 1,000 |
-| Georgian, Armenian, Amharic, held out, 1x | **92.3%, 79.7%, 67.9%** | no recognizer | 15.3%, 12.5%, 19.9% | 42, n/a, 720 |
+| Georgian, Armenian, Amharic, held out, 1x | **91.6%, 80.9%, 69.2%** | no recognizer | 15.3%, 12.5%, 19.9% | 42, n/a, 720 |
 
 PaddleOCR's Latin recognizer reads Vietnamese at 40%, Romanian at 67% and
 Turkish at 71%, where yomi reads 89 to 97%, and its CJK lead is 8 points on
@@ -196,7 +196,7 @@ first Thai model read monospace text at 61%, where Vision reads 98%. Training
 had no monospace Thai font, and with the TLWG fonts it reads 96%.
 Proportional Thai reads 92%, against Vision's 94%. Myanmar, at 63%, trained
 on three font families and is held out on a fourth, a serif. Georgian
-passes. Armenian reads 80% and Amharic 68%. The held-out serif draws some of
+passes. Armenian reads 81% and Amharic 69%. The held-out serif draws some of
 their letters unlike any training font.
 
 The held-out Georgian pages were regenerated on 2026-11-22. The generator had
