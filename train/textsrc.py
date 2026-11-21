@@ -78,7 +78,9 @@ def _case(rng, w, lang):
     if r < 0.55:
         return w
     if r < 0.88:
-        return w[:1].upper() + w[1:]
+        # Georgian capitals (Mtavruli) set whole words in headings, never the
+        # first letter of a sentence or a name.
+        return w if "\u10d0" <= w[:1] <= "\u10ff" else w[:1].upper() + w[1:]
     up = w.upper()
     if lang == "el":  # Greek capitals drop the accent in all-caps text
         up = "".join(c for c in unicodedata.normalize("NFD", up) if unicodedata.category(c) != "Mn")
