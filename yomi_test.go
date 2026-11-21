@@ -151,6 +151,23 @@ func TestEngine_Read_SkipsCheckboxesBesideLabels(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_BreaksWordsAtWideGaps reads two labels set side by side, a
+// gap wider than any space apart, which the recognizer reads with no space
+// between them.
+func TestEngine_Read_BreaksWordsAtWideGaps(t *testing.T) {
+	m, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := yomi.New(m).Read(context.Background(), loadFrame(t, "testdata/fixtures/side-by-side@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := text(lines), "Attachment OpenUSD \n"; got != want {
+		t.Errorf("read %q, want %q", got, want)
+	}
+}
+
 // TestEngine_Read_ReadsStackedGlyphsOnce reads a line of Korean, whose
 // syllables stack a final consonant under the rest, and expects no two words
 // on top of one another, as a second read of the line along its bottom would
