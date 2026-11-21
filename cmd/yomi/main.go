@@ -1,8 +1,8 @@
 // Command yomi reads the text in PNG screenshots.
 //
-//	yomi read [-model western] [-scale 2] FILE.png...
+//	yomi read [-model western | -model-dir DIR] [-scale 2] FILE.png...
 //	    prints each file's lines, one per line of output
-//	yomi bench [-model western] [-reps 3] DIR
+//	yomi bench [-model western | -model-dir DIR] [-reps 3] DIR
 //	    reads DIR/pages.txt's NAME@1x.png and NAME@2x.png and writes one JSON
 //	    line per frame: {"page","scale","first_ms","median_ms",
 //	    "words":[[text,x,y,w,h,confidence]...]}, boxes in logical pixels
@@ -54,12 +54,16 @@ func main() {
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
 	name := fs.String("model", "western", "recognizer: latin or western")
+	dir := fs.String("model-dir", "", "load the recognizer from this directory (model.json, weights.bin) instead")
 	scale := fs.Int("scale", 1, "frame pixels per logical pixel (read)")
 	reps := fs.Int("reps", 3, "timed reads after the first (bench)")
 	_ = fs.Parse(os.Args[2:])
 	model, ok := models[*name]
 	if !ok {
 		fail(fmt.Errorf("unknown model %q", *name))
+	}
+	if *dir != "" {
+		model = func() (*yomi.Model, error) { return yomi.LoadModel(os.DirFS(*dir)) }
 	}
 	m, err := model()
 	if err != nil {
