@@ -7,5 +7,7 @@ bin/
 /train/fonts/fallback/
 /train/fonts/cjk-train/
 /train/fonts/cjk-heldout/
+/train/fonts/rtl-train/
+/train/fonts/rtl-heldout/
 /train/fonts/dl/
 __pycache__/

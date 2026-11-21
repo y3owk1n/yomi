@@ -18,6 +18,7 @@ import numpy as np
 from fontTools.ttLib import TTFont
 from PIL import Image, ImageDraw, ImageFont
 
+import shaping
 from prep import prepare
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -179,14 +180,20 @@ def control(rng, size):
     return a.reshape(size, 4, w, 4).mean(axis=(1, 3))
 
 
-def render(rng, text, primary, fallbacks, scale, other_text):
+def render(rng, text, primary, fallbacks, scale, other_text, shaped=False):
+    """The line as an RGB crop, and its label: text as written, or in visual
+    order for shaped lines."""
     px = round(rng.uniform(10, 18) * scale)
     weight = rng.choice([400, 400, 400, 450, 500, 600, 700])
     supersample = rng.random() < 0.5
-    subpixel = rng.random() < 0.1
-    a, line_h = coverage(text, primary, fallbacks, px, weight, supersample, subpixel)
+    subpixel = not shaped and rng.random() < 0.1
+    label = text
+    if shaped:
+        a, line_h, label = shaping.coverage(text, primary, px, weight, supersample)
+    else:
+        a, line_h = coverage(text, primary, fallbacks, px, weight, supersample, subpixel)
     if a is None:
-        return None
+        return None, label
     a = a ** rng.uniform(0.6, 1.3)
     if rng.random() < 0.15:  # slight blur or smear
         a = np.clip((a + np.roll(a, 1, axis=1) * rng.uniform(0, 0.5)) / 1.25, 0, 1)
@@ -218,7 +225,10 @@ def render(rng, text, primary, fallbacks, scale, other_text):
         sub = np.repeat(canvas[..., None], 3, axis=2)
         sub[pads[1]:pads[1] + h, pads[0]:pads[0] + w] = chans
     if rng.random() < 0.15:  # part of the line above or below
-        other, _ = coverage(other_text, primary, fallbacks, px, weight, supersample, False)
+        if shaped:
+            other = shaping.coverage(other_text, primary, px, weight)[0]
+        else:
+            other, _ = coverage(other_text, primary, fallbacks, px, weight, supersample, False)
         if other is not None:
             cut = rng.randint(1, max(1, pads[1] + 2))
             strip = other[-cut:, : canvas.shape[1]] if rng.random() < 0.5 else other[:cut, : canvas.shape[1]]
@@ -236,7 +246,7 @@ def render(rng, text, primary, fallbacks, scale, other_text):
     if subpixel:
         cov = np.maximum(sub, canvas[..., None] * (sub == 0))  # keep intruders and outlines
     rgb = bg[None, None, :] * (1 - cov) + fg[None, None, :] * cov
-    return np.clip(np.round(rgb), 0, 255).astype(np.uint8)
+    return np.clip(np.round(rgb), 0, 255).astype(np.uint8), label
 
 
 def blank(rng, scale):
@@ -294,7 +304,8 @@ class Generator:
     split half of the words), primary fonts from the folders, labels in the
     family's alphabet."""
 
-    def __init__(self, charset, langs, line_fn, folders, blank_rate=0.08, split="train"):
+    def __init__(self, charset, langs, line_fn, folders, blank_rate=0.08, split="train", shaped=False):
+        self.shaped = shaped
         self.alphabet = Alphabet(charset)
         self.charset = set(charset)
         self.langs, self.line_fn, self.split, self.blank_rate = langs, line_fn, split, blank_rate
@@ -316,8 +327,8 @@ class Generator:
             if not fits:
                 continue
             primary = rng.choice(fits)
-            rgb = render(rng, text, primary, self.fallbacks, scale,
-                         self.line_fn(rng, self.langs, self.charset, self.split, 6))
+            rgb, label = render(rng, text, primary, self.fallbacks, scale,
+                                self.line_fn(rng, self.langs, self.charset, self.split, 6), self.shaped)
             if rgb is not None:
-                return prepare(rgb), self.alphabet.labels(text), text
+                return prepare(rgb), self.alphabet.labels(label), label
         raise RuntimeError("no font covers the generated text")

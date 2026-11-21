@@ -60,17 +60,27 @@ class Face:
     _cache = {}
 
     @classmethod
-    def get(cls, path):
-        if path not in cls._cache:
-            blob = hb.Blob.from_file_path(path)
-            cls._cache[path] = (hb.Font(hb.Face(blob)), freetype.Face(path))
-        return cls._cache[path]
+    def get(cls, path, weight=400):
+        key = (path, weight)
+        if key not in cls._cache:
+            font = hb.Font(hb.Face(hb.Blob.from_file_path(path)))
+            ft = freetype.Face(path)
+            try:
+                axes = ft.get_variation_info().axes
+            except Exception:  # a static font has no variation table
+                axes = []
+            if axes:
+                coords = [min(max(weight, a.minimum), a.maximum) if a.tag == "wght" else a.default for a in axes]
+                ft.set_var_design_coords(coords)
+                font.set_variations({a.tag: c for a, c in zip(axes, coords)})
+            cls._cache[key] = (font, ft)
+        return cls._cache[key]
 
 
-def shape(text, path, px, rtl):
+def shape(text, path, px, rtl, weight=400):
     """Glyph ids and positions of one run, in visual order, in pixels at size
     px."""
-    font, _ = Face.get(path)
+    font, _ = Face.get(path, weight)
     scale = px * 64
     font.scale = (scale, scale)
     buf = hb.Buffer()
@@ -85,17 +95,22 @@ def shape(text, path, px, rtl):
     return out, x
 
 
-def coverage(text, path, px):
+def coverage(text, path, px, weight=400, supersample=False):
     """Coverage (h, w) of text set in font path at px pixels, its line box
-    height, and the label text in visual order."""
+    height, and the label text in visual order. Supersampling draws at four
+    times the size and averages down, as unhinted screen text looks."""
+    if supersample:
+        a, lh, label = coverage(text, path, px * 4, weight)
+        h2, w2 = a.shape[0] // 4 * 4, a.shape[1] // 4 * 4
+        return a[:h2, :w2].reshape(h2 // 4, 4, w2 // 4, 4).mean(axis=(1, 3)), lh / 4, label
     base_rtl, rs = runs(text)
     order = list(reversed(rs)) if base_rtl else rs
-    _, ft = Face.get(path)
+    _, ft = Face.get(path, weight)
     ft.set_pixel_sizes(0, px)
     asc, desc = ft.size.ascender / 64, -ft.size.descender / 64
     shaped, width = [], 0.0
     for rtl, t in order:
-        glyphs, adv = shape(t, path, px, rtl)
+        glyphs, adv = shape(t, path, px, rtl, weight)
         shaped.append((glyphs, width))
         width += adv
     h = int(np.ceil(asc + desc)) + 2

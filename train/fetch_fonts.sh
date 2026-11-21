@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout
+mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -70,6 +70,21 @@ done
 for f in "ofl/ibmplexsansjp/IBMPlexSansJP-Regular.ttf" "ofl/ibmplexsanskr/IBMPlexSansKR-Regular.ttf" \
   "ofl/notosanshk/NotoSansHK[wght].ttf"; do
   get cjk-heldout "$f" OFL-1.1
+done
+
+# Right to left: Arabic, Persian and Urdu (naskh, kufi and sans styles) and
+# Hebrew. IBM Plex Sans Arabic and Hebrew are held out.
+for f in "ofl/notosansarabic/NotoSansArabic[wdth,wght].ttf" "ofl/notonaskharabic/NotoNaskhArabic[wght].ttf" \
+  "ofl/notokufiarabic/NotoKufiArabic[wght].ttf" "ofl/vazirmatn/Vazirmatn[wght].ttf" "ofl/cairo/Cairo[slnt,wght].ttf" \
+  "ofl/tajawal/Tajawal-Regular.ttf" "ofl/tajawal/Tajawal-Bold.ttf" "ofl/almarai/Almarai-Regular.ttf" \
+  "ofl/changa/Changa[wght].ttf" "ofl/readexpro/ReadexPro[HEXP,wght].ttf" "ofl/amiri/Amiri-Regular.ttf" \
+  "ofl/notosanshebrew/NotoSansHebrew[wdth,wght].ttf" "ofl/notoserifhebrew/NotoSerifHebrew[wdth,wght].ttf" \
+  "ofl/rubik/Rubik[wght].ttf" "ofl/heebo/Heebo[wght].ttf" "ofl/assistant/Assistant[wght].ttf" \
+  "ofl/frankruhllibre/FrankRuhlLibre[wght].ttf"; do
+  get rtl-train "$f" OFL-1.1
+done
+for f in "ofl/ibmplexsansarabic/IBMPlexSansArabic-Regular.ttf" "ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Regular.ttf"; do
+  get rtl-heldout "$f" OFL-1.1
 done
 
 # DejaVu Sans and Sans Mono (Bitstream Vera licence plus public-domain changes).

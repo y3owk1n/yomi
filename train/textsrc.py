@@ -194,3 +194,34 @@ def _range_hans():
     # Simplified forms convert to Traditional ones in the set, so the word list
     # keeps any Han character. The final filter drops what the set lacks.
     return [chr(c) for c in range(0x4E00, 0xA000)]
+
+
+# Right-to-left lines: Arabic, Persian, Urdu and Hebrew words, with Latin
+# words, digits (Arabic-Indic in Arabic, Persian in Persian and Urdu, European
+# in all) and UI tokens mixed in, as such interfaces write them.
+RTL_LANGS = {"ar": 5, "fa": 3, "ur": 2, "he": 4}
+_RTL_DIGITS = {"ar": "٠١٢٣٤٥٦٧٨٩", "fa": "۰۱۲۳۴۵۶۷۸۹", "ur": "۰۱۲۳۴۵۶۷۸۹"}
+
+
+def rtl_line(rng, langs, charset, split="train", n=None):
+    names, weights = zip(*langs.items())
+    lang = rng.choices(names, weights)[0]
+    words = Words(lang, split, charset)
+    en = Words("en", split, charset)
+    n = n or rng.choice([1, 1, 2, 2, 3, 3, 4, 5, 6, 8, 10])
+    out = []
+    for _ in range(n):
+        r = rng.random()
+        if r < 0.75:
+            w = words.pick(rng)
+            if rng.random() < 0.1:
+                w += rng.choice("،.:؟!" if lang != "he" else ".,:?!")
+            out.append(w)
+        elif r < 0.83:
+            out.append(word_token(rng, en))
+        elif r < 0.92 and lang in _RTL_DIGITS and rng.random() < 0.7:
+            d = _RTL_DIGITS[lang]
+            out.append("".join(rng.choice(d) for _ in range(rng.randint(1, 4))))
+        else:
+            out.append(ui_token(rng, en))
+    return "".join(c for c in " ".join(out) if c in charset or c == " ")

@@ -67,3 +67,13 @@ CJK_EXTRA = "々〆〇―" + _range(0x3131, 0x3163) + "饋枱牀吿嘅嗰喺焗"
 CJK = "".join(dict.fromkeys(ASCII + CJK_PUNCT + KANA + HANGUL + HAN + CJK_EXTRA + UI_SIGNS))
 
 assert all(unicodedata.normalize("NFC", c) == c for c in CJK)
+
+
+# Arabic as Arabic, Persian and Urdu write it: the base letters, the
+# Persian and Urdu letters, Arabic-Indic and Persian digits, punctuation, the
+# common harakat, and tatweel. Hebrew letters with their final forms and
+# geresh. UI text in these languages mixes in Latin words and digits.
+ARABIC = (_range(0x621, 0x63A) + _range(0x640, 0x652) + "ٰ" + _range(0x660, 0x66D)
+          + "ٹپچڈڑژکگںھہۂۃیےۓۀ" + _range(0x6F0, 0x6F9) + "،؛؟۔")
+HEBREW = _range(0x5D0, 0x5EA) + "׳״־"
+RTL = "".join(dict.fromkeys(ASCII + ARABIC + HEBREW + UI_SIGNS + "«»"))
