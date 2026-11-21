@@ -1,0 +1,22 @@
+# The development toolchain. `oku sync` installs it, `oku allow` lets the shell
+# hook put it on PATH inside this repo.
+[lock]
+platforms = ["darwin-arm64", "darwin-amd64", "linux-amd64-glibc", "linux-arm64-glibc", "windows-amd64", "windows-arm64"]
+
+# go: packages build with this go, on the same go line as the go package below.
+[runtimes]
+go = { ref = "./.oku/go.toml", version = "1.27" }
+
+# A version names the line to follow, and oku.lock pins the exact build. The
+# linter decides what is accepted, so a new major version of it is a change to
+# review. The other tools follow the newest release.
+[packages]
+go = { ref = "./.oku/go.toml", version = "1.27" }
+golangci-lint = { ref = "github:golangci/golangci-lint", version = "^2" }
+just = { ref = "github:casey/just", version = "^1" }
+gofumpt = "go:mvdan.cc/gofumpt"
+golines = "github:golangci/golines"
+gopls = "go:golang.org/x/tools/gopls"
+# uv runs the training pipeline in train/: it installs the Python and the
+# packages train/pyproject.toml pins.
+uv = "github:astral-sh/uv"

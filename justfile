@@ -6,6 +6,11 @@ default:
 test:
     go test -race ./...
 
+# Lint, and fail when a file needs formatting.
+lint:
+    golangci-lint run ./...
+    test -z "$(gofumpt -l .)"
+
 # Vet, and build with cgo off for every target yomi promises.
 check:
     go vet ./...
@@ -14,3 +19,7 @@ check:
 # Format the Go files.
 fmt:
     gofumpt -w .
+
+# Install the training pipeline's Python and packages.
+train-setup:
+    cd train && uv sync
