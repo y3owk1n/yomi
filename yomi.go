@@ -63,11 +63,14 @@ type Line struct {
 	Words []Word
 }
 
-// Engine reads frames with one model. It is safe for concurrent use.
+// Engine reads frames with the model New was given, and with any added by
+// WithModel when a router picks among them. It is safe for concurrent use.
 type Engine struct {
-	model   *Model
-	workers int
-	pool    sync.Pool
+	model    *Model
+	byFamily map[string]*Model
+	router   *Model
+	workers  int
+	pool     sync.Pool
 }
 
 // Option configures an Engine.
@@ -81,7 +84,7 @@ func WithWorkers(n int) Option {
 
 // New returns an Engine that reads with m.
 func New(m *Model, opts ...Option) *Engine {
-	e := &Engine{model: m, workers: runtime.NumCPU()}
+	e := &Engine{model: m, byFamily: map[string]*Model{m.net.Family: m}, workers: runtime.NumCPU()}
 	e.pool.New = func() any { return &nn.Scratch{} }
 	for _, o := range opts {
 		o(e)
@@ -148,16 +151,29 @@ func (e *Engine) ReadLine(frame *image.RGBA, box image.Rectangle, scale int) []W
 }
 
 func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Word {
-	net := e.model.net
 	r := image.Rect(box.Min.X*scale, box.Min.Y*scale, box.Max.X*scale, box.Max.Y*scale).
 		Add(frame.Rect.Min).Intersect(frame.Rect)
-	x, w := prep.Prepare(frame, r, net.Height)
-	if x == nil || w < net.Stride {
+	// Every model reads the same input: an ink map 32 rows tall.
+	x, w := prep.Prepare(frame, r, e.model.net.Height)
+	if x == nil || w < e.model.net.Stride {
 		return nil
 	}
 	s := e.pool.Get().(*nn.Scratch)
-	steps := net.Steps(x, w, s)
-	e.pool.Put(s)
+	defer e.pool.Put(s)
+	var (
+		net   *nn.Model
+		steps []nn.Step
+		sure  float64
+	)
+	for _, n := range e.pick(x, w, s) {
+		st := n.Steps(x, w, s)
+		if v := sureness(st); net == nil || v > sure {
+			net, steps, sure = n, st, v
+		}
+	}
+	if net == nil {
+		return nil
+	}
 	words := decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
 	settleScripts(words)
 	for i := range words {

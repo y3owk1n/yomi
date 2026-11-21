@@ -1,11 +1,14 @@
 // Command yomi reads the text in PNG screenshots.
 //
-//	yomi read [-model western | -model cjk | -model-dir DIR] [-scale 2] FILE.png...
+//	yomi read [-model NAME | -model-dir DIR] [-scale 2] FILE.png...
 //	    prints each file's lines, one per line of output
-//	yomi bench [-model western | -model-dir DIR] [-reps 3] DIR
+//	yomi bench [-model NAME | -model-dir DIR] [-reps 3] DIR
 //	    reads DIR/pages.txt's NAME@1x.png and NAME@2x.png and writes one JSON
 //	    line per frame: {"page","scale","first_ms","median_ms",
 //	    "words":[[text,x,y,w,h,confidence]...]}, boxes in logical pixels
+//
+// NAME is a recognizer (latin, western, cjk, rtl, sea, caucasian), or auto:
+// every recognizer, with the router choosing each line's.
 package main
 
 import (
@@ -22,12 +25,41 @@ import (
 	"time"
 
 	"github.com/y3owk1n/yomi"
+	"github.com/y3owk1n/yomi/models/caucasian"
 	"github.com/y3owk1n/yomi/models/cjk"
 	"github.com/y3owk1n/yomi/models/latin"
+	"github.com/y3owk1n/yomi/models/router"
+	"github.com/y3owk1n/yomi/models/rtl"
+	"github.com/y3owk1n/yomi/models/sea"
 	"github.com/y3owk1n/yomi/models/western"
 )
 
-var models = map[string]func() (*yomi.Model, error){"latin": latin.Model, "western": western.Model, "cjk": cjk.Model}
+var models = map[string]func() (*yomi.Model, error){
+	"latin": latin.Model, "western": western.Model, "cjk": cjk.Model,
+	"rtl": rtl.Model, "sea": sea.Model, "caucasian": caucasian.Model,
+}
+
+// auto returns an engine with every recognizer and the router, Western
+// reading any family it lacks.
+func auto() (*yomi.Engine, error) {
+	opts := []yomi.Option{}
+	for _, load := range []func() (*yomi.Model, error){cjk.Model, rtl.Model, sea.Model, caucasian.Model} {
+		m, err := load()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, yomi.WithModel(m))
+	}
+	r, err := router.Model()
+	if err != nil {
+		return nil, err
+	}
+	m, err := western.Model()
+	if err != nil {
+		return nil, err
+	}
+	return yomi.New(m, append(opts, yomi.WithRouter(r))...), nil
+}
 
 func load(path string) (*image.RGBA, error) {
 	f, err := os.Open(path)
@@ -54,23 +86,15 @@ func main() {
 		fail(fmt.Errorf("usage: yomi read|bench"))
 	}
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
-	name := fs.String("model", "western", "recognizer: latin, western or cjk")
+	name := fs.String("model", "western", "recognizer: latin, western, cjk, rtl, sea, caucasian, or auto for all of them")
 	dir := fs.String("model-dir", "", "load the recognizer from this directory (model.json, weights.bin) instead")
 	scale := fs.Int("scale", 1, "frame pixels per logical pixel (read)")
 	reps := fs.Int("reps", 3, "timed reads after the first (bench)")
 	_ = fs.Parse(os.Args[2:])
-	model, ok := models[*name]
-	if !ok {
-		fail(fmt.Errorf("unknown model %q", *name))
-	}
-	if *dir != "" {
-		model = func() (*yomi.Model, error) { return yomi.LoadModel(os.DirFS(*dir)) }
-	}
-	m, err := model()
+	e, err := engine(*name, *dir)
 	if err != nil {
 		fail(err)
 	}
-	e := yomi.New(m)
 	switch os.Args[1] {
 	case "read":
 		for _, path := range fs.Args() {
@@ -97,6 +121,28 @@ func main() {
 	default:
 		fail(fmt.Errorf("unknown command %q", os.Args[1]))
 	}
+}
+
+func engine(name, dir string) (*yomi.Engine, error) {
+	if dir != "" {
+		m, err := yomi.LoadModel(os.DirFS(dir))
+		if err != nil {
+			return nil, err
+		}
+		return yomi.New(m), nil
+	}
+	if name == "auto" {
+		return auto()
+	}
+	model, ok := models[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown model %q", name)
+	}
+	m, err := model()
+	if err != nil {
+		return nil, err
+	}
+	return yomi.New(m), nil
 }
 
 func bench(e *yomi.Engine, dir string, reps int) error {

@@ -13,6 +13,7 @@ import (
 	"github.com/y3owk1n/yomi"
 	"github.com/y3owk1n/yomi/models/cjk"
 	"github.com/y3owk1n/yomi/models/latin"
+	"github.com/y3owk1n/yomi/models/router"
 	"github.com/y3owk1n/yomi/models/rtl"
 	"github.com/y3owk1n/yomi/models/western"
 )
@@ -86,9 +87,8 @@ func TestEngine_Read_ReadsUIFixtures(t *testing.T) {
 }
 
 // TestEngine_Read_WordBoxesCoverTheirText checks that each read word's box
-// lies inside the frame, in logical pixels, that its character boxes tile it,
-// one per character, and that confidence is a probability. The frame is Latin,
-// so the boxes run left to right in Text's order.
+// lies inside the frame, in logical pixels, that its character boxes tile it
+// left to right, one per character, and that confidence is a probability.
 func TestEngine_Read_WordBoxesCoverTheirText(t *testing.T) {
 	frame := loadFrame(t, "testdata/fixtures/4k-16.5pt.png")
 	lines, err := engine(t).Read(context.Background(), frame, 2)
@@ -272,5 +272,46 @@ func TestEngine_Read_GivesRightToLeftWordsInLogicalOrder(t *testing.T) {
 		if !read[want] {
 			t.Errorf("did not read %q; read:\n%s", want, text(lines))
 		}
+	}
+}
+
+// TestEngine_Read_RoutesEachLineToItsScriptsRecognizer gives one engine the
+// Western and CJK recognizers and the router, and expects Korean read by CJK
+// and Russian, English and Greek read by Western, without being told which.
+func TestEngine_Read_RoutesEachLineToItsScriptsRecognizer(t *testing.T) {
+	w, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := cjk.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := router.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := yomi.New(w, yomi.WithModel(c), yomi.WithRouter(r))
+	tests := []struct {
+		frame string
+		scale int
+		want  []string
+	}{
+		{"hangul-stacked.png", 1, []string{"진단", "옵션"}},
+		{"lookalikes@2x.png", 2, []string{"Сохранить копию", "Copy screen", "Ελληνικά κείμενα"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.frame, func(t *testing.T) {
+			lines, err := e.Read(context.Background(), loadFrame(t, "testdata/fixtures/"+tt.frame), tt.scale)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := text(lines)
+			for _, want := range tt.want {
+				if !strings.Contains(got, want+" ") {
+					t.Errorf("did not read %q; read:\n%s", want, got)
+				}
+			}
+		})
 	}
 }
