@@ -2,9 +2,10 @@
 each convolution, weights as raw little-endian float32 in one file, and a JSON
 manifest listing the layers in order.
 
-Usage: python -I export.py CHECKPOINT OUTDIR
-Writes OUTDIR/weights.bin, OUTDIR/model.json, and OUTDIR/check/ (a few
-prepared crops with PyTorch logits, for the Go test).
+Usage: python export.py CHECKPOINT OUTDIR [FAMILY]
+Writes OUTDIR/weights.bin, OUTDIR/model.json, and OUTDIR/check/: eight
+held-out-font lines of FAMILY (the checkpoint's own by default), prepared,
+with the PyTorch logits the Go test compares against.
 """
 import json
 import os
@@ -16,7 +17,6 @@ import torch.nn as nn
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from model import LineContext, Recognizer  # noqa: E402
-from synth import ALPHABET  # noqa: E402
 
 ck, out = sys.argv[1], sys.argv[2]
 os.makedirs(os.path.join(out, "check"), exist_ok=True)
@@ -84,27 +84,28 @@ seq(nn.Sequential(m.head))
 
 with open(os.path.join(out, "weights.bin"), "wb") as f:
     f.write(blob)
-json.dump({"height": 32, "stride": 4, "alphabet": ALPHABET, "layers": layers},
+json.dump({"height": 32, "stride": 4, "alphabet": st["alphabet"], "layers": layers},
           open(os.path.join(out, "model.json"), "w"), indent=1)
 print(f"{len(layers)} layers, {len(blob) / 1e6:.2f} MB")
 
 # Check crops: prepared inputs and PyTorch logits (pre-softmax head output).
-from PIL import Image  # noqa: E402
-from prep import prepare  # noqa: E402
+import random  # noqa: E402
 
-labs = [json.loads(l) for l in open("evcode/labels.jsonl")][:40]
+from families import generator  # noqa: E402
+
+gen, rng = generator(sys.argv[3] if len(sys.argv) > 3 else st["family"], "heldout", blank_rate=0), random.Random(5)
 with torch.no_grad():
-    for lab in labs:
-        x = prepare(np.asarray(Image.open(f"evcode/2x/{lab['id']}.png").convert("RGB")))
+    for n in range(8):
+        x = gen.sample(rng)[0]
         feats = m.collapse(m.features(torch.from_numpy(x)[None, None]))
         if m.arch == "ctx":
             feats = m.line2(m.wide(m.context(m.line1(feats))))
         else:
             feats = m.context(feats)
         logits = m.head(feats)[0, :, 0, :].T.numpy()  # (T, C)
-        base = os.path.join(out, "check", lab["id"])
+        base = os.path.join(out, "check", f"{n:05d}")
         np.ascontiguousarray(x, dtype="<f4").tofile(base + ".in")
         np.ascontiguousarray(logits, dtype="<f4").tofile(base + ".logits")
         json.dump({"h": x.shape[0], "w": x.shape[1], "t": logits.shape[0], "c": logits.shape[1]},
                   open(base + ".json", "w"))
-print(len(labs), "check crops")
+print("8 check crops")

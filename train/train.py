@@ -1,10 +1,12 @@
-"""Trains the recognizer on synthetic lines, validating on held-out fonts.
+"""Trains a recognizer on a pre-rendered set (prerender.py), validating on lines
+rendered in the held-out fonts.
 
-Usage: python -I train.py OUTDIR --width 1.0 --steps 30000 [--workers 4]
+Usage: python train.py OUTDIR --family western --data data/western.pkl [--width 0.8 --steps 40000]
 """
 import argparse
 import json
 import os
+import pickle
 import random
 import sys
 import time
@@ -14,69 +16,41 @@ import torch
 import torch.nn as nn
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from families import generator  # noqa: E402
 from model import Recognizer  # noqa: E402
-from synth import ALPHABET, sample  # noqa: E402
-
-CLASSES = len(ALPHABET) + 1
-
-
-class Lines(torch.utils.data.IterableDataset):
-    def __init__(self, seed, batch, split="train"):
-        self.seed, self.batch, self.split = seed, batch, split
-
-    def __iter__(self):
-        info = torch.utils.data.get_worker_info()
-        rng = random.Random(self.seed * 1000 + (info.id if info else 0))
-        budget = self.batch * 400  # columns per batch, padded
-        while True:
-            pool = sorted((sample(rng, self.split) for _ in range(self.batch * 8)), key=lambda s: s[0].shape[1])
-            batches, cur = [], []
-            for s in pool:
-                if cur and (len(cur) + 1) * s[0].shape[1] > budget:
-                    batches.append(cur)
-                    cur = []
-                cur.append(s)
-            batches.append(cur)
-            rng.shuffle(batches)
-            for b in batches:
-                yield collate(b)
-
 
 # (batch, width) shapes. MPS recompiles for every new input shape, which made
 # varying shapes 20x slower per step, so every batch takes one of these.
 BUCKETS = [(200, 128), (100, 256), (64, 384), (50, 512), (32, 768), (25, 1024), (16, 1536), (12, 2048)]
 
 
+def bucket_of(width):
+    return next((b for b in BUCKETS if width <= b[1]), None)
+
+
 class Fixed:
     """Batches from a pre-rendered set in fixed shape buckets, reshuffled each pass."""
 
     def __init__(self, path, seed=0):
-        import pickle
         with open(path, "rb") as f:
-            data = pickle.load(f)
-        self.data = [s for s in data if s[0].shape[1] <= BUCKETS[-1][1]]
+            self.data = [s for s in pickle.load(f) if s[0].shape[1] <= BUCKETS[-1][1]]
         self.rng = random.Random(seed)
         self.members = {b: [] for b in BUCKETS}
         for i, s in enumerate(self.data):
-            w = s[0].shape[1]
-            self.members[next(b for b in BUCKETS if w <= b[1])].append(i)
+            self.members[bucket_of(s[0].shape[1])].append(i)
 
     def __iter__(self):
         while True:
             batches = []
             for (n, w), idx in self.members.items():
                 self.rng.shuffle(idx)
-                batches += [((n, w), idx[k:k + n]) for k in range(0, len(idx) - n + 1, n)]
+                batches += [(w, idx[k:k + n]) for k in range(0, len(idx) - n + 1, n)]
             self.rng.shuffle(batches)
-            for (n, w), g in batches:
-                yield collate([(self.data[i][0].astype(np.float32) / 255, self.data[i][1], self.data[i][2])
-                               for i in g], w)
+            for w, g in batches:
+                yield collate([(self.data[i][0].astype(np.float32) / 255, self.data[i][1], self.data[i][2]) for i in g], w)
 
 
-def collate(b, w=None):
-    if w is None:
-        w = max(s[0].shape[1] for s in b)
-        w = (w + 3) // 4 * 4
+def collate(b, w):
     x = np.zeros((len(b), 1, 32, w), np.float32)
     for i, s in enumerate(b):
         x[i, 0, :, : s[0].shape[1]] = s[0]
@@ -86,14 +60,13 @@ def collate(b, w=None):
     return torch.from_numpy(x), targets, ilen, tlen, [s[2] for s in b]
 
 
-def decode(logp, ilen):
+def decode(logp, ilen, chars):
     out = []
-    best = logp.argmax(-1).cpu().numpy()
-    for row, n in zip(best, ilen.tolist()):
+    for row, n in zip(logp.argmax(-1).cpu().numpy(), ilen.tolist()):
         prev, s = 0, []
         for k in row[:n]:
             if k != prev and k != 0:
-                s.append(ALPHABET[k - 1])
+                s.append(chars[k - 1])
             prev = k
         out.append("".join(s))
     return out
@@ -108,43 +81,47 @@ def word_acc(preds, texts):
     return hit / max(1, tot)
 
 
+def validation(family, batch):
+    """Held-out-font lines, grouped into the training buckets so evaluation
+    compiles no new shapes."""
+    gen, rng, val = generator(family, "heldout"), random.Random(99), []
+    for _ in range(30):
+        by = {}
+        for s in (gen.sample(rng) for _ in range(batch)):
+            b = bucket_of(s[0].shape[1])
+            if b:
+                by.setdefault(b, []).append(s)
+        val += [collate(g, b[1]) for b, g in by.items()]
+    return val, gen.alphabet.chars
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
-    ap.add_argument("--width", type=float, default=1.0)
-    ap.add_argument("--arch", default="base", choices=["base", "ctx"])
-    ap.add_argument("--steps", type=int, default=30000)
+    ap.add_argument("--family", required=True)
+    ap.add_argument("--data", required=True, help="pre-rendered set from prerender.py")
+    ap.add_argument("--width", type=float, default=0.8)
+    ap.add_argument("--arch", default="ctx", choices=["base", "ctx"])
+    ap.add_argument("--steps", type=int, default=40000)
     ap.add_argument("--batch", type=int, default=64)
     ap.add_argument("--lr", type=float, default=3e-3)
-    ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--device", default="mps" if torch.backends.mps.is_available() else "cpu")
-    ap.add_argument("--data", help="pre-rendered set from prerender.py; renders live when omitted")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
     torch.manual_seed(0)
     dev = torch.device(a.device)
 
-    model = Recognizer(CLASSES, a.width, a.arch).to(dev)
+    val, chars = validation(a.family, a.batch)
+    classes = len(chars) + 1
+    model = Recognizer(classes, a.width, a.arch).to(dev)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=a.lr, total_steps=a.steps, pct_start=0.05)
     ctc = nn.CTCLoss(blank=0, zero_infinity=True)
+    meta = {"width": a.width, "arch": a.arch, "classes": classes, "alphabet": chars, "family": a.family}
 
-    rng = random.Random(99)
-    val = []
-    for _ in range(30):  # validation in the same shape buckets, so eval compiles nothing new
-        vs = [sample(rng, "heldout") for _ in range(a.batch)]
-        by = {}
-        for s in vs:
-            by.setdefault(next((b for b in BUCKETS if s[0].shape[1] <= b[1]), BUCKETS[-1]), []).append(s)
-        val += [collate([s for s in g if s[0].shape[1] <= b[1]], b[1]) for b, g in by.items()]
-    if a.data:
-        loader = Fixed(a.data)
-    else:
-        loader = torch.utils.data.DataLoader(Lines(1, a.batch), batch_size=None, num_workers=a.workers,
-                                             persistent_workers=True, prefetch_factor=8)
     log = open(os.path.join(a.out, "log.jsonl"), "a")
     best, t0, run = 0.0, time.time(), 0.0
-    for step, (x, tg, il, tl, _) in enumerate(loader, 1):
+    for step, (x, tg, il, tl, _) in enumerate(Fixed(a.data), 1):
         model.train()
         logp = model(x.to(dev), il)
         loss = ctc(logp.permute(1, 0, 2).float().cpu(), tg, il, tl)
@@ -154,27 +131,24 @@ def main():
         opt.step()
         sched.step()
         run = 0.98 * run + 0.02 * loss.item() if step > 1 else loss.item()
-        if step % 200 == 0:
-            print(f"step {step} loss {run:.3f} {(time.time() - t0) / step * 1000:.0f} ms/step", flush=True)
         if step % 1000 == 0 or step == a.steps:
             model.eval()
             preds, texts = [], []
             with torch.no_grad():
                 for vx, _, vil, _, vt in val:
-                    preds += decode(model(vx.to(dev), vil), vil)
+                    preds += decode(model(vx.to(dev), vil), vil, chars)
                     texts += vt
             acc = word_acc(preds, texts)
             rec = {"step": step, "loss": round(run, 4), "val_word": round(acc, 4),
-                   "lr": sched.get_last_lr()[0], "min": round((time.time() - t0) / 60, 1)}
+                   "min": round((time.time() - t0) / 60, 1)}
             print(json.dumps(rec), flush=True)
             log.write(json.dumps(rec) + "\n")
             log.flush()
-            torch.save({"model": model.state_dict(), "width": a.width, "arch": a.arch, "classes": CLASSES, "step": step},
-                       os.path.join(a.out, "last.pt"))
+            state = dict(meta, model=model.state_dict(), step=step)
+            torch.save(state, os.path.join(a.out, "last.pt"))
             if acc >= best:
                 best = acc
-                torch.save({"model": model.state_dict(), "width": a.width, "arch": a.arch, "classes": CLASSES, "step": step},
-                           os.path.join(a.out, "best.pt"))
+                torch.save(state, os.path.join(a.out, "best.pt"))
         if step >= a.steps:
             break
 
