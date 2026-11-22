@@ -28,6 +28,21 @@ func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu b
 	return n
 }
 
+// blockRun is how many positions one vector kernel call covers in matmul's
+// blocked loop, or 0 on a CPU without AVX2.
+func blockRun() int {
+	if hasAVX2 {
+		return 16
+	}
+	return 0
+}
+
+// runBlock computes the sixteen positions at in and out of a tile of four
+// output channels, rows n apart.
+func runBlock(wt []float32, b *[4]float32, in, out []float32, cin, n, relu int) {
+	pointwise4x16(&wt[0], &in[0], &out[0], b, cin, n, 16, relu)
+}
+
 // pointwise4x16 writes out[co*n+p] = b[co] + sum over ci of wt[ci*4+co] *
 // in[ci*n+p] for the four channels co and every p below end, sixteen at a
 // time, clamped at zero when relu is 1.

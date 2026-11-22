@@ -1,7 +1,8 @@
 package nn
 
-// positions runs a tile of four output channels over runs of eight positions
-// with NEON (pointwise4x8, kernels_arm64.s), four lanes per instruction, and
+// positions runs a tile of four output channels over runs of sixteen
+// positions with NEON (pointwise4x16, kernels_arm64.s), or eight on a line
+// under sixteen (pointwise4x8), four lanes per instruction, and
 // returns the first position it left. The last run ends at n, overlapping the
 // one before, since a scalar tail costs as much as a third of the vector
 // work on a short line. A tile short of four channels, the last of a layer
@@ -9,20 +10,41 @@ package nn
 // takes the scalar kernel throughout.
 func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu bool) int {
 	cin := len(wt) / 4
-	end := n &^ 7
-	if nco < 4 || end == 0 || cin == 0 {
+	if nco < 4 || n < 8 || cin == 0 {
 		return positions4(wt, b, in, out, 0, n, nco, relu)
 	}
 	r := 0
 	if relu {
 		r = 1
 	}
-	pointwise4x8(&wt[0], &in[0], &out[0], &b, cin, n, end, r)
+	kernel, run := pointwise4x16, 16
+	if n < 16 {
+		kernel, run = pointwise4x8, 8
+	}
+	end := n / run * run
+	kernel(&wt[0], &in[0], &out[0], &b, cin, n, end, r)
 	if end < n {
-		pointwise4x8(&wt[0], &in[n-8], &out[n-8], &b, cin, n, 8, r)
+		kernel(&wt[0], &in[n-run], &out[n-run], &b, cin, n, run, r)
 	}
 	return n
 }
+
+// blockRun is how many positions one vector kernel call covers in matmul's
+// blocked loop.
+func blockRun() int { return 16 }
+
+// runBlock computes the sixteen positions at in and out of a tile of four
+// output channels, rows n apart.
+func runBlock(wt []float32, b *[4]float32, in, out []float32, cin, n, relu int) {
+	pointwise4x16(&wt[0], &in[0], &out[0], b, cin, n, 16, relu)
+}
+
+// pointwise4x16 is pointwise4x8 sixteen positions at a time. Its sixteen
+// accumulators keep enough multiply-adds in flight to hide their latency,
+// where eight leave the core waiting half the time.
+//
+//go:noescape
+func pointwise4x16(wt, in, out *float32, b *[4]float32, cin, n, end, relu int)
 
 // pointwise4x8 writes out[co*n+p] = b[co] + sum over ci of wt[ci*4+co] *
 // in[ci*n+p] for the four channels co and every p below end, eight at a time,

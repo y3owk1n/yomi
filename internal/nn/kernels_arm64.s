@@ -1,5 +1,103 @@
 #include "textflag.h"
 
+// func pointwise4x16(wt, in, out *float32, b *[4]float32, cin, n, end, relu int)
+TEXT ·pointwise4x16(SB), NOSPLIT, $0-64
+	MOVD wt+0(FP), R0
+	MOVD in+8(FP), R1
+	MOVD out+16(FP), R2
+	MOVD b+24(FP), R3
+	MOVD cin+32(FP), R4
+	MOVD n+40(FP), R5
+	MOVD end+48(FP), R6
+	MOVD relu+56(FP), R13
+	LSL  $2, R5, R7 // a row of in or out, in bytes
+	VEOR V10.B16, V10.B16, V10.B16
+	VLD1 (R3), [V9.S4]
+	MOVD $0, R8 // p
+
+loop16P:
+	CMP  R6, R8
+	BGE  done16
+	VDUP V9.S[0], V16.S4
+	VDUP V9.S[0], V17.S4
+	VDUP V9.S[0], V18.S4
+	VDUP V9.S[0], V19.S4
+	VDUP V9.S[1], V20.S4
+	VDUP V9.S[1], V21.S4
+	VDUP V9.S[1], V22.S4
+	VDUP V9.S[1], V23.S4
+	VDUP V9.S[2], V24.S4
+	VDUP V9.S[2], V25.S4
+	VDUP V9.S[2], V26.S4
+	VDUP V9.S[2], V27.S4
+	VDUP V9.S[3], V28.S4
+	VDUP V9.S[3], V29.S4
+	VDUP V9.S[3], V30.S4
+	VDUP V9.S[3], V31.S4
+	MOVD R0, R9            // wt
+	ADD  R8<<2, R1, R10    // in + p
+	MOVD R4, R11           // channels left
+
+loop16C:
+	VLD1.P 16(R9), [V0.S4]
+	VLD1   (R10), [V1.S4, V2.S4, V3.S4, V4.S4]
+	ADD    R7, R10, R10
+	VDUP   V0.S[0], V5.S4
+	VDUP   V0.S[1], V6.S4
+	VDUP   V0.S[2], V7.S4
+	VDUP   V0.S[3], V8.S4
+	VFMLA  V5.S4, V1.S4, V16.S4
+	VFMLA  V5.S4, V2.S4, V17.S4
+	VFMLA  V5.S4, V3.S4, V18.S4
+	VFMLA  V5.S4, V4.S4, V19.S4
+	VFMLA  V6.S4, V1.S4, V20.S4
+	VFMLA  V6.S4, V2.S4, V21.S4
+	VFMLA  V6.S4, V3.S4, V22.S4
+	VFMLA  V6.S4, V4.S4, V23.S4
+	VFMLA  V7.S4, V1.S4, V24.S4
+	VFMLA  V7.S4, V2.S4, V25.S4
+	VFMLA  V7.S4, V3.S4, V26.S4
+	VFMLA  V7.S4, V4.S4, V27.S4
+	VFMLA  V8.S4, V1.S4, V28.S4
+	VFMLA  V8.S4, V2.S4, V29.S4
+	VFMLA  V8.S4, V3.S4, V30.S4
+	VFMLA  V8.S4, V4.S4, V31.S4
+	SUBS   $1, R11, R11
+	BNE    loop16C
+
+	CBZ    R13, store16
+	VFMAX  V10.S4, V16.S4, V16.S4
+	VFMAX  V10.S4, V17.S4, V17.S4
+	VFMAX  V10.S4, V18.S4, V18.S4
+	VFMAX  V10.S4, V19.S4, V19.S4
+	VFMAX  V10.S4, V20.S4, V20.S4
+	VFMAX  V10.S4, V21.S4, V21.S4
+	VFMAX  V10.S4, V22.S4, V22.S4
+	VFMAX  V10.S4, V23.S4, V23.S4
+	VFMAX  V10.S4, V24.S4, V24.S4
+	VFMAX  V10.S4, V25.S4, V25.S4
+	VFMAX  V10.S4, V26.S4, V26.S4
+	VFMAX  V10.S4, V27.S4, V27.S4
+	VFMAX  V10.S4, V28.S4, V28.S4
+	VFMAX  V10.S4, V29.S4, V29.S4
+	VFMAX  V10.S4, V30.S4, V30.S4
+	VFMAX  V10.S4, V31.S4, V31.S4
+
+store16:
+	ADD  R8<<2, R2, R12 // out + p
+	VST1 [V16.S4, V17.S4, V18.S4, V19.S4], (R12)
+	ADD  R7, R12, R12
+	VST1 [V20.S4, V21.S4, V22.S4, V23.S4], (R12)
+	ADD  R7, R12, R12
+	VST1 [V24.S4, V25.S4, V26.S4, V27.S4], (R12)
+	ADD  R7, R12, R12
+	VST1 [V28.S4, V29.S4, V30.S4, V31.S4], (R12)
+	ADD  $16, R8, R8
+	B    loop16P
+
+done16:
+	RET
+
 // func pointwise4x8(wt, in, out *float32, b *[4]float32, cin, n, end, relu int)
 TEXT ·pointwise4x8(SB), NOSPLIT, $0-64
 	MOVD wt+0(FP), R0

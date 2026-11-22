@@ -13,3 +13,8 @@ func reluRow(row []float32) {
 		row[i] = max(v, 0)
 	}
 }
+
+// blockRun is 0: there is no vector kernel to block for.
+func blockRun() int { return 0 }
+
+func runBlock([]float32, *[4]float32, []float32, []float32, int, int, int) {}

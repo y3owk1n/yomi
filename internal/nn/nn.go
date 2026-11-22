@@ -400,6 +400,33 @@ func pointwise(l *layer, x, y tensor, s *Scratch) {
 // for cout channels and n positions, w tiled by tile4, clamped at zero when
 // relu is set. s, when not nil, lends the buffer a short last tile runs into.
 func matmul(wt, bias, in, out []float32, cin, cout, n int, relu bool, s *Scratch) {
+	run := blockRun()
+	if run == 0 || n < run || cin == 0 || cout < 4 {
+		matmulRows(wt, bias, in, out, cin, cout, n, relu, s)
+		return
+	}
+	// Positions in blocks of run, every tile over one block before the next,
+	// keep the block's inputs in L1 where whole rows stream from L2 once per
+	// tile. The last block ends at n, overlapping the one before.
+	r := 0
+	if relu {
+		r = 1
+	}
+	full := cout &^ 3
+	for p0 := 0; p0 < n; p0 += run {
+		q := min(p0, n-run)
+		for co := 0; co < full; co += 4 {
+			b := (*[4]float32)(bias[co : co+4])
+			runBlock(wt[co*cin:(co+4)*cin], b, in[q:], out[co*n+q:], cin, n, r)
+		}
+	}
+	if full < cout {
+		matmulRows(wt[full*cin:], bias[full:], in, out[full*n:], cin, cout-full, n, relu, s)
+	}
+}
+
+// matmulRows is matmul a tile at a time over whole rows.
+func matmulRows(wt, bias, in, out []float32, cin, cout, n int, relu bool, s *Scratch) {
 	for tile := 0; tile*4 < cout; tile++ {
 		co := tile * 4
 		w := wt[tile*cin*4 : (tile+1)*cin*4]
