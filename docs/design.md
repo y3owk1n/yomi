@@ -298,6 +298,18 @@ of them at each scale. Dropping every lone
 symbol took the stray words to 42 / 43 but lost the ☆ that mail draws as
 text, so ✓, ✕ and the rest stay.
 
+The router also sent icons and the short tokens beside them on an English
+page to the other recognizers: 45 of the 135 lines of a GitHub page, plus 25
+second reads, each a recognizer run that read garbage. Its first choice leads
+the runner-up by 20 to 35 nats per step on a line written in a script it
+knows, and by under 16 on those. So Read now routes every line before it
+reads any, and a family is on the page only once it leads a line at least two
+em wide by 12 or more. A line routed to a family not on the page reads with
+the base recognizer alone. The layout scenes drop from 58 / 58 stray words to
+42 / 33, as few as Western alone gives, code from 11 / 14 to 5 / 6, and every
+UI and held-out set stays within 0.6 points. The GitHub page reads in about
+30 to 50% less time.
+
 Two attempts at the Southeast Asian gap changed nothing. Router-4,
 fine-tuned from router-3 on lines with the current fonts, scored within 0.3
 points of it on every set. Reading a line with the runner-up family too

@@ -28,13 +28,15 @@ func WithRouter(r *Model) Option {
 // take a second read.
 const secondReadMargin = 2
 
-// pick returns the recognizers to read a prepared line with: the router's
-// family, then the runner-up when it comes within secondReadMargin. It
-// returns nil when the router finds no text in the line.
-func (e *Engine) pick(x []float32, w int, s *nn.Scratch) []*nn.Model {
-	if e.router == nil {
-		return []*nn.Model{e.model.net}
-	}
+// route is the router's view of a line: each class's mean log-probability
+// per step, best first.
+type route struct {
+	labels []string
+	scores []float64
+}
+
+// routeLine runs the router over a prepared line.
+func (e *Engine) routeLine(x []float32, w int, s *nn.Scratch) route {
 	r := e.router.net
 	logits, t, c := r.Forward(x, w, s)
 	// Each class's log-probability, averaged over the line's steps. Softmax
@@ -60,11 +62,56 @@ func (e *Engine) pick(x []float32, w int, s *nn.Scratch) []*nn.Model {
 		order[k] = k
 	}
 	sort.Slice(order, func(a, b int) bool { return mean[order[a]] > mean[order[b]] })
-	if r.Labels[order[0]] == "none" {
+	out := route{labels: make([]string, c), scores: make([]float64, c)}
+	for i, k := range order {
+		out.labels[i], out.scores[i] = r.Labels[k], mean[k]
+	}
+	return out
+}
+
+// pageMargin and pageWidth decide which families a page is written in: a
+// family is on the page once the router picks it for a line at least
+// pageWidth wide (prepared pixels, two em) ahead of its runner-up by at least
+// pageMargin. Lines in a script the router knows lead by 20 to 35, while icons
+// and the short tokens beside them lead by under 16, which is how an English
+// page sent a third of its lines to CJK, Arabic and Indic recognizers.
+const (
+	pageMargin = 12
+	pageWidth  = 64
+)
+
+// pageFamilies returns the families the lines of one page are written in.
+func pageFamilies(lines []prepared) map[string]bool {
+	page := map[string]bool{}
+	for _, l := range lines {
+		r := l.route
+		if len(r.labels) > 1 && l.w >= pageWidth && r.scores[0]-r.scores[1] >= pageMargin {
+			page[r.labels[0]] = true
+		}
+	}
+	return page
+}
+
+// pick returns the recognizers to read a line the router saw as r: the
+// router's family, then the runner-up when it comes within secondReadMargin.
+// A family not on page reads with the model New was given instead, and a nil
+// page holds every family. It returns nil when the router finds no text in
+// the line.
+func (e *Engine) pick(r route, page map[string]bool) []*nn.Model {
+	if e.router == nil {
+		return []*nn.Model{e.model.net}
+	}
+	if r.labels[0] == "none" {
 		return nil
 	}
-	nets := []*nn.Model{e.recognizer(r.Labels[order[0]])}
-	if second := r.Labels[order[1]]; second != "none" && mean[order[0]]-mean[order[1]] < secondReadMargin {
+	onPage := func(family string) bool {
+		return page == nil || page[family] || e.recognizer(family) == e.model.net
+	}
+	if !onPage(r.labels[0]) {
+		return []*nn.Model{e.model.net}
+	}
+	nets := []*nn.Model{e.recognizer(r.labels[0])}
+	if second := r.labels[1]; second != "none" && onPage(second) && r.scores[0]-r.scores[1] < secondReadMargin {
 		if n := e.recognizer(second); n != nets[0] {
 			nets = append(nets, n)
 		}

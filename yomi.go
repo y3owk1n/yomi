@@ -102,30 +102,24 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line
 	}
 	scale = max(1, scale)
 	boxes := linefind.Find(frame, float64(scale), linefind.DefaultParams())
-	lines := make([]Line, len(boxes))
 	order := make([]int, len(boxes))
 	for i := range order {
 		order[i] = i
 	}
 	// Longest lines first, so no worker is left with a long one at the end.
 	sort.Slice(order, func(a, b int) bool { return boxes[order[a]].Dx() > boxes[order[b]].Dx() })
-	next := make(chan int, len(order))
-	for _, i := range order {
-		next <- i
+	// Every line is prepared and routed before any is read, so the scripts
+	// the whole page is written in decide each line's recognizer.
+	preps := make([]prepared, len(boxes))
+	e.each(ctx, order, func(i int) { preps[i] = e.prepare(frame, boxes[i], scale) })
+	var page map[string]bool
+	if e.router != nil {
+		page = pageFamilies(preps)
 	}
-	close(next)
-	var wg sync.WaitGroup
-	for range max(1, min(e.workers, len(boxes))) {
-		wg.Go(func() {
-			for i := range next {
-				if ctx.Err() != nil {
-					return
-				}
-				lines[i] = Line{Box: boxes[i], Words: e.readBox(frame, boxes[i], scale)}
-			}
-		})
-	}
-	wg.Wait()
+	lines := make([]Line, len(boxes))
+	e.each(ctx, order, func(i int) {
+		lines[i] = Line{Box: boxes[i], Words: e.readPrepared(frame, preps[i], scale, page)}
+	})
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -148,15 +142,61 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line
 // ReadLine reads box, a region of frame in logical pixels holding one line of
 // text, without line finding, for a second look at a known line.
 func (e *Engine) ReadLine(frame *image.RGBA, box image.Rectangle, scale int) []Word {
-	return e.readBox(frame, box, max(1, scale))
+	scale = max(1, scale)
+	return e.readPrepared(frame, e.prepare(frame, box, scale), scale, nil)
 }
 
-func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Word {
+// each runs f for each index in order on the engine's workers, and stops
+// starting new ones once ctx is done.
+func (e *Engine) each(ctx context.Context, order []int, f func(int)) {
+	next := make(chan int, len(order))
+	for _, i := range order {
+		next <- i
+	}
+	close(next)
+	var wg sync.WaitGroup
+	for range max(1, min(e.workers, len(order))) {
+		wg.Go(func() {
+			for i := range next {
+				if ctx.Err() != nil {
+					return
+				}
+				f(i)
+			}
+		})
+	}
+	wg.Wait()
+}
+
+// prepared is a line ready to read: its rectangle in frame pixels, its ink
+// map and the router's view of it. x is nil for a line too short to read.
+type prepared struct {
+	r     image.Rectangle
+	x     []float32
+	w     int
+	route route
+}
+
+func (e *Engine) prepare(frame *image.RGBA, box image.Rectangle, scale int) prepared {
 	r := image.Rect(box.Min.X*scale, box.Min.Y*scale, box.Max.X*scale, box.Max.Y*scale).
 		Add(frame.Rect.Min).Intersect(frame.Rect)
 	// Every model reads the same input: an ink map 32 rows tall.
 	x, w := prep.Prepare(frame, r, e.model.net.Height)
 	if x == nil || w < e.model.net.Stride {
+		return prepared{}
+	}
+	p := prepared{r: r, x: x, w: w}
+	if e.router != nil {
+		s := e.pool.Get().(*nn.Scratch)
+		p.route = e.routeLine(x, w, s)
+		e.pool.Put(s)
+	}
+	return p
+}
+
+// readPrepared reads p with the recognizers pick chooses for it on page.
+func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale int, page map[string]bool) []Word {
+	if p.x == nil {
 		return nil
 	}
 	s := e.pool.Get().(*nn.Scratch)
@@ -166,8 +206,8 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 		steps []nn.Step
 		sure  float64
 	)
-	for _, n := range e.pick(x, w, s) {
-		st := n.Steps(x, w, s)
+	for _, n := range e.pick(p.route, page) {
+		st := n.Steps(p.x, p.w, s)
 		if v := sureness(st); net == nil || v > sure {
 			net, steps, sure = n, st, v
 		}
@@ -175,7 +215,7 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 	if net == nil {
 		return nil
 	}
-	words := decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
+	words := decode(steps, []rune(net.Alphabet), net.Stride, p.r.Sub(frame.Rect.Min), p.w, scale)
 	if net != e.model.net {
 		words = slices.DeleteFunc(words, func(w Word) bool { return w.Text == roundIcon })
 	}

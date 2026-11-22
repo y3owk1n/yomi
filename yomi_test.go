@@ -9,12 +9,16 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"unicode"
 
 	"github.com/y3owk1n/yomi"
+	"github.com/y3owk1n/yomi/models/caucasian"
 	"github.com/y3owk1n/yomi/models/cjk"
+	"github.com/y3owk1n/yomi/models/indic"
 	"github.com/y3owk1n/yomi/models/latin"
 	"github.com/y3owk1n/yomi/models/router"
 	"github.com/y3owk1n/yomi/models/rtl"
+	"github.com/y3owk1n/yomi/models/sea"
 	"github.com/y3owk1n/yomi/models/western"
 )
 
@@ -41,6 +45,29 @@ func engine(t *testing.T) *yomi.Engine {
 		t.Fatal(err)
 	}
 	return yomi.New(m)
+}
+
+// routedEngine reads with every recognizer and the router, as a program
+// reading any script would.
+func routedEngine(tb testing.TB) *yomi.Engine {
+	tb.Helper()
+	var opts []yomi.Option
+	for _, load := range []func() (*yomi.Model, error){cjk.Model, rtl.Model, indic.Model, sea.Model, caucasian.Model} {
+		m, err := load()
+		if err != nil {
+			tb.Fatal(err)
+		}
+		opts = append(opts, yomi.WithModel(m))
+	}
+	r, err := router.Model()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	w, err := western.Model()
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return yomi.New(w, append(opts, yomi.WithRouter(r))...)
 }
 
 func text(lines []yomi.Line) string {
@@ -364,5 +391,24 @@ func TestEngine_Read_SkipsRoundIconsOnRoutedLines(t *testing.T) {
 	}
 	if strings.Contains(got, "〇") {
 		t.Errorf("read a round icon as 〇; read:\n%s", got)
+	}
+}
+
+// TestEngine_Read_ReadsOnlyThePagesScripts reads tightly set Myanmar and
+// English rows with every recognizer and the router. A short line the router
+// is unsure of, a clipped mark or an icon, once went to the Indic recognizer
+// and read as Telugu. A script no confident line of the page is written in
+// must not appear.
+func TestEngine_Read_ReadsOnlyThePagesScripts(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/myanmar-tight@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	if strings.ContainsFunc(got, func(r rune) bool { return unicode.Is(unicode.Telugu, r) }) {
+		t.Errorf("read Telugu on a Myanmar and English page:\n%s", got)
+	}
+	if !strings.Contains(got, "pfizer") {
+		t.Errorf("did not read the English on the page:\n%s", got)
 	}
 }
