@@ -2,8 +2,9 @@
 integer luma and plain loops.
 
 1. Luma per pixel, Neru's formula: (299 R + 587 G + 114 B) / 1000, integer.
-2. Background: median of the crop's 1 px border. Ink: the pixel farthest from
-   it. Ink strength x = clip((bg - v) * sign / max(32, |bg - ink|), 0, 1),
+2. Background: the luma most of the crop's pixels have, the lowest on a tie.
+   A crop fitted to text is mostly background, while its border can run past
+   the button or field the text sits in. Ink: the pixel farthest from it. Ink strength x = clip((bg - v) * sign / max(32, |bg - ink|), 0, 1),
    so ink is 1 and background 0 whatever the polarity.
 3. Underlines: in the crop's bottom quarter, runs of x >= 0.5 at least the
    crop's height long that touch neither side, in a band of rows at most a
@@ -23,8 +24,7 @@ def luma(rgb):
 
 
 def ink(gray):
-    border = np.concatenate([gray[0], gray[-1], gray[1:-1, 0], gray[1:-1, -1]])
-    bg = int(np.median(border))
+    bg = int(np.bincount(gray.ravel(), minlength=256).argmax())
     far = gray.min() if bg - gray.min() >= gray.max() - bg else gray.max()
     span = max(32, abs(bg - int(far)))
     sign = 1 if far < bg else -1

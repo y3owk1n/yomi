@@ -5,12 +5,12 @@ package prep
 import (
 	"image"
 	"math"
-	"sort"
 )
 
-// Prepare reproduces train/prep.py: integer luma, ink strength against the border
-// median, rules erased, integer box downsample when the crop is at least
-// twice Height, then bilinear (half-pixel centres, edge clamp) to Height rows.
+// Prepare reproduces train/prep.py: integer luma, ink strength against the
+// crop's commonest luma, underlines erased, integer box downsample when the
+// crop is at least twice Height, then bilinear (half-pixel centres, edge
+// clamp) to Height rows.
 func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	r = r.Intersect(img.Rect)
 	h, w := r.Dy(), r.Dx()
@@ -25,21 +25,18 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 			g[y*w+x] = (299*int32(p[0]) + 587*int32(p[1]) + 114*int32(p[2])) / 1000
 		}
 	}
-	// Border median, as numpy's median: the mean of the two middle values
-	// for an even count, then truncated to int.
-	border := make([]int32, 0, 2*w+2*h)
-	border = append(border, g[:w]...)
-	border = append(border, g[(h-1)*w:]...)
-	for y := 1; y < h-1; y++ {
-		border = append(border, g[y*w], g[y*w+w-1])
+	// Background: the luma most of the crop has. A crop fitted to a line of
+	// text is mostly background, and its border can run past the edge of the
+	// button or field the text sits in.
+	var hist [256]int
+	for _, v := range g {
+		hist[v]++
 	}
-	sort.Slice(border, func(i, j int) bool { return border[i] < border[j] })
-	n := len(border)
 	var bg int32
-	if n%2 == 1 {
-		bg = border[n/2]
-	} else {
-		bg = int32((float64(border[n/2-1]) + float64(border[n/2])) / 2)
+	for v := range hist {
+		if hist[v] > hist[bg] {
+			bg = int32(v)
+		}
 	}
 	lo, hi := g[0], g[0]
 	for _, v := range g {

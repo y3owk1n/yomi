@@ -506,3 +506,19 @@ func TestEngine_Read_FitsWordBoxesToTheInk(t *testing.T) {
 		t.Fatalf("did not read %q:\n%s", "21,780", text(lines))
 	}
 }
+
+// TestEngine_Read_ReadsTextOnAButtonItsCropOverruns reads white text on a blue
+// button at 2x, where the line's crop runs past the button's bottom and right
+// edges so that most of the crop's border is the page, not the button.
+func TestEngine_Read_ReadsTextOnAButtonItsCropOverruns(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/button-overrun@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"Apple Watch連接充電器，", "iPhone和Apple"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
+	}
+}
