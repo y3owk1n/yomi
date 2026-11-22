@@ -3,6 +3,7 @@
 package nn
 
 import (
+	"slices"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -135,7 +136,7 @@ type tensor struct {
 }
 
 // Scratch holds the two buffers one forward pass reuses. One per goroutine.
-type Scratch struct{ a, b []float32 }
+type Scratch struct{ a, b, tile []float32 }
 
 func (s *Scratch) get(which *[]float32, n int) []float32 {
 	if cap(*which) < n {
@@ -172,17 +173,31 @@ type Step struct {
 func (m *Model) Steps(in []float32, w int, s *Scratch) []Step {
 	last := &m.Layers[len(m.Layers)-1]
 	if last.Op != "gated" {
-		logits, t, c := m.Forward(in, w, s)
+		// x is (classes, 1, T). Walking it a class row at a time reads memory
+		// in order, where a step's logits lie T apart.
+		x := m.run(in, w, s, len(m.Layers))
+		t, c := x.w, x.c
 		steps := make([]Step, t)
-		for j := range t {
-			row := logits[j*c : (j+1)*c]
-			best := 0
-			for k := 1; k < c; k++ {
-				if row[k] > row[best] {
-					best = k
+		top := slices.Clone(x.data[:t])
+		for k := 1; k < c; k++ {
+			for j, v := range x.data[k*t : (k+1)*t] {
+				if v > top[j] {
+					top[j], steps[j].Class = v, k
 				}
 			}
-			steps[j] = Step{best, softmaxAt(row, best)}
+		}
+		// The softmax of each step's best class. Classes more than 20 below
+		// it add under exp(-20) each, so the sum skips them.
+		sum := make([]float64, t)
+		for k := range c {
+			for j, v := range x.data[k*t : (k+1)*t] {
+				if v > top[j]-20 {
+					sum[j] += math.Exp(float64(v - top[j]))
+				}
+			}
+		}
+		for j := range steps {
+			steps[j].Prob = float32(1 / sum[j])
 		}
 		return steps
 	}
@@ -268,7 +283,7 @@ func project(l *layer, x tensor, open []int) []float32 {
 		}
 	}
 	out := make([]float32, l.Rank*n)
-	matmul(l.pwt, l.pb, in, out, c, l.Rank, n, false)
+	matmul(l.pwt, l.pb, in, out, c, l.Rank, n, false, nil)
 	h := make([]float32, n*l.Rank)
 	for r := range l.Rank {
 		for s := range n {
@@ -319,20 +334,6 @@ func charLogits(l *layer, h []float32, n int) []float32 {
 
 func sigmoid(v float32) float32 { return float32(1 / (1 + math.Exp(-float64(v)))) }
 
-// softmaxAt is the softmax probability of class k, the best in row. Classes
-// more than 20 below it add under exp(-20) each, as in gated, so the sum
-// skips them.
-func softmaxAt(row []float32, k int) float32 {
-	m := row[k]
-	var sum float64
-	for _, v := range row {
-		if v > m-20 {
-			sum += math.Exp(float64(v - m))
-		}
-	}
-	return float32(1 / sum)
-}
-
 // run applies the first n layers to an ink map of Height rows.
 func (m *Model) run(in []float32, w int, s *Scratch, n int) tensor {
 	x := tensor{1, m.Height, w, in}
@@ -355,7 +356,7 @@ func (m *Model) run(in []float32, w int, s *Scratch, n int) tensor {
 		y := tensor{l.Cout, oh, ow, buf}
 		switch {
 		case l.Kh == 1 && l.Kw == 1 && l.Groups == 1 && l.Sh == 1 && l.Sw == 1:
-			pointwise(l, x, y)
+			pointwise(l, x, y, s)
 		case l.Groups == l.Cin && l.Cin == l.Cout:
 			depthwise(l, x, y)
 		default:
@@ -391,20 +392,35 @@ func tile4(w []float32, cout, cin int) []float32 {
 // w[co][ci] * in[ci][p]. For each tile of four output channels, positions
 // works through the positions its register tile covers, summing every input
 // channel before one store. Positions left over go one at a time.
-func pointwise(l *layer, x, y tensor) {
-	matmul(l.wt, l.b, x.data, y.data, l.Cin, l.Cout, x.h*x.w, l.Relu)
+func pointwise(l *layer, x, y tensor, s *Scratch) {
+	matmul(l.wt, l.b, x.data, y.data, l.Cin, l.Cout, x.h*x.w, l.Relu, s)
 }
 
 // matmul writes out[co*n+p] = bias[co] + sum over ci of w[co][ci] * in[ci*n+p]
 // for cout channels and n positions, w tiled by tile4, clamped at zero when
-// relu is set.
-func matmul(wt, bias, in, out []float32, cin, cout, n int, relu bool) {
+// relu is set. s, when not nil, lends the buffer a short last tile runs into.
+func matmul(wt, bias, in, out []float32, cin, cout, n int, relu bool, s *Scratch) {
 	for tile := 0; tile*4 < cout; tile++ {
 		co := tile * 4
 		w := wt[tile*cin*4 : (tile+1)*cin*4]
 		nco := min(4, cout-co)
 		var b [4]float32
 		copy(b[:nco], bias[co:co+nco])
+		if nco < 4 {
+			// The last tile of a width not a multiple of four, as a head's
+			// classes often are. Its weights pad with zeros, so the vector
+			// kernel runs it whole into four rows and the real ones are kept.
+			var tmp []float32
+			if s != nil {
+				tmp = s.get(&s.tile, 4*n)
+			} else {
+				tmp = make([]float32, 4*n)
+			}
+			if positions(w, b, in, tmp, n, 4, relu) == n {
+				copy(out[co*n:], tmp[:nco*n])
+				continue
+			}
+		}
 		p := positions(w, b, in, out[co*n:], n, nco, relu)
 		for ; p < n; p++ {
 			for i := range nco {
