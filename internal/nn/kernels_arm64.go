@@ -54,17 +54,18 @@ func charTile(w0, w1, w2, w3, b, h []float32, r, n, c int, z []float32) int {
 //go:noescape
 func dot4x4(w0, w1, w2, w3, h0, h1, h2, h3 *float32, r int, b *[4]float32, z0, z1, z2, z3 *float32)
 
-// axpy16 adds k times src to dst for the leading multiple of 16 of their
+// axpyVec adds k times src to dst for the leading multiple of four of their
 // length with NEON and returns how many it did.
-func axpy16(dst, src []float32, k float32) int {
-	m := min(len(dst), len(src)) &^ 15
+func axpyVec(dst, src []float32, k float32) int {
+	m := min(len(dst), len(src)) &^ 3
 	if m > 0 {
 		axpy(&dst[0], &src[0], m, k)
 	}
 	return m
 }
 
-// axpy adds k times src[:n] to dst[:n], n a multiple of 16.
+// axpy adds k times src[:n] to dst[:n], n a multiple of four, sixteen at a
+// time and then four.
 //
 //go:noescape
 func axpy(dst, src *float32, n int, k float32)

@@ -57,10 +57,10 @@ func charTile(w0, w1, w2, w3, b, h []float32, r, n, c int, z []float32) int {
 //go:noescape
 func dot4x2(w0, w1, w2, w3, h0, h1 *float32, r int, b *[4]float32, z0, z1 *float32)
 
-// axpy16 adds k times src to dst for the leading multiple of 32 of their
+// axpyVec adds k times src to dst for the leading multiple of eight of their
 // length with AVX2 and returns how many it did.
-func axpy16(dst, src []float32, k float32) int {
-	m := min(len(dst), len(src)) &^ 31
+func axpyVec(dst, src []float32, k float32) int {
+	m := min(len(dst), len(src)) &^ 7
 	if !hasAVX2 || m == 0 {
 		return 0
 	}
@@ -68,7 +68,8 @@ func axpy16(dst, src []float32, k float32) int {
 	return m
 }
 
-// axpy adds k times src[:n] to dst[:n], n a multiple of 32.
+// axpy adds k times src[:n] to dst[:n], n a multiple of eight, 32 at a time
+// and then eight.
 //
 //go:noescape
 func axpy(dst, src *float32, n int, k float32)

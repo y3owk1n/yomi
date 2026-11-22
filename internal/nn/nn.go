@@ -136,7 +136,7 @@ type tensor struct {
 }
 
 // Scratch holds the two buffers one forward pass reuses. One per goroutine.
-type Scratch struct{ a, b, tile []float32 }
+type Scratch struct{ a, b, tile, planes []float32 }
 
 func (s *Scratch) get(which *[]float32, n int) []float32 {
 	if cap(*which) < n {
@@ -358,7 +358,7 @@ func (m *Model) run(in []float32, w int, s *Scratch, n int) tensor {
 		case l.Kh == 1 && l.Kw == 1 && l.Groups == 1 && l.Sh == 1 && l.Sw == 1:
 			pointwise(l, x, y, s)
 		case l.Groups == l.Cin && l.Cin == l.Cout:
-			depthwise(l, x, y)
+			depthwise(l, x, y, s)
 		default:
 			direct(l, x, y)
 		}
@@ -440,9 +440,36 @@ func matmul(wt, bias, in, out []float32, cin, cout, n int, relu bool, s *Scratch
 // depthwise convolves each channel with its own kernel. Each kernel tap adds
 // a scaled run of an input row over the output columns it reaches, so the
 // inner loops carry no bounds tests.
-func depthwise(l *layer, x, y tensor) {
+// addScaled adds k times src to dst, as far as the shorter runs.
+func addScaled(dst, src []float32, k float32) {
+	n := min(len(dst), len(src))
+	for i := axpyVec(dst, src, k); i < n; i++ {
+		dst[i] += k * src[i]
+	}
+}
+
+func depthwise(l *layer, x, y tensor, s *Scratch) {
+	// At a stride of two, a tap reads every other column. Each channel splits
+	// into its even and odd columns first, so every tap reads a run.
+	var even, odd []float32
+	we, wo := (x.w+1)/2, x.w/2
+	if l.Sw == 2 {
+		buf := s.get(&s.planes, x.h*(we+wo))
+		even, odd = buf[:x.h*we], buf[x.h*we:]
+	}
 	for c := range l.Cout {
 		in := x.data[c*x.h*x.w : (c+1)*x.h*x.w]
+		if l.Sw == 2 {
+			for iy := range x.h {
+				row := in[iy*x.w : (iy+1)*x.w]
+				for i := range we {
+					even[iy*we+i] = row[2*i]
+				}
+				for i := range wo {
+					odd[iy*wo+i] = row[2*i+1]
+				}
+			}
+		}
 		out := y.data[c*y.h*y.w : (c+1)*y.h*y.w]
 		k := l.w[c*l.Kh*l.Kw : (c+1)*l.Kh*l.Kw]
 		bias := l.b[c]
@@ -472,9 +499,18 @@ func depthwise(l *layer, x, y tensor) {
 					if l.Sw == 1 {
 						src := irow[ox0+off : ox1+off]
 						dst := orow[ox0:ox1]
-						for i := axpy16(dst, src, kv); i < len(src); i++ {
-							dst[i] += kv * src[i]
+						addScaled(dst, src, kv)
+					} else if l.Sw == 2 {
+						// ix = 2*(ox+base) + parity, a column of one plane.
+						parity := off & 1
+						base := (off - parity) / 2
+						plane, pw := even, we
+						if parity == 1 {
+							plane, pw = odd, wo
 						}
+						src := plane[iy*pw+ox0+base : iy*pw+ox1+base]
+						dst := orow[ox0:ox1]
+						addScaled(dst, src, kv)
 					} else {
 						for ox := ox0; ox < ox1; ox++ {
 							orow[ox] += kv * irow[ox*l.Sw+off]
@@ -524,9 +560,7 @@ func direct(l *layer, x, y tensor) {
 						for co := g * opg; co < (g+1)*opg; co++ {
 							k := l.w[((co*cpg+ci)*l.Kh+ky)*l.Kw+kx]
 							row := y.data[(co*y.h+oy)*y.w : (co*y.h+oy+1)*y.w]
-							for i := axpy16(row, tap, k); i < len(row); i++ {
-								row[i] += k * tap[i]
-							}
+							addScaled(row, tap, k)
 						}
 					}
 				}

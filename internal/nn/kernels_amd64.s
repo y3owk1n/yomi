@@ -158,6 +158,8 @@ TEXT ·axpy(SB), NOSPLIT, $0-28
 	VBROADCASTSS k+24(FP), Y0
 
 loopA:
+	CMPQ        CX, $32
+	JLT         loopA8
 	VMOVUPS     (SI), Y1
 	VMOVUPS     32(SI), Y2
 	VMOVUPS     64(SI), Y3
@@ -177,7 +179,21 @@ loopA:
 	ADDQ        $128, DI
 	ADDQ        $128, SI
 	SUBQ        $32, CX
-	JNZ         loopA
+	JMP         loopA
+
+loopA8:
+	TESTQ       CX, CX
+	JZ          doneA
+	VMOVUPS     (SI), Y1
+	VMOVUPS     (DI), Y5
+	VFMADD231PS Y0, Y1, Y5
+	VMOVUPS     Y5, (DI)
+	ADDQ        $32, DI
+	ADDQ        $32, SI
+	SUBQ        $8, CX
+	JMP         loopA8
+
+doneA:
 	VZEROUPPER
 	RET
 

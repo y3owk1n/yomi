@@ -170,6 +170,8 @@ TEXT ·axpy(SB), NOSPLIT, $0-28
 	VDUP  V0.S[0], V1.S4
 
 loopA:
+	CMP    $16, R2
+	BLT    loopA4
 	VLD1   (R1), [V2.S4, V3.S4, V4.S4, V5.S4]
 	VLD1   (R0), [V6.S4, V7.S4, V8.S4, V9.S4]
 	VFMLA  V1.S4, V2.S4, V6.S4
@@ -179,8 +181,21 @@ loopA:
 	VST1   [V6.S4, V7.S4, V8.S4, V9.S4], (R0)
 	ADD    $64, R0, R0
 	ADD    $64, R1, R1
-	SUBS   $16, R2, R2
-	BNE    loopA
+	SUB    $16, R2, R2
+	B      loopA
+
+loopA4:
+	CBZ    R2, doneA
+	VLD1   (R1), [V2.S4]
+	VLD1   (R0), [V6.S4]
+	VFMLA  V1.S4, V2.S4, V6.S4
+	VST1   [V6.S4], (R0)
+	ADD    $16, R0, R0
+	ADD    $16, R1, R1
+	SUB    $4, R2, R2
+	B      loopA4
+
+doneA:
 	RET
 
 // func relu16(p *float32, n int)
