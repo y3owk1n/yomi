@@ -762,6 +762,12 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 	bases := make([]int, len(lines))
 	xhs := make([]float64, len(lines))
 	ambiguous := make([]float64, len(lines))
+	// lower marks a line of display type, glyph blobs at least 16 px tall,
+	// whose top sits 1.25 to 1.6 times their height above its baseline, as
+	// far as capitals reach over lowercase. Large bold type runs its lowercase
+	// into blobs of their own and a second pass joins its capitals, so its
+	// blobs are lowercase and must not take the page's capital height.
+	lower := make([]bool, len(lines))
 	var page []known
 	for i, ln := range lines {
 		base, hs := ln.metrics()
@@ -782,6 +788,8 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 			}
 		} else {
 			ambiguous[i] = float64(hs[len(hs)/2])
+			reach := float64(base-ln.y0+1) / hi
+			lower[i] = hi >= 16 && reach >= 1.25 && reach <= 1.6
 		}
 	}
 	for i, v := range ambiguous {
@@ -794,7 +802,7 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 			if e := math.Abs(v-k.xh) / k.xh; e < bestErr {
 				xhs[i], bestErr = v, e
 			}
-			if e := math.Abs(v-k.cap) / k.cap; e < bestErr {
+			if e := math.Abs(v-k.cap) / k.cap; e < bestErr && !lower[i] {
 				xhs[i], bestErr = v*k.xh/k.cap, e
 			}
 		}
