@@ -186,8 +186,14 @@ def control(rng, size):
 def render(rng, text, primary, fallbacks, scale, other_text, shaped=False):
     """The line as an RGB crop, and its label: text as written, or in visual
     order for shaped lines."""
-    px = round(rng.uniform(10, 18) * scale)
-    weight = rng.choice([400, 400, 400, 500, 700])
+    # One line in seven is display type, as titles, headings and figures are
+    # set, and mostly bold there.
+    if rng.random() < 0.15:
+        px = round(rng.uniform(18, 32) * scale)
+        weight = rng.choice([400, 600, 700, 700])
+    else:
+        px = round(rng.uniform(10, 18) * scale)
+        weight = rng.choice([400, 400, 400, 500, 600, 700])
     supersample = rng.random() < 0.5
     subpixel = not shaped and rng.random() < 0.1
     label = text
