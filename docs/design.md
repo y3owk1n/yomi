@@ -155,6 +155,21 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Indic, wider (measured 2026-11-22)
+
+indic-c is indic-b's recognizer at width 1.25 instead of 0.8, 571k parameters
+where indic-b has 293k, trained 40,000 steps. It validates at 81.5% of words
+where indic-b reached 74.5%. Read through the routed engine, it costs Indic
+pages 20 ms a page on the M5 and changes no other script's.
+
+| Set | indic-b (1x / 2x) | indic-c (1x / 2x) | Median ms, b / c |
+|---|---|---|---|
+| Hindi UI | 84.2% / 85.9% | 89.4% / 89.2% | 28 / 48 |
+| Indic, held out | 66.7% / 70.7% | 72.8% / 76.5% | 35 / 54 |
+| Layout scenes, Western UI | unchanged | unchanged | |
+
+The Indic weights grow from 0.6 MB to 1.1 MB.
+
 ## Large type and underlined links (measured 2026-11-22)
 
 A live run of Neru in the Linux VM read a web page's 26 px bold heading as

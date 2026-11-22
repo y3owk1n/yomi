@@ -1,6 +1,6 @@
 // Package indic is yomi's recognizer for Devanagari (Hindi, Marathi, Nepali),
 // Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam and Sinhala,
-// and ASCII. Its weights (0.6 MB) are embedded.
+// and ASCII. Its weights (1.1 MB) are embedded.
 package indic
 
 import (

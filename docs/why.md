@@ -90,7 +90,7 @@ came from, at 1x and 2x.
 | CJK UI | 92.5% / 92.7% | 86.8% / 86.0% | **96.3% / 96.8%** |
 | Arabic UI | 82.3% / 84.3% | **83.6% / 89.5%** | 65.6% / 80.9% |
 | Hebrew UI | **84.0% / 84.7%** | 2.3% / 2.3% | no recognizer |
-| Hindi UI | 84.3% / 85.1% | **92.1% / 92.4%** | 83.1% / 86.7% |
+| Hindi UI | 89.4% / 89.2% | **92.1% / 92.4%** | 83.1% / 86.7% |
 | Thai UI | **96.6% / 96.9%** | 94.5% / 94.2% | 96.2% / 92.2% |
 | Lao, Khmer, Myanmar, held out, 1x | **86.7%, 90.5%, 78.7%** | 22.5%, 29.2%, 7.4% | no recognizer |
 | Georgian, Armenian, Amharic, held out, 1x | **91.6%, 80.9%, 69.2%** | 15.3%, 12.5%, 19.9% | no recognizer |
@@ -156,18 +156,18 @@ the densest frame, small Thai at 2x, in 12 ms.
 | `models/western` | Latin, Cyrillic, Greek | 0.5 MB |
 | `models/cjk` | Chinese, Japanese, Korean | 3.6 MB |
 | `models/rtl` | Arabic, Persian, Urdu, Hebrew | 0.8 MB |
-| `models/indic` | nine Indic scripts | 0.6 MB |
+| `models/indic` | nine Indic scripts | 1.1 MB |
 | `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB |
 | `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB |
 | `models/router` | which script a line is in | 0.1 MB |
 
-Every script together is 6.5 MB. The weights ship as half floats, which
+Every script together is 7.1 MB. The weights ship as half floats, which
 read every evaluation set within 0.2 points of float32 and halve the size.
 
 ## Where yomi is behind
 
 - **Long prose.** Vision accurate reads an article at 99.6%, yomi at 94.5%.
-- **Hindi and Arabic** trail Vision by 5 to 8 points at 2x, and Myanmar,
+- **Hindi** trails Vision by 3 points, **Arabic** by 2 to 3 at 2x, and Myanmar,
   Armenian and Amharic sit below 80%.
 - **CJK** trails PaddleOCR by about 4 points, and CJK and Arabic at 2x trail
   Windows.Media.Ocr by 1 to 2 points.
