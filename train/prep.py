@@ -5,9 +5,9 @@ integer luma and plain loops.
 2. Background: median of the crop's 1 px border. Ink: the pixel farthest from
    it. Ink strength x = clip((bg - v) * sign / max(32, |bg - ink|), 0, 1),
    so ink is 1 and background 0 whatever the polarity.
-3. Rules: each run of x >= 0.5 within a row at least the crop's height long
-   is set to 0. No glyph stroke is that long, so it is an underline, a
-   strikethrough or a rule.
+3. Underlines: in the crop's bottom quarter, runs of x >= 0.5 at least the
+   crop's height long that touch neither side, in a band of rows at most a
+   tenth of the crop thick, are set to 0.
 4. Height to H: integer box downsample by k = h // H when k >= 2, then
    bilinear (half-pixel centres, edge clamp) to height H, width scaled by the
    same factor, at least 4.
@@ -53,8 +53,9 @@ def bilinear(x, oh, ow):
 
 def erase_rules(x):
     h, w = x.shape
-    for row in x:
-        i = 0
+
+    def runs(y):
+        row, out, i = x[y], [], 0
         while i < w:
             if row[i] < 0.5:
                 i += 1
@@ -62,8 +63,24 @@ def erase_rules(x):
             s = i
             while i < w and row[i] >= 0.5:
                 i += 1
-            if i - s >= h:
-                row[s:i] = 0
+            if i - s >= h and s > 0 and i < w:
+                out.append((s, i))
+        return out
+
+    thin = max(2, h // 10)
+    y = h * 3 // 4
+    while y < h:
+        if not runs(y):
+            y += 1
+            continue
+        s = y
+        while y < h and runs(y):
+            y += 1
+        if y - s > thin:
+            continue
+        for r in range(s, y):
+            for a, b in runs(r):
+                x[r, a:b] = 0
 
 
 def prepare(rgb):
