@@ -234,9 +234,12 @@ const loneFloor = 0.5
 // gapBreak is the gap between two characters, as a share of the line's
 // height, past which they are two words even when the recognizer read no space
 // between them. Table columns and labels side by side sit further apart than
-// any space the models trained on. At 0.8 Hindi reads 1.7 points more words,
-// CJK 1.5 points more characters, and Western no fewer.
-const gapBreak = 0.8
+// any space the models trained on. The line finder's crops keep a glyph's
+// top strokes, so they run taller than the ink. At 0.75 Hindi reads 0.4 to
+// 0.5 points more words than at 0.8 and CJK 0.2 more characters, with
+// Western, right-to-left and the layout scenes level. At 0.7 Korean words
+// split into syllables, and at 0.6 Western and right-to-left lose a point.
+const gapBreak = 0.75
 
 // decode is greedy CTC: the best class per step, repeats and blanks dropped,
 // spaces splitting words. A word's box spans its first to last character's
