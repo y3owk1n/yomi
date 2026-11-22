@@ -180,7 +180,9 @@ def main():
     ap.add_argument("--rank", type=int, default=128)
     ap.add_argument("--hstride", type=int, default=4, choices=[4, 2], help="input columns per output step")
     ap.add_argument("--steps", type=int, default=40000)
-    ap.add_argument("--batch", type=int, default=64)
+    ap.add_argument("--batch", type=int, default=64, help="validation batch size")
+    ap.add_argument("--batch-scale", type=int, default=4,
+                    help="lines per training batch, as a multiple of each bucket's")
     ap.add_argument("--lr", type=float, help="peak learning rate, 3e-3 from scratch and 1e-3 with --init")
     ap.add_argument("--device", default="cuda" if torch.cuda.is_available()
                     else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -198,7 +200,11 @@ def main():
         kept = init_from(model, a.init, meta)
         print(json.dumps({"init": a.init, "chars_kept": kept, "chars": len(chars)}), flush=True)
     model.to(dev)
-    lr = a.lr or (1e-3 if a.init else 3e-3)
+    # Four times each bucket's lines train 1.5 times as fast as one on an M5
+    # at the same accuracy per line seen, and eight run out of memory. A batch
+    # k times as large takes a learning rate sqrt(k) times as high.
+    BUCKETS[:] = [(n * a.batch_scale, w) for n, w in BUCKETS]
+    lr = a.lr or (1e-3 if a.init else 3e-3) * a.batch_scale ** 0.5
     opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=lr, total_steps=a.steps, pct_start=0.05)
     start, best = 0, 0.0
