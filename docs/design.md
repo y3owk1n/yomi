@@ -181,7 +181,7 @@ spaces. Each traced to one fault.
 | Set | Before (1x / 2x) | After (1x / 2x) |
 |---|---|---|
 | Layout scenes | 93.3% / 93.0% | 93.5% / 93.6% |
-| Right-to-left UI | 83.8% / 85.1% | 86.3% / 87.7% |
+| Right-to-left UI | 83.8% / 85.1% | 86.1% / 87.6% |
 | CJK UI (characters) | 92.5% / 92.2% | 93.1% / 92.9% |
 | Thai UI (characters) | 96.3% / 96.6% | 96.5% / 96.8% |
 
