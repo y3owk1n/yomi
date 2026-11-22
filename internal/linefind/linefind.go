@@ -49,18 +49,34 @@ func luma1x(img *image.RGBA, scale float64) ([]uint8, int, int) {
 	b := img.Rect
 	w, h := b.Dx()/k, b.Dy()/k
 	out := make([]uint8, w*h)
+	lum := func(p []uint8) int { return (299*int(p[0]) + 587*int(p[1]) + 114*int(p[2])) / 1000 }
 	bands(h, func(y0, y1 int) {
 		for y := y0; y < y1; y++ {
-			for x := 0; x < w; x++ {
-				sum := 0
-				for dy := 0; dy < k; dy++ {
-					row := img.Pix[(y*k+dy)*img.Stride:]
-					for dx := 0; dx < k; dx++ {
-						p := row[(x*k+dx)*4:]
-						sum += (299*int(p[0]) + 587*int(p[1]) + 114*int(p[2])) / 1000
-					}
+			o := out[y*w : y*w+w]
+			switch k {
+			case 1:
+				row := img.Pix[y*img.Stride : y*img.Stride+w*4]
+				for x := range o {
+					o[x] = uint8(lum(row[x*4 : x*4+3]))
 				}
-				out[y*w+x] = uint8(sum / (k * k))
+			case 2:
+				r0 := img.Pix[2*y*img.Stride : 2*y*img.Stride+w*8]
+				r1 := img.Pix[(2*y+1)*img.Stride : (2*y+1)*img.Stride+w*8]
+				for x := range o {
+					i := x * 8
+					o[x] = uint8((lum(r0[i:i+3]) + lum(r0[i+4:i+7]) + lum(r1[i:i+3]) + lum(r1[i+4:i+7])) / 4)
+				}
+			default:
+				for x := range o {
+					sum := 0
+					for dy := 0; dy < k; dy++ {
+						row := img.Pix[(y*k+dy)*img.Stride:]
+						for dx := 0; dx < k; dx++ {
+							sum += lum(row[(x*k+dx)*4:])
+						}
+					}
+					o[x] = uint8(sum / (k * k))
+				}
 			}
 		}
 	})
@@ -110,6 +126,7 @@ func edges(l []uint8, w, h int, p Params) []bool {
 			for x := range flat {
 				flat[x] = false
 			}
+			allFlat := true
 			for x := 0; x < w; {
 				lo, hi, s := row[x], row[x], x
 				for x < w && max(hi, row[x])-min(lo, row[x]) <= flatSpread {
@@ -120,10 +137,16 @@ func edges(l []uint8, w, h int, p Params) []bool {
 					for i := s; i < x; i++ {
 						flat[i] = true
 					}
+				} else {
+					allFlat = false
 				}
 				if x == s {
 					x++
 				}
+			}
+			// A row of background alone marks nothing.
+			if allFlat {
+				continue
 			}
 			last := -1
 			for x := range w {
@@ -168,23 +191,30 @@ func edges(l []uint8, w, h int, p Params) []bool {
 			}
 		}
 	})
+	// The column pass walks the rows top to bottom with a count per column of
+	// the marked run it is in, so it reads memory in order.
 	bands(w, func(x0, x1 int) {
-		for x := x0; x < x1; x++ {
-			for y := 0; y < h; {
-				if !e[y*w+x] {
-					y++
-					continue
-				}
-				s := y
-				for y < h && e[y*w+x] {
-					y++
-				}
-				if y-s >= p.RunMaxV {
-					for i := s; i < y; i++ {
-						clear[i*w+x] = true
-					}
+		run := make([]int, x1-x0)
+		end := func(x, y int) {
+			if n := run[x-x0]; n >= p.RunMaxV {
+				for i := y - n; i < y; i++ {
+					clear[i*w+x] = true
 				}
 			}
+			run[x-x0] = 0
+		}
+		for y := range h {
+			er := e[y*w+x0 : y*w+x1]
+			for i, m := range er {
+				if m {
+					run[i]++
+				} else if run[i] > 0 {
+					end(x0+i, y)
+				}
+			}
+		}
+		for x := x0; x < x1; x++ {
+			end(x, h)
 		}
 	})
 	for i := range e {
