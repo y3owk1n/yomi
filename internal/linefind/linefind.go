@@ -95,6 +95,9 @@ func absInt(a int) int {
 const (
 	flatRun    = 6
 	flatSpread = 6
+	// strokeRun is the longest even run that can still be the inside of a
+	// glyph's stroke: three flat runs, past a 26 px bold figure's 6.
+	strokeRun = 3 * flatRun
 )
 
 // bands runs fn over [0, n) split into one band per CPU, in parallel.
@@ -121,12 +124,15 @@ func edges(l []uint8, w, h int, p Params) []bool {
 		flat := make([]bool, w)
 		left := make([]int, w)
 		right := make([]int, w)
+		type run struct{ s, e, level int }
+		var runs []run
 		for y := y0; y < y1; y++ {
 			row := l[y*w : y*w+w]
 			for x := range flat {
 				flat[x] = false
 			}
 			allFlat := true
+			runs = runs[:0]
 			for x := 0; x < w; {
 				lo, hi, s := row[x], row[x], x
 				for x < w && max(hi, row[x])-min(lo, row[x]) <= flatSpread {
@@ -134,9 +140,7 @@ func edges(l []uint8, w, h int, p Params) []bool {
 					x++
 				}
 				if x-s >= flatRun {
-					for i := s; i < x; i++ {
-						flat[i] = true
-					}
+					runs = append(runs, run{s, x, (int(lo) + int(hi)) / 2})
 				} else {
 					allFlat = false
 				}
@@ -145,8 +149,23 @@ func edges(l []uint8, w, h int, p Params) []bool {
 				}
 			}
 			// A row of background alone marks nothing.
-			if allFlat {
+			if allFlat && len(runs) == 1 {
 				continue
+			}
+			for k, r := range runs {
+				// A short run whose level differs from the runs on both sides,
+				// which agree with each other, is the inside of a stroke too
+				// wide to be anything but even, as in large bold text. It is
+				// ink, not background.
+				if k > 0 && k+1 < len(runs) && r.e-r.s <= strokeRun &&
+					absInt(r.level-runs[k-1].level) > p.Edge &&
+					absInt(r.level-runs[k+1].level) > p.Edge &&
+					absInt(runs[k-1].level-runs[k+1].level) <= p.Edge {
+					continue
+				}
+				for i := r.s; i < r.e; i++ {
+					flat[i] = true
+				}
 			}
 			last := -1
 			for x := range w {
@@ -307,6 +326,40 @@ func (l line) w() int { return l.x1 - l.x0 + 1 }
 // of the first, which would read the same text again. Lines of text never
 // overlap like this, so lines whose spans share over half the smaller one's
 // height, and whose bounds share over half its width, are one line.
+// absorbMarks folds a line of one blob into a line at least twice its height
+// that it sits beside, in that line's band, as the first pass folds in small
+// marks. The comma of a large figure is too tall to count as a small mark, but
+// the figure's digits wait for the tall pass, so the first pass gives the
+// comma a line of its own, and below the digits' baseline it overlaps them too
+// little for mergeStacked.
+func absorbMarks(lines []line, p Params) []line {
+	for i := 0; i < len(lines); i++ {
+		if len(lines[i].members) != 1 {
+			continue
+		}
+		b := lines[i].members[0]
+		cy := (b.y0 + b.y1) / 2
+		for j := range lines {
+			if j == i || len(lines[j].members) < 2 {
+				continue
+			}
+			ln := &lines[j]
+			c0, c1 := ln.core()
+			ch := c1 - c0 + 1
+			g, up, down := int(p.GapEm*float64(ch)+0.5), ch*2/5, ch*7/10
+			if b.h()*2 > ch || cy < c0-up || cy > c1+down || b.x0 < ln.x0-g || b.x1 > ln.x1+g {
+				continue
+			}
+			ln.x0, ln.x1 = min(ln.x0, b.x0), max(ln.x1, b.x1)
+			ln.y0, ln.y1 = min(ln.y0, b.y0), max(ln.y1, b.y1)
+			lines = append(lines[:i], lines[i+1:]...)
+			i--
+			break
+		}
+	}
+	return lines
+}
+
 func mergeStacked(lines []line) []line {
 	for merged := true; merged; {
 		merged = false
@@ -358,15 +411,17 @@ func overlap(a0, a1, b0, b1 int) int {
 	return max(0, min(a1, b1)-max(a0, b0)+1)
 }
 
-// metrics returns a line's baseline (the median blob bottom) and the heights
-// of the blobs that sit on it, sorted.
+// metrics returns a line's baseline (the lower median blob bottom) and the
+// heights of the blobs that sit on it, sorted. Of an even count the higher of
+// the middle two wins, so a comma or descender among two members never sets
+// the baseline below the glyph beside it.
 func (l line) metrics() (int, []int) {
 	bottoms := make([]int, len(l.members))
 	for i, b := range l.members {
 		bottoms[i] = b.y1
 	}
 	sort.Ints(bottoms)
-	base := bottoms[len(bottoms)/2]
+	base := bottoms[(len(bottoms)-1)/2]
 	var hs []int
 	for _, b := range l.members {
 		if absInt(b.y1-base) <= 1 {
@@ -528,6 +583,7 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 		}
 	}
 
+	lines = absorbMarks(lines, p)
 	lines = mergeStacked(lines)
 
 	// A small mark the pass met before any line could take it, as the tilde
@@ -571,7 +627,13 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 		lo, hi := float64(hs[len(hs)/4]), float64(hs[len(hs)-1])
 		if hi >= 1.25*lo {
 			xhs[i] = lo
-			page = append(page, known{lo, hi})
+			// Fonts set capitals 1.25 to 1.8 times their x-height. A pair
+			// further apart is an icon beside small text, and as the page's
+			// evidence it would read a large figure as capitals of a far
+			// smaller x-height and crop it to the top of its digits.
+			if hi <= 1.8*lo {
+				page = append(page, known{lo, hi})
+			}
 		} else {
 			ambiguous[i] = float64(hs[len(hs)/2])
 		}
@@ -602,3 +664,4 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 	}
 	return out
 }
+

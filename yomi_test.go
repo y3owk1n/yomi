@@ -412,3 +412,20 @@ func TestEngine_Read_ReadsOnlyThePagesScripts(t *testing.T) {
 		t.Errorf("did not read the English on the page:\n%s", got)
 	}
 }
+
+// TestEngine_Read_ReadsLargeFigures reads three dashboard cards, each a label,
+// a 26 px bold figure and a caption set close together, and expects every
+// figure whole. The figures' strokes are wider than the background runs the
+// line finder looks for, and their commas hang into the caption below.
+func TestEngine_Read_ReadsLargeFigures(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/figures@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"61,606", "21,780", "62,824"} {
+		if !strings.Contains(got, want+" ") {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
+	}
+}
