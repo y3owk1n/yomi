@@ -82,18 +82,21 @@ frame (RGBA, scale)
 ### On macOS, against Vision and PaddleOCR
 
 Word accuracy (character accuracy for CJK and Thai) on pages no training text
-came from, at 1x and 2x.
+came from, at 1x and 2x. The answer keys count a token that wraps, as a CJK or
+Thai sentence with no spaces does, line by line. Until 2026-11-22 such a token
+dropped out of the key, which left a quarter of the CJK text and a fifth of
+the Thai unscored.
 
 | Set | yomi | Vision accurate | PaddleOCR |
 |---|---|---|---|
 | Western UI, 17 languages | **95.3% / 95.5%** | 86.3% / 86.3% | 85.9% / 86.8% |
-| CJK UI | 93.6% / 93.7% | 86.8% / 86.0% | **96.3% / 96.8%** |
-| Arabic UI | **85.2%** / 88.2% | 83.6% / **89.5%** | 65.6% / 80.9% |
-| Hebrew UI | **89.5% / 90.4%** | 2.3% / 2.3% | no recognizer |
-| Hindi UI | 89.4% / 89.2% | **92.1% / 92.4%** | 83.1% / 86.7% |
-| Thai UI | **96.6% / 96.9%** | 94.5% / 94.2% | 96.2% / 92.2% |
-| Lao, Khmer, Myanmar, held out, 1x | **86.7%, 90.5%, 78.7%** | 22.5%, 29.2%, 7.4% | no recognizer |
-| Georgian, Armenian, Amharic, held out, 1x | **91.6%, 80.9%, 69.2%** | 15.3%, 12.5%, 19.9% | no recognizer |
+| CJK UI | 95.4% / 95.5% | 94.1% / 93.7% | **97.8% / 98.1%** |
+| Arabic UI | **83.1%** / 86.0% | 81.6% / **87.3%** | 64.1% / 78.9% |
+| Hebrew UI | **86.3% / 87.2%** | 2.2% / 2.3% | no recognizer |
+| Hindi UI | 89.5% / 89.3% | **92.1% / 92.4%** | 83.1% / 86.7% |
+| Thai UI | **97.3% / 97.5%** | 94.7% / 94.7% | 97.2% / 93.3% |
+| Lao, Khmer, Myanmar, held out, 1x | **84.9%, 89.9%, 76.4%** | 22.1%, 28.2%, 7.2% | no recognizer |
+| Georgian, Armenian, Amharic, held out, 1x | **91.1%, 85.2%, 67.2%** | 15.2%, 12.4%, 19.9% | no recognizer |
 
 ### In Neru's vim mode, against Vision
 
@@ -115,18 +118,19 @@ tables at 87 to 88%, where Vision reads 76 to 81%.
 
 Both read the same pages in the same Linux VM. tesseract runs as Neru ran it,
 LSTM only and sparse text, with each page's own language data, its best case.
-The Mac hosting the VM was busy while they ran, so the times compare the two
-engines rather than measure either.
+yomi's accuracy is the current build's, which reads the same pixels to the
+same words on every platform. The Mac hosting the VM was busy while they ran,
+so the times compare the two engines rather than measure either.
 
 | Set | yomi | tesseract | Time per page, yomi / tesseract |
 |---|---|---|---|
-| English | **98.2% / 98.2%** | 93.3% / 97.5% | 0.25 s / 1.3 to 2.2 s |
-| Western UI | **94.3% / 94.6%** | 85.9% / 91.0% | 0.27 s / 1.7 to 2.6 s |
-| CJK UI | **91.8% / 92.1%** | 87.3% / 90.3% | 1.1 s / 9 to 12.5 s |
-| Right-to-left UI | **82.5% / 84.0%** | 67.2% / 80.3% | |
-| Thai UI | **96.3% / 96.6%** | 89.6% / 91.2% | |
-| Hindi UI | 83.9% / 84.9% | **85.0% / 90.6%** | 0.35 s / 2.1 to 3.0 s |
-| App layouts, stray words | **58 / 58** | 114 / 105 | 0.2 s / 0.7 to 1.2 s |
+| English, 1x | **98.8%** | 93.0% | 0.25 s / 1.3 to 2.2 s |
+| Western UI | **95.3% / 95.5%** | 85.9% / 91.0% | 0.27 s / 1.7 to 2.6 s |
+| CJK UI | **95.4% / 95.5%** | 88.2% / 91.9% | 1.1 s / 9 to 12.5 s |
+| Right-to-left UI | **84.8% / 86.6%** | 65.2% / 77.9% | |
+| Thai UI | **97.3% / 97.5%** | 89.8% / 91.2% | |
+| Hindi UI | **89.5%** / 89.3% | 85.0% / **90.6%** | 0.35 s / 2.1 to 3.0 s |
+| App layouts, stray words | **50 / 46** | 114 / 105 | 0.2 s / 0.7 to 1.2 s |
 
 ### On Windows, against Windows.Media.Ocr
 
@@ -138,16 +142,17 @@ Vietnamese, so those pages are left out.
 |---|---|---|---|
 | Code | **98.6% / 98.7%** | 88.9% / 98.1% | 138 / 192 ms |
 | Western UI, 15 languages | **95.6% / 95.9%** | 86.8% / 93.5% | 94 / 289 ms |
-| CJK UI | **93.6% / 93.7%** | 86.1% / 93.4% | 417 / 1,006 ms |
-| Arabic UI | **85.2% / 88.2%** | 56.3% / 87.4% | 133 / 1,692 ms |
+| CJK UI | **95.4% / 95.5%** | 87.4% / 94.6% | 417 / 1,006 ms |
+| Arabic UI | **83.1% / 86.0%** | 54.9% / 85.3% | 133 / 1,692 ms |
 | App layouts, stray words | **45 / 43** | 70 / 96 | 100 / 252 ms |
 
 ### Speed on x86
 
 On amd64 the hot loops run in AVX2 with FMA when the CPU has them, chosen at
 run time. On GitHub's hosted x86 runners that reads the test frames 3.1
-times as fast as plain Go at the geometric mean: a 4K window in 30 ms and
-the densest frame, small Thai at 2x, in 12 ms.
+times as fast as plain Go at the geometric mean. Later kernel work made
+reads another 1.2 to 1.3 times as fast on x86 and arm64 alike: a 4K window
+reads in 28 ms on an AMD runner and small Thai at 2x in 10 ms.
 
 ### Size
 
@@ -167,9 +172,9 @@ read every evaluation set within 0.2 points of float32 and halve the size.
 ## Where yomi is behind
 
 - **Long prose.** Vision accurate reads an article at 99.6%, yomi at 94.5%.
-- **Hindi** trails Vision by 3 points, **Arabic** by 2 to 3 at 2x, and Myanmar,
-  Armenian and Amharic sit below 80%.
-- **CJK** trails PaddleOCR by about 3 points.
+- **Hindi** trails Vision by 3 points and **Arabic** by 1.3 at 2x, and
+  Myanmar and Amharic sit below 80%.
+- **CJK** trails PaddleOCR by about 2.5 points.
 - **Urdu** in Nastaliq reads at about 38%.
 - **Fractional scales.** A capture at 1.25 pixels per point reads about 2
   points below the same text at 1x.

@@ -155,6 +155,40 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Answer keys and kernel speed (measured 2026-11-22)
+
+The script `evalgen.py` puts in each page collected a word only when its
+text sat on one line, and skipped any token that wrapped. CJK and Thai write
+sentences without spaces, so a wrapped sentence is one token, and every
+wrapped sentence dropped out of the key. A wrapped token now counts as one
+word per line, from its characters' boxes. Re-rendering every generated set
+with the fix gave byte-identical images, so every engine's saved reads were
+rescored without reading again. The keys grew by 33% on CJK, 21% on Thai and
+4 to 8% on the right-to-left sets, and Western and Hindi stayed the same.
+Vision accurate, which reads long sentences well, rose most: CJK from 86.0% to
+93.7% at 2x, where yomi rose from 93.7% to 95.5%. Most of what looked like
+stray words on the CJK and Thai pages were those sentences.
+
+The kernels gained in the same pass:
+
+- The gated head finishes its sums and adds its bias in assembly, and its
+  projection runs through the pointwise kernel. CJK pages read 20 to 35%
+  faster with identical output.
+- A pointwise layer ends on a vector run overlapping the one before rather
+  than a scalar tail, a short last tile runs in the vector kernel into a
+  scratch buffer, and the steps of a full head come straight from the
+  channel-major output without a transposed copy.
+- Depthwise layers run their row tails four or eight wide and their stride-2
+  taps over split even and odd columns.
+- Pointwise layers run sixteen positions at a time, every tile over one block
+  before the next, so the block's inputs stay in L1.
+
+Both builds timed in one job on each GitHub runner, the fixture frames read
+1.19 times as fast at the geometric mean on arm64 Linux, 1.28 on an M1, 1.32
+on AMD and 1.34 on Intel, and up to 2 times on dense Arabic and Myanmar.
+Allocation per read fell by 40%. Every evaluation set reads the same words at
+the same confidences.
+
 ## Background and yeh against Windows.Media.Ocr (measured 2026-11-22)
 
 CJK and Arabic trailed Windows.Media.Ocr at 2x. Two faults outside the models

@@ -33,7 +33,7 @@ one pure-Go engine reads the same pixels to the same words everywhere.
 In Neru's vim mode, on the same captures, yomi reads 91.7% of words right
 against Vision fast's 85.1% and Vision accurate's 88.4%, in 11 to 60 ms a
 frame against 22 to 75 ms and 193 to 696 ms. On Linux it reads more words than
-tesseract on every script but Hindi, at a fraction of the time.
+tesseract on every script but Hindi at 2x, at a fraction of the time.
 [docs/why.md](docs/why.md) compares it with every engine, says how it works,
 and lists where it is still behind.
 
@@ -52,12 +52,12 @@ A program links only the models it imports.
 
 | Package | Scripts | Size | yomi (1x / 2x) | Vision accurate (1x / 2x) |
 |---|---|---|---|---|
-| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB | 94.6% / 94.9% of UI words | 86.3% / 86.3% |
-| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 91.9% / 92.2% of UI characters | 86.8% / 86.0% |
-| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 82.3% / 84.3%, Hebrew 84.0% / 84.7% of UI words | Arabic 83.6% / 89.5%, Hebrew 2.3% |
-| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 89.4% / 89.2% of UI words | 92.1% / 92.4% |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 96.6% / 96.9% of UI characters | 94.5% / 94.2% |
-| `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB | 91.6%, 80.9% and 69.2% of held-out words at 1x | 15%, 13% and 20% |
+| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB | 95.3% / 95.5% of UI words | 86.3% / 86.3% |
+| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 95.4% / 95.5% of UI characters | 94.1% / 93.7% |
+| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 83.1% / 86.0%, Hebrew 86.3% / 87.2% of UI words | Arabic 81.6% / 87.3%, Hebrew 2.3% |
+| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 89.5% / 89.3% of UI words | 92.1% / 92.4% |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 97.3% / 97.5% of UI characters | 94.7% / 94.7% |
+| `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB | 91.1%, 85.2% and 67.2% of held-out words at 1x | 15%, 12% and 20% |
 | `models/latin` | printable ASCII | 0.6 MB | English only | |
 | `models/router` | names each line's script family | 0.1 MB | | |
 
