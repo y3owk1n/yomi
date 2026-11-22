@@ -226,8 +226,8 @@ Times are per page on the M5, with training running for yomi's.
 |---|---|---|---|---|
 | Western, 17 languages | **94.6% / 94.9%** | 85.9% / 86.8% | 86.3% / 86.3% | 130, 4,200, 90 |
 | CJK | 92.5% / 92.7% | **96.3% / 96.8%** | 86.8% / 86.0% | 550, 9,600, 1,600 |
-| Arabic | 77.0% / 81.2% | 65.6% / 80.9% | **83.6% / 89.5%** | 180, 4,500, 570 |
-| Hebrew | **81.5% / 81.6%** | no recognizer | 2.3% / 2.3% | |
+| Arabic | 82.3% / 84.3% | 65.6% / 80.9% | **83.6% / 89.5%** | 220, 4,500, 570 |
+| Hebrew | **84.0% / 84.7%** | no recognizer | 2.3% / 2.3% | |
 | Hindi UI | 84.3% / 85.1% | 83.1% / 86.7% | **92.1% / 92.4%** | 250, 4,500, 600 |
 | Thai UI | **96.6% / 96.9%** | 96.2% / 92.2% | 94.5% / 94.2% | 90, 8,400, 1,700 |
 | Lao, Khmer, Myanmar, held out, 1x | **86.7%, 90.5%, 78.7%** | no recognizer | 22.5%, 29.2%, 7.4% | 70, n/a, 1,000 |
@@ -241,6 +241,12 @@ and 49%, and Kannada at 18%, where yomi reads 68%. It has none for Hebrew, Benga
 Gujarati, Punjabi, Malayalam, Sinhala, Lao, Khmer, Myanmar, Georgian,
 Armenian or Amharic. That makes it a teacher for CJK, Tamil and Telugu, and
 not for Arabic.
+
+The right-to-left model is 1.25 times as wide as the first, at 1.6 MB, and
+trained from scratch on all 900,000 right-to-left lines. It reads Arabic 5.1
+and 2.7 points better and Hebrew 2.3 and 2.7 points better, at 1x and 2x,
+and a page takes about twice as long. Arabic is still 1.3 and 5.2 points
+behind Vision, and Hebrew 1 and 0.3 points short of its bar.
 
 Thai, Lao and Khmer pass their bars, Myanmar does not. The first Thai model
 read monospace text at 61%, where Vision reads 98%. Training had no
@@ -268,7 +274,7 @@ Southeast Asian and Caucasian-Ethiopic recognizers, and router-3. The router gat
 |---|---|---|
 | Western UI | 94.6% / 94.9% | 94.3% / 94.6% |
 | CJK UI | 91.9% / 92.2% | 91.8% / 92.1% |
-| Right-to-left UI | 79.5% / 81.8% | 78.8% / 81.3% |
+| Right-to-left UI | 83.1% / 84.5% | 82.5% / 84.0% |
 | Hindi UI | 84.3% / 85.1% | 83.9% / 84.8% |
 | Indic, held out | 66.1% / 69.5% | 65.7% / 69.1% |
 | Thai UI | 96.6% / 96.9% | 96.3% / 96.6% |
