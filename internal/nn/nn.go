@@ -40,6 +40,9 @@ type Model struct {
 	// classes, the families it tells apart.
 	Family string   `json:"family"`
 	Labels []string `json:"labels"`
+	// DType is how weights.bin stores each weight: "f16", IEEE half
+	// precision, or float32 when empty.
+	DType  string `json:"dtype"`
 	Layers []layer
 }
 
@@ -57,9 +60,20 @@ func Load(fsys fs.FS) (*Model, error) {
 	if err != nil {
 		return nil, err
 	}
-	f := make([]float32, len(bin)/4)
-	for i := range f {
-		f[i] = math.Float32frombits(binary.LittleEndian.Uint32(bin[i*4:]))
+	var f []float32
+	switch m.DType {
+	case "":
+		f = make([]float32, len(bin)/4)
+		for i := range f {
+			f[i] = math.Float32frombits(binary.LittleEndian.Uint32(bin[i*4:]))
+		}
+	case "f16":
+		f = make([]float32, len(bin)/2)
+		for i := range f {
+			f[i] = halfToFloat(binary.LittleEndian.Uint16(bin[i*2:]))
+		}
+	default:
+		return nil, fmt.Errorf("model.json: unknown dtype %q", m.DType)
 	}
 	for i := range m.Layers {
 		l := &m.Layers[i]
@@ -89,6 +103,27 @@ func Load(fsys fs.FS) (*Model, error) {
 		}
 	}
 	return &m, nil
+}
+
+// halfToFloat widens an IEEE 754 half-precision number.
+func halfToFloat(h uint16) float32 {
+	sign := uint32(h>>15) << 31
+	exp := uint32(h>>10) & 0x1f
+	frac := uint32(h) & 0x3ff
+	switch {
+	case exp == 0 && frac == 0:
+		return math.Float32frombits(sign)
+	case exp == 0: // subnormal: normalize it
+		e := uint32(127 - 15 + 1)
+		for frac&0x400 == 0 {
+			frac <<= 1
+			e--
+		}
+		return math.Float32frombits(sign | e<<23 | (frac&0x3ff)<<13)
+	case exp == 0x1f:
+		return math.Float32frombits(sign | 0xff<<23 | frac<<13)
+	}
+	return math.Float32frombits(sign | (exp+127-15)<<23 | frac<<13)
 }
 
 // tensor is channel-major: data[c*h*w + y*w + x].
