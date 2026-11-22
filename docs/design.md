@@ -157,8 +157,8 @@ as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
 ## Answer keys and kernel speed (measured 2026-11-22)
 
-The script `evalgen.py` puts in each page collected a word only when its
-text sat on one line, and skipped any token that wrapped. CJK and Thai write
+The script that `evalgen.py` puts in each page kept a word only when its text
+sat on one line, and skipped any token that wrapped. CJK and Thai write
 sentences without spaces, so a wrapped sentence is one token, and every
 wrapped sentence dropped out of the key. A wrapped token now counts as one
 word per line, from its characters' boxes. Re-rendering every generated set
@@ -183,8 +183,8 @@ The kernels gained in the same pass:
 - Pointwise layers run sixteen positions at a time, every tile over one block
   before the next, so the block's inputs stay in L1.
 
-Both builds timed in one job on each GitHub runner, the fixture frames read
-1.19 times as fast at the geometric mean on arm64 Linux, 1.28 on an M1, 1.32
+With both builds timed in one job on each GitHub runner, the fixture frames
+read 1.19 times as fast at the geometric mean on arm64 Linux, 1.28 on an M1, 1.32
 on AMD and 1.34 on Intel, and up to 2 times on dense Arabic and Myanmar.
 Allocation per read fell by 40%. Every evaluation set reads the same words at
 the same confidences.
