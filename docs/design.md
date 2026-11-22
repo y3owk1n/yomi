@@ -150,9 +150,9 @@ instead of four read the Korean frame 1.22 times as fast on an Intel Xeon
 6975P and 1.36 times on Zen 3, and leave the other frames as they were.
 
 AVX2 with FMA now runs the same four kernels as NEON on amd64, chosen at run
-time from CPUID, with the scalar tiles for an older CPU. Both builds timed in
-one job on the same runner, the fixture frames read 3.1 times as fast at the
-geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
+time from CPUID, with the scalar tiles for an older CPU. With both builds
+timed in one job on the same runner, the fixture frames read 3.1 times as
+fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
 ## Line finder fixes (measured 2026-11-22)
