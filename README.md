@@ -37,6 +37,10 @@ tesseract on every script but Hindi at 2x, at a fraction of the time.
 [docs/why.md](docs/why.md) compares it with every engine, says how it works,
 and lists where it is still behind.
 
+[docs/usage.md](docs/usage.md) is the full guide: choosing models, getting
+the scale right, what each field of a result means, concurrency, and what
+yomi does not do.
+
 ## Reading a frame
 
 Read returns lines top to bottom. Each word has a box and one box per
@@ -81,11 +85,11 @@ to New.
 ## Try it
 
 ```sh
-oku exec -- go build -o bin/yomi ./cmd/yomi
+go install github.com/y3owk1n/yomi/cmd/yomi@latest
 screencapture -i -x /tmp/shot.png                  # drag a box around some text
-./bin/yomi read -model western -scale 2 /tmp/shot.png
-./bin/yomi read -model cjk -scale 2 /tmp/shot.png
-./bin/yomi read -model auto -scale 2 /tmp/shot.png   # every recognizer, routed
+yomi read -model western -scale 2 /tmp/shot.png
+yomi read -model cjk -scale 2 /tmp/shot.png
+yomi read -model auto -scale 2 /tmp/shot.png       # every recognizer, routed
 ```
 
 `-scale 2` is for a Retina capture, `-scale 1` for a standard display, and
