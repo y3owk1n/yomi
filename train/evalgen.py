@@ -62,11 +62,38 @@ window.__words = () => {
       const r = document.createRange();
       r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
       const rects = r.getClientRects();
-      if (rects.length !== 1) continue;           // wrapped across lines
-      const b = rects[0];
-      if (b.width < 2 || b.right > innerWidth || b.bottom > innerHeight || b.top < 0 || b.left < 0) continue;
-      out.push({t: m[0], x: b.left, y: b.top, w: b.width, h: b.height,
-                size: parseFloat(cs.fontSize), mono: cs.fontFamily.includes("mono")});
+      // A token that wraps, as a CJK sentence with no spaces does, becomes a
+      // word per line it sits on, from its characters' own boxes.
+      const parts = [];
+      if (rects.length === 1) {
+        parts.push([m[0], rects[0]]);
+      } else {
+        let run = "", box = null, i = m.index;
+        for (const ch of m[0]) {
+          const cr = document.createRange();
+          cr.setStart(n, i); cr.setEnd(n, i + ch.length);
+          i += ch.length;
+          const cb = cr.getClientRects()[0];
+          if (!cb) continue;
+          if (box && Math.abs(cb.top - box.top) < box.height / 2) {
+            run += ch;
+            box = {left: box.left, top: Math.min(box.top, cb.top), right: Math.max(box.right, cb.right),
+                   bottom: Math.max(box.bottom, cb.bottom), height: box.height};
+          } else {
+            if (box) parts.push([run, box]);
+            run = ch;
+            box = {left: cb.left, top: cb.top, right: cb.right, bottom: cb.bottom, height: cb.height};
+          }
+        }
+        if (box) parts.push([run, box]);
+      }
+      for (const [t2, b0] of parts) {
+        const b = {left: b0.left, top: b0.top, right: b0.right, bottom: b0.bottom,
+                   width: b0.right - b0.left, height: b0.bottom - b0.top};
+        if (b.width < 2 || b.right > innerWidth || b.bottom > innerHeight || b.top < 0 || b.left < 0) continue;
+        out.push({t: t2, x: b.left, y: b.top, w: b.width, h: b.height,
+                  size: parseFloat(cs.fontSize), mono: cs.fontFamily.includes("mono")});
+      }
     }
   }
   return JSON.stringify(out);
