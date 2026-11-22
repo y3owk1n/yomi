@@ -1,6 +1,8 @@
 """Exports a trained recognizer for the Go forward pass: batch norm folded into
-each convolution, weights as raw little-endian float32 in one file, and a JSON
-manifest listing the layers in order.
+each convolution, weights as little-endian IEEE half floats in one file, and
+a JSON manifest listing the layers in order. Half precision halves the files
+and reads the evaluation pages as well as float32. The model is rounded in
+place before the check crops run, so the references are the rounded model's.
 
 Usage: python export.py CHECKPOINT OUTDIR [FAMILY]
 Writes OUTDIR/weights.bin, OUTDIR/model.json, and OUTDIR/check/: eight
@@ -30,10 +32,21 @@ layers = []
 
 
 def put(arr):
-    off = len(blob) // 4
-    a = np.ascontiguousarray(arr, dtype="<f4")
+    off = len(blob) // 2
+    a = np.ascontiguousarray(arr, dtype="<f2")
     blob.extend(a.tobytes())
     return off
+
+
+def half(t):
+    """t rounded to half precision, in float64."""
+    return t.float().half().double()
+
+
+def store(mod, w, b):
+    """Writes rounded weights back into mod, so the check crops run on them."""
+    mod.weight.data = w.float().reshape(mod.weight.shape)
+    mod.bias = nn.Parameter(b.float())
 
 
 def conv(c, bn, relu):
@@ -44,6 +57,12 @@ def conv(c, bn, relu):
         s = bn.weight.detach().double() / torch.sqrt(bn.running_var.double() + bn.eps)
         w = w * s[:, None, None, None]
         b = (b - bn.running_mean.double()) * s + bn.bias.detach().double()
+        bn.weight.data.fill_(1)
+        bn.bias.data.zero_()
+        bn.running_mean.zero_()
+        bn.running_var.fill_(1 - bn.eps)
+    w, b = half(w), half(b)
+    store(c, w, b)
     kh, kw = c.kernel_size
     layers.append({
         "op": "conv", "cin": c.in_channels, "cout": c.out_channels, "groups": c.groups,
@@ -68,8 +87,9 @@ def seq(s):
 
 
 def line_context(lc: LineContext):
-    w = lc.fc.weight.detach().double()[:, :, 0, 0]
-    layers.append({"op": "linectx", "c": w.shape[0], "w": put(w.numpy()), "b": put(lc.fc.bias.detach().double().numpy())})
+    w, b = half(lc.fc.weight.detach().double()), half(lc.fc.bias.detach().double())
+    store(lc.fc, w, b)
+    layers.append({"op": "linectx", "c": w.shape[0], "w": put(w[:, :, 0, 0].numpy()), "b": put(b.numpy())})
 
 
 seq(m.features)
@@ -83,6 +103,8 @@ else:
     seq(m.context)
 if isinstance(m.head, GatedHead):
     h = m.head
+    for c in (h.blank, h.proj, h.chars):
+        store(c, half(c.weight.detach().double()), half(c.bias.detach().double()))
     flat = lambda c: c.weight.detach().double()[:, :, 0, 0].numpy()  # noqa: E731
     layers.append({
         "op": "gated", "c": h.blank.in_channels, "rank": h.proj.out_channels, "classes": h.chars.out_channels,
@@ -96,7 +118,7 @@ else:
 with open(os.path.join(out, "weights.bin"), "wb") as f:
     f.write(blob)
 json.dump({"height": 32, "stride": hstride, "alphabet": st["alphabet"], "family": st["family"], "labels": st.get("labels"),
-           "layers": layers},
+           "dtype": "f16", "layers": layers},
           open(os.path.join(out, "model.json"), "w"), indent=1)
 print(f"{len(layers)} layers, {len(blob) / 1e6:.2f} MB")
 

@@ -44,7 +44,7 @@ three sets of quirks and three answers to "why did this read wrong".
 - **Pure Go.** No cgo, no inference runtime, no system library. It builds for
   every Go target with `CGO_ENABLED=0`.
 - **Models are packages.** Each script family is a Go package with its
-  weights embedded, from 0.2 MB to 7 MB. A program links only the ones it
+  weights embedded, from 0.1 MB to 3.6 MB. A program links only the ones it
   imports, and nothing downloads.
 - **One engine, every platform.** The same code reads the same pixels to the
   same words on macOS, Linux and Windows. Only capture stays native.
@@ -145,15 +145,16 @@ on 4-core x86 ones, and the densest test frame, small Thai at 2x, in 15 to
 
 | Package | Scripts | Weights |
 |---|---|---|
-| `models/western` | Latin, Cyrillic, Greek | 0.9 MB |
-| `models/cjk` | Chinese, Japanese, Korean | 7.2 MB |
-| `models/rtl` | Arabic, Persian, Urdu, Hebrew | 1.6 MB |
-| `models/indic` | nine Indic scripts | 1.1 MB |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.9 MB |
-| `models/caucasian` | Georgian, Armenian, Ethiopic | 1.0 MB |
-| `models/router` | which script a line is in | 0.2 MB |
+| `models/western` | Latin, Cyrillic, Greek | 0.5 MB |
+| `models/cjk` | Chinese, Japanese, Korean | 3.6 MB |
+| `models/rtl` | Arabic, Persian, Urdu, Hebrew | 0.8 MB |
+| `models/indic` | nine Indic scripts | 0.6 MB |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB |
+| `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB |
+| `models/router` | which script a line is in | 0.1 MB |
 
-Every script together is 13 MB.
+Every script together is 6.5 MB. The weights ship as half floats, which
+read every evaluation set within 0.2 points of float32 and halve the size.
 
 ## Where yomi is behind
 

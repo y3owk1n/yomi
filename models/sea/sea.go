@@ -1,5 +1,5 @@
 // Package sea is yomi's recognizer for Thai, Lao, Khmer and Myanmar, and
-// ASCII. Its weights (0.9 MB) are embedded.
+// ASCII. Its weights (0.5 MB) are embedded.
 package sea
 
 import (

@@ -1,5 +1,5 @@
 // Package caucasian is yomi's recognizer for Georgian, Armenian and Ethiopic,
-// and ASCII. Its weights (1 MB) are embedded.
+// and ASCII. Its weights (0.5 MB) are embedded.
 package caucasian
 
 import (

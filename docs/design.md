@@ -155,6 +155,15 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Half-precision weights (measured 2026-11-22)
+
+The models ship their weights as IEEE half floats, widened to float32 once at
+load, so every script together drops from 13 MB to 6.5 MB and the arithmetic
+is unchanged. `export.py` rounds the folded weights in the PyTorch model
+before it computes the check crops, so the Go reference test still holds to
+1e-3. Against the float32 weights, every evaluation set reads within 0.2
+points at 1x and 2x, the layout scenes and code identically.
+
 ## Line finder fixes (measured 2026-11-22)
 
 Large figures on a dashboard read as noise, and following them turned up

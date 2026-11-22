@@ -1,7 +1,7 @@
 // Package cjk is yomi's recognizer for Chinese (Simplified and Traditional),
 // Japanese and Korean: the Han characters of GB2312, Big5 level 1 and JIS
 // level 1, kana, the 2,350 Hangul syllables of KS X 1001, CJK punctuation, and
-// ASCII. Its weights (7.2 MB) are embedded.
+// ASCII. Its weights (3.6 MB) are embedded.
 package cjk
 
 import (

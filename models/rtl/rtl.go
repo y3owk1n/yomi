@@ -1,5 +1,5 @@
 // Package rtl is yomi's recognizer for Arabic (with Persian and Urdu letters)
-// and Hebrew, and ASCII. Its weights (1.6 MB) are embedded.
+// and Hebrew, and ASCII. Its weights (0.8 MB) are embedded.
 package rtl
 
 import (

@@ -12,6 +12,7 @@
   "caucasian-ethiopic",
   "none"
  ],
+ "dtype": "f16",
  "layers": [
   {
    "op": "conv",

@@ -52,14 +52,14 @@ A program links only the models it imports.
 
 | Package | Scripts | Size | yomi (1x / 2x) | Vision accurate (1x / 2x) |
 |---|---|---|---|---|
-| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.9 MB | 94.6% / 94.9% of UI words | 86.3% / 86.3% |
-| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 7.2 MB | 91.9% / 92.2% of UI characters | 86.8% / 86.0% |
-| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 1.6 MB | Arabic 82.3% / 84.3%, Hebrew 84.0% / 84.7% of UI words | Arabic 83.6% / 89.5%, Hebrew 2.3% |
-| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 84.3% / 85.1% of UI words | 92.1% / 92.4% |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.9 MB | Thai 96.6% / 96.9% of UI characters | 94.5% / 94.2% |
-| `models/caucasian` | Georgian, Armenian, Ethiopic | 1 MB | 91.6%, 80.9% and 69.2% of held-out words at 1x | 15%, 13% and 20% |
+| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB | 94.6% / 94.9% of UI words | 86.3% / 86.3% |
+| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 91.9% / 92.2% of UI characters | 86.8% / 86.0% |
+| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 82.3% / 84.3%, Hebrew 84.0% / 84.7% of UI words | Arabic 83.6% / 89.5%, Hebrew 2.3% |
+| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 0.6 MB | Hindi 84.3% / 85.1% of UI words | 92.1% / 92.4% |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 96.6% / 96.9% of UI characters | 94.5% / 94.2% |
+| `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB | 91.6%, 80.9% and 69.2% of held-out words at 1x | 15%, 13% and 20% |
 | `models/latin` | printable ASCII | 0.6 MB | English only | |
-| `models/router` | names each line's script family | 0.2 MB | | |
+| `models/router` | names each line's script family | 0.1 MB | | |
 
 UI pages hold Apple's own interface strings, rendered by WebKit at 11 to 16
 pixels in light and dark. No training source draws from them. Held-out pages

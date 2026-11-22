@@ -1,7 +1,7 @@
 // Package western is yomi's recognizer for Western scripts: Latin with the
 // accented and extended letters of the European languages, Turkish and
 // Vietnamese, Cyrillic, monotonic Greek, and the signs UI text uses. Its
-// weights (0.9 MB) are embedded.
+// weights (0.5 MB) are embedded.
 package western
 
 import (
