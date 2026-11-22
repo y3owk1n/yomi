@@ -29,6 +29,7 @@ type layer struct {
 	pw, pb, cw, cb         []float32
 	w, b                   []float32
 	wt                     []float32 // pointwise weights in tiles of 4 output channels: [co/4][ci][4]
+	pwt                    []float32 // gated projection weights, tiled as wt
 }
 
 // Model is a loaded recognizer.
@@ -91,6 +92,7 @@ func Load(fsys fs.FS) (*Model, error) {
 			}
 			l.pw, l.pb = f[l.PWOff:l.PWOff+np], f[l.PBOff:l.PBOff+l.Rank]
 			l.cw, l.cb = f[l.CWOff:l.CWOff+nc], f[l.CBOff:l.CBOff+l.Classes]
+			l.pwt = tile4(l.pw, l.Rank, l.C)
 		default:
 			return nil, fmt.Errorf("unknown op %q", l.Op)
 		}
@@ -193,7 +195,6 @@ func gated(l *layer, x tensor) []Step {
 	t, c := x.w, x.c
 	steps := make([]Step, t)
 	var open []int
-	var h []float32 // projections of the open steps, Rank each
 	f := make([]float32, c)
 	for j := range t {
 		for k := range c {
@@ -209,20 +210,12 @@ func gated(l *layer, x tensor) []Step {
 		}
 		steps[j] = Step{0, 1 - sigmoid(b)} // the probability of not blank, for now
 		open = append(open, j)
-		for r := range l.Rank {
-			v := l.pb[r]
-			row := l.pw[r*c : (r+1)*c]
-			for k, fv := range f {
-				v += row[k] * fv
-			}
-			h = append(h, v)
-		}
 	}
 	if len(open) == 0 {
 		return steps
 	}
 	n := len(open)
-	z := charLogits(l, h, n)
+	z := charLogits(l, project(l, x, open), n)
 	arg := make([]int, n)
 	sum := make([]float64, n)
 	for s := range n {
@@ -262,6 +255,29 @@ func gated(l *layer, x tensor) []Step {
 // each run of four classes, charTile works through the steps its register
 // tile covers, reading each class's weights once per tile. Steps left over go
 // one at a time.
+// project returns the projections of x's steps in open, Rank each. The steps
+// are the positions of one pointwise convolution, so the projection runs in
+// the same kernel.
+func project(l *layer, x tensor, open []int) []float32 {
+	t, c, n := x.w, x.c, len(open)
+	in := make([]float32, c*n)
+	for k := range c {
+		row := x.data[k*t : (k+1)*t]
+		for s, j := range open {
+			in[k*n+s] = row[j]
+		}
+	}
+	out := make([]float32, l.Rank*n)
+	matmul(l.pwt, l.pb, in, out, c, l.Rank, n, false)
+	h := make([]float32, n*l.Rank)
+	for r := range l.Rank {
+		for s := range n {
+			h[s*l.Rank+r] = out[r*n+s]
+		}
+	}
+	return h
+}
+
 func charLogits(l *layer, h []float32, n int) []float32 {
 	r, c := l.Rank, l.Classes
 	// Steps pad to a multiple of four with zero projections, so every step
@@ -376,26 +392,30 @@ func tile4(w []float32, cout, cin int) []float32 {
 // works through the positions its register tile covers, summing every input
 // channel before one store. Positions left over go one at a time.
 func pointwise(l *layer, x, y tensor) {
-	n := x.h * x.w
-	cin := l.Cin
-	in := x.data
-	for tile := 0; tile*4 < l.Cout; tile++ {
+	matmul(l.wt, l.b, x.data, y.data, l.Cin, l.Cout, x.h*x.w, l.Relu)
+}
+
+// matmul writes out[co*n+p] = bias[co] + sum over ci of w[co][ci] * in[ci*n+p]
+// for cout channels and n positions, w tiled by tile4, clamped at zero when
+// relu is set.
+func matmul(wt, bias, in, out []float32, cin, cout, n int, relu bool) {
+	for tile := 0; tile*4 < cout; tile++ {
 		co := tile * 4
-		wt := l.wt[tile*cin*4 : (tile+1)*cin*4]
-		nco := min(4, l.Cout-co)
+		w := wt[tile*cin*4 : (tile+1)*cin*4]
+		nco := min(4, cout-co)
 		var b [4]float32
-		copy(b[:nco], l.b[co:co+nco])
-		p := positions(wt, b, in, y.data[co*n:], n, nco, l.Relu)
+		copy(b[:nco], bias[co:co+nco])
+		p := positions(w, b, in, out[co*n:], n, nco, relu)
 		for ; p < n; p++ {
 			for i := range nco {
 				v := b[i]
 				for ci := range cin {
-					v += wt[ci*4+i] * in[ci*n+p]
+					v += w[ci*4+i] * in[ci*n+p]
 				}
-				if l.Relu && v < 0 {
+				if relu && v < 0 {
 					v = 0
 				}
-				y.data[(co+i)*n+p] = v
+				out[(co+i)*n+p] = v
 			}
 		}
 	}
