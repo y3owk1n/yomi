@@ -86,10 +86,10 @@ came from, at 1x and 2x.
 
 | Set | yomi | Vision accurate | PaddleOCR |
 |---|---|---|---|
-| Western UI, 17 languages | **94.6% / 94.9%** | 86.3% / 86.3% | 85.9% / 86.8% |
-| CJK UI | 92.5% / 92.7% | 86.8% / 86.0% | **96.3% / 96.8%** |
-| Arabic UI | 82.3% / 84.3% | **83.6% / 89.5%** | 65.6% / 80.9% |
-| Hebrew UI | **84.0% / 84.7%** | 2.3% / 2.3% | no recognizer |
+| Western UI, 17 languages | **95.3% / 95.5%** | 86.3% / 86.3% | 85.9% / 86.8% |
+| CJK UI | 93.6% / 93.7% | 86.8% / 86.0% | **96.3% / 96.8%** |
+| Arabic UI | **85.2%** / 88.2% | 83.6% / **89.5%** | 65.6% / 80.9% |
+| Hebrew UI | **89.5% / 90.4%** | 2.3% / 2.3% | no recognizer |
 | Hindi UI | 89.4% / 89.2% | **92.1% / 92.4%** | 83.1% / 86.7% |
 | Thai UI | **96.6% / 96.9%** | 94.5% / 94.2% | 96.2% / 92.2% |
 | Lao, Khmer, Myanmar, held out, 1x | **86.7%, 90.5%, 78.7%** | 22.5%, 29.2%, 7.4% | no recognizer |
@@ -137,9 +137,9 @@ Vietnamese, so those pages are left out.
 | Set | yomi | Windows.Media.Ocr | Time per page at 2x, yomi / Windows |
 |---|---|---|---|
 | Code | **98.6% / 98.7%** | 88.9% / 98.1% | 138 / 192 ms |
-| Western UI, 15 languages | **95.4% / 95.6%** | 86.8% / 93.5% | 94 / 289 ms |
-| CJK UI | **92.5%** / 92.2% | 86.1% / **93.4%** | 417 / 1,006 ms |
-| Arabic UI | **83.5%** / 85.4% | 56.3% / **87.4%** | 133 / 1,692 ms |
+| Western UI, 15 languages | **95.6% / 95.9%** | 86.8% / 93.5% | 94 / 289 ms |
+| CJK UI | **93.6% / 93.7%** | 86.1% / 93.4% | 417 / 1,006 ms |
+| Arabic UI | **85.2% / 88.2%** | 56.3% / 87.4% | 133 / 1,692 ms |
 | App layouts, stray words | **45 / 43** | 70 / 96 | 100 / 252 ms |
 
 ### Speed on x86
@@ -169,8 +169,8 @@ read every evaluation set within 0.2 points of float32 and halve the size.
 - **Long prose.** Vision accurate reads an article at 99.6%, yomi at 94.5%.
 - **Hindi** trails Vision by 3 points, **Arabic** by 2 to 3 at 2x, and Myanmar,
   Armenian and Amharic sit below 80%.
-- **CJK** trails PaddleOCR by about 4 points, and CJK and Arabic at 2x trail
-  Windows.Media.Ocr by 1 to 2 points.
+- **CJK** trails PaddleOCR by about 3 points.
+- **Urdu** in Nastaliq reads at about 38%.
 - **Fractional scales.** A capture at 1.25 pixels per point reads about 2
   points below the same text at 1x.
 

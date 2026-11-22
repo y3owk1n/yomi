@@ -155,6 +155,50 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Background and yeh against Windows.Media.Ocr (measured 2026-11-22)
+
+CJK and Arabic trailed Windows.Media.Ocr at 2x. Two faults outside the models
+explained most of it.
+
+- Prepare took the background from the median of the crop's border. A line on
+  a button whose crop runs past the button's edge has a border that is mostly
+  page, so the button's fill became ink and the text background, and the line
+  read as nothing. The background is now the luma most of the crop has, since
+  a crop fitted to text is mostly background. `train/prep.py` does the same,
+  and both give identical inputs on the checked crops.
+- Arabic ي and ك draw like Persian ی and ک at the start and in the middle of a
+  word, and the right-to-left recognizer often chose the Persian letter. Read
+  now settles those positions on the page's word endings, where the letters
+  differ and the recognizer reads them right. Letters only Persian and Urdu
+  use are no evidence, since the recognizer reads Arabic's dots as them on
+  most Arabic pages.
+
+| Set | Before (1x / 2x) | After (1x / 2x) | Windows.Media.Ocr |
+|---|---|---|---|
+| CJK UI (characters) | 92.5% / 92.2% | 93.6% / 93.7% | 86.1% / 93.4% |
+| Arabic UI | 83.3% / 86.2% | 85.2% / 88.2% | 56.3% / 87.4% |
+| Hebrew UI | 89.5% / 90.4% | 89.5% / 90.4% | no OCR pack |
+| Western UI | 95.1% / 95.3% | 95.3% / 95.5% | 86.8% / 93.5% |
+| Persian, held out | 84.2% / 86.5% | 84.8% / 87.6% | |
+
+The CJK "before" column predates the large-type fixes. Hindi, Thai, code and
+the held-out pages hold or gain. yomi now passes Windows.Media.Ocr on every
+set at both scales.
+
+Of the CJK errors left, the commonest are full-width and half-width
+punctuation read for each other, which Windows.Media.Ocr shares. The worst
+lines in the CJK set hold text the page draws and its ground truth leaves out.
+Of the Arabic errors left, 28 at 2x are words split where the recognizer reads
+a space at the gap after a letter that does not join leftward. That one needs
+training. Urdu, which WebKit sets in Nastaliq, reads at 38% on the held-out
+pages.
+
+The layout scenes' strays are mostly not mistakes. Some are labels the page
+draws and its ground truth omits, read at confidence 1.0, and the rest are
+icons read as Q, ☆, + or ⇧, which Neru wants as hint targets. No confidence
+floor separates them from real words: a floor of 0.6 drops 13 strays and 104
+correct words.
+
 ## Indic, wider (measured 2026-11-22)
 
 indic-c is indic-b's recognizer at width 1.25 instead of 0.8, 571k parameters
