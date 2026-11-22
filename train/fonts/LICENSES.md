@@ -319,3 +319,5 @@
 | FreeMonoBold.ttf | rtl-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeMono.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
 | FreeMonoBold.ttf | cau-train | GPL-3.0-with-font-exception | https://ftp.gnu.org/gnu/freefont/freefont-ttf-20120503.zip |
+| NotoNastaliqUrduwght.ttf | rtl-nastaliq | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/notonastaliqurdu/NotoNastaliqUrdu%5Bwght%5D.ttf |
+| Gulzar-Regular.ttf | rtl-nastaliq | OFL-1.1 | https://raw.githubusercontent.com/google/fonts/main/ofl/gulzar/Gulzar-Regular.ttf |

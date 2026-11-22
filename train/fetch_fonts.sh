@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout
+mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout fonts/rtl-nastaliq
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -96,6 +96,12 @@ for f in "ofl/notosansarabic/NotoSansArabic[wdth,wght].ttf" "ofl/notonaskharabic
 done
 for f in "ofl/ibmplexsansarabic/IBMPlexSansArabic-Regular.ttf" "ofl/ibmplexsanshebrew/IBMPlexSansHebrew-Regular.ttf"; do
   get rtl-heldout "$f" OFL-1.1
+done
+
+# Nastaliq, the hanging style Urdu is set in, which macOS uses for Urdu. The
+# rtl-urdu family renders only in these.
+for f in "ofl/notonastaliqurdu/NotoNastaliqUrdu[wght].ttf" "ofl/gulzar/Gulzar-Regular.ttf"; do
+  get rtl-nastaliq "$f" OFL-1.1
 done
 
 # Monospace Arabic and Hebrew, as terminals and code editors draw them. Each

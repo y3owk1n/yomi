@@ -13,12 +13,15 @@ FAMILIES = {
     "western": (WESTERN, WESTERN_LANGS, line, {"train": ["train"], "heldout": ["heldout"]}),
     "cjk": (CJK, CJK_LANGS, cjk_line, {"train": ["cjk-train"], "heldout": ["cjk-heldout"]}),
     "rtl": (RTL, RTL_LANGS, rtl_line, {"train": ["rtl-train"], "heldout": ["rtl-heldout"]}),
+    # Urdu in Nastaliq only, mixed into the rtl family's training. Most rtl
+    # fonts set Urdu in Naskh, as no Urdu reader's screen does.
+    "rtl-urdu": (RTL, {"ur": 1}, rtl_line, {"train": ["rtl-nastaliq"], "heldout": ["rtl-heldout"]}),
     "indic": (INDIC, INDIC_LANGS, line, {"train": ["indic-train"], "heldout": ["indic-heldout"]}),
     "sea": (SEA, SEA_LANGS, line, {"train": ["sea-train"], "heldout": ["sea-heldout"]}),
     "caucasian-ethiopic": (CAUCASIAN_ETHIOPIC, CAUCASIAN_ETHIOPIC_LANGS, line,
                            {"train": ["cau-train"], "heldout": ["cau-heldout"]}),
 }
-SHAPED = {"rtl", "indic", "sea"}
+SHAPED = {"rtl", "rtl-urdu", "indic", "sea"}
 
 
 def generator(family, split="train", blank_rate=0.08):
