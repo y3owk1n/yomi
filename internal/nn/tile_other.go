@@ -2,12 +2,12 @@
 
 package nn
 
-// positions runs a tile of four output channels over runs of four positions
-// and returns the first position it left. The 16 accumulators and 8 operands
-// fit the 32 vector registers of arm64.
-func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu bool) int {
+// positions4 runs a tile of four output channels over runs of four positions
+// from start and returns the first position it left. The 16 accumulators and
+// 8 operands fit the 32 vector registers of arm64.
+func positions4(wt []float32, b [4]float32, in, out []float32, start, n, nco int, relu bool) int {
 	cin := len(wt) / 4
-	p := 0
+	p := start
 	for ; p+4 <= n; p += 4 {
 		a00, a01, a02, a03 := b[0], b[0], b[0], b[0]
 		a10, a11, a12, a13 := b[1], b[1], b[1], b[1]
@@ -50,10 +50,10 @@ func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu b
 	return p
 }
 
-// charTile computes the logits of four classes, whose weights w0 to w3 and
+// charTile4 computes the logits of four classes, whose weights w0 to w3 and
 // biases b hold, over runs of four steps, and returns the first step it left.
 // z starts at the first of the four classes.
-func charTile(w0, w1, w2, w3, b, h []float32, r, n, c int, z []float32) int {
+func charTile4(w0, w1, w2, w3, b, h []float32, r, n, c int, z []float32) int {
 	s := 0
 	for ; s+4 <= n; s += 4 {
 		h0, h1, h2, h3 := h[s*r:(s+1)*r], h[(s+1)*r:(s+2)*r], h[(s+2)*r:(s+3)*r], h[(s+3)*r:(s+4)*r]

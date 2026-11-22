@@ -229,7 +229,15 @@ func gated(l *layer, x tensor) []Step {
 // one at a time.
 func charLogits(l *layer, h []float32, n int) []float32 {
 	r, c := l.Rank, l.Classes
-	z := make([]float32, n*c)
+	// Steps pad to a multiple of four with zero projections, so every step
+	// goes through charTile, and the padding's logits are cut off at the end.
+	n4 := (n + 3) &^ 3
+	if n4 != n {
+		h = append(h[:n*r:n*r], make([]float32, (n4-n)*r)...)
+	}
+	z := make([]float32, n4*c)
+	steps := n
+	n = n4
 	ci := 0
 	for ; ci+4 <= c; ci += 4 {
 		w0, w1, w2, w3 := l.cw[ci*r:(ci+1)*r], l.cw[(ci+1)*r:(ci+2)*r], l.cw[(ci+2)*r:(ci+3)*r], l.cw[(ci+3)*r:(ci+4)*r]
@@ -255,17 +263,21 @@ func charLogits(l *layer, h []float32, n int) []float32 {
 			z[s*c+ci] = v
 		}
 	}
-	return z
+	return z[:steps*c]
 }
 
 func sigmoid(v float32) float32 { return float32(1 / (1 + math.Exp(-float64(v)))) }
 
-// softmaxAt is the softmax probability of class k in row.
+// softmaxAt is the softmax probability of class k, the best in row. Classes
+// more than 20 below it add under exp(-20) each, as in gated, so the sum
+// skips them.
 func softmaxAt(row []float32, k int) float32 {
 	m := row[k]
 	var sum float64
 	for _, v := range row {
-		sum += math.Exp(float64(v - m))
+		if v > m-20 {
+			sum += math.Exp(float64(v - m))
+		}
 	}
 	return float32(1 / sum)
 }
@@ -389,8 +401,8 @@ func depthwise(l *layer, x, y tensor) {
 					if l.Sw == 1 {
 						src := irow[ox0+off : ox1+off]
 						dst := orow[ox0:ox1]
-						for i, v := range src {
-							dst[i] += kv * v
+						for i := axpy16(dst, src, kv); i < len(src); i++ {
+							dst[i] += kv * src[i]
 						}
 					} else {
 						for ox := ox0; ox < ox1; ox++ {
@@ -400,47 +412,58 @@ func depthwise(l *layer, x, y tensor) {
 				}
 			}
 			if l.Relu {
-				for i, v := range orow {
-					if v < 0 {
-						orow[i] = 0
-					}
-				}
+				reluRow(orow)
 			}
 		}
 	}
 }
 
-// direct is a plain grouped convolution, used by the first layer.
+// direct is a plain grouped convolution, used by the first layer. For each
+// kernel tap it gathers the input row the tap reads, at the layer's stride,
+// once, and adds it into every output channel's row scaled by the tap's
+// weight, so the inner loop is a run of multiply-adds with no bounds tests.
 func direct(l *layer, x, y tensor) {
 	cpg := l.Cin / l.Groups
 	opg := l.Cout / l.Groups
-	for co := range l.Cout {
-		g := co / opg
-		out := y.data[co*y.h*y.w : (co+1)*y.h*y.w]
-		for oy := range y.h {
-			for ox := range y.w {
-				sum := l.b[co]
-				for ci := range cpg {
-					in := x.data[(g*cpg+ci)*x.h*x.w:]
-					k := l.w[(co*cpg+ci)*l.Kh*l.Kw:]
-					for ky := range l.Kh {
-						iy := oy*l.Sh - l.Ph + ky*l.Dh
-						if iy < 0 || iy >= x.h {
-							continue
-						}
-						for kx := range l.Kw {
-							ix := ox*l.Sw - l.Pw + kx*l.Dw
-							if ix < 0 || ix >= x.w {
-								continue
+	tap := make([]float32, y.w)
+	for oy := range y.h {
+		for co := range l.Cout {
+			row := y.data[(co*y.h+oy)*y.w : (co*y.h+oy+1)*y.w]
+			for i := range row {
+				row[i] = l.b[co]
+			}
+		}
+		for g := range l.Groups {
+			for ci := range cpg {
+				in := x.data[(g*cpg+ci)*x.h*x.w : (g*cpg+ci+1)*x.h*x.w]
+				for ky := range l.Kh {
+					iy := oy*l.Sh - l.Ph + ky*l.Dh
+					if iy < 0 || iy >= x.h {
+						continue
+					}
+					irow := in[iy*x.w : (iy+1)*x.w]
+					for kx := range l.Kw {
+						off := kx*l.Dw - l.Pw
+						for ox := range tap {
+							tap[ox] = 0
+							if ix := ox*l.Sw + off; ix >= 0 && ix < x.w {
+								tap[ox] = irow[ix]
 							}
-							sum += k[ky*l.Kw+kx] * in[iy*x.w+ix]
+						}
+						for co := g * opg; co < (g+1)*opg; co++ {
+							k := l.w[((co*cpg+ci)*l.Kh+ky)*l.Kw+kx]
+							row := y.data[(co*y.h+oy)*y.w : (co*y.h+oy+1)*y.w]
+							for i := axpy16(row, tap, k); i < len(row); i++ {
+								row[i] += k * tap[i]
+							}
 						}
 					}
 				}
-				if l.Relu {
-					sum = relu(sum)
-				}
-				out[oy*y.w+ox] = sum
+			}
+		}
+		if l.Relu {
+			for co := range l.Cout {
+				reluRow(y.data[(co*y.h+oy)*y.w : (co*y.h+oy+1)*y.w])
 			}
 		}
 	}

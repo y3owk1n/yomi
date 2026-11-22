@@ -149,6 +149,27 @@ character tile, which CJK reads with, spilled the same way. Two steps per tile
 instead of four read the Korean frame 1.22 times as fast on an Intel Xeon
 6975P and 1.36 times on Zen 3, and leave the other frames as they were.
 
+## NEON kernels (measured 2026-11-22)
+
+On arm64 the pointwise convolution, the depthwise rows, ReLU and the gated
+head's character dot products run in NEON assembly (`internal/nn/kernels_arm64.s`),
+four lanes per instruction, with the scalar Go kernels left for the tails.
+The first layer gathers each kernel tap's strided row once and adds it into
+every output channel, the gated head pads its steps to a multiple of four so
+none takes the scalar path, and the per-step softmax skips classes more than
+20 below the best. Those three are plain Go and help every architecture. One
+line on one M5 core, training running on the GPU:
+
+| Recognizer | Scalar Go | Now |
+|---|---|---|
+| Western | 17.5 ms | 5.5 ms |
+| CJK | 21 ms | 9.5 ms |
+| Router | 3.5 ms | 1.2 ms |
+
+A whole frame through the routed engine on all cores reads in half the time.
+The GitHub window takes 155 ms against 315 ms, and the layout scenes 88 ms at
+the median against 160 ms. No score changes.
+
 ## Milestone 1 gate (fixed 2026-11-21, before training)
 
 The western model replaces the latin model only if all of these hold. The
