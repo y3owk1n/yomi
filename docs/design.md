@@ -119,8 +119,11 @@ with the native engines on all three platforms through the same harness.
 6. **Neru integration.** A VisionPort adapter on yomi keeps native capture.
    Then tesseract, the WinRT OCR code and Vision text recognition go. This
    needs x86 timing on real hardware first. All timing so far is Apple
-   Silicon, and amd64 has half the vector registers the pointwise kernel
-   uses.
+   Silicon. amd64 leaves 15 vector registers for floats against 32 on
+   arm64, so the four by four pointwise tile spilled about 40 stack accesses
+   per input channel there. amd64 takes a four by two tile with 5 instead.
+   It makes arm64 8 to 25% slower, so arm64 keeps the wider tile. Emulation
+   checks that amd64 reads match but cannot time them.
 
 ## Milestone 1 gate (fixed 2026-11-21, before training)
 
