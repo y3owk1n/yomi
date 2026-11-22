@@ -43,14 +43,20 @@ type blob struct {
 func (b blob) h() int { return b.y1 - b.y0 + 1 }
 func (b blob) w() int { return b.x1 - b.x0 + 1 }
 
+func lum(p []uint8) int { return (299*int(p[0]) + 587*int(p[1]) + 114*int(p[2])) / 1000 }
+
 // luma1x returns the frame's luma at one pixel per logical pixel, box
-// filtering by k = floor(scale) when scale >= 2.
+// filtering by k when scale is a whole k >= 2, and area resampling when it
+// falls between.
 func luma1x(img *image.RGBA, scale float64) ([]uint8, int, int) {
-	k := max(1, int(scale))
+	r := math.Round(scale)
+	if math.Abs(scale-r) > 0.01 {
+		return lumaScaled(img, scale)
+	}
+	k := max(1, int(r))
 	b := img.Rect
 	w, h := b.Dx()/k, b.Dy()/k
 	out := make([]uint8, w*h)
-	lum := func(p []uint8) int { return (299*int(p[0]) + 587*int(p[1]) + 114*int(p[2])) / 1000 }
 	bands(h, func(y0, y1 int) {
 		for y := y0; y < y1; y++ {
 			o := out[y*w : y*w+w]
@@ -78,6 +84,65 @@ func luma1x(img *image.RGBA, scale float64) ([]uint8, int, int) {
 					}
 					o[x] = uint8(sum / (k * k))
 				}
+			}
+		}
+	})
+	return out, w, h
+}
+
+// tap is one frame pixel's share of an output pixel.
+type tap struct {
+	i int
+	w float32
+}
+
+// taps returns, for each of n output pixels scale frame pixels wide, the
+// frame pixels it covers, each with the fraction of the output pixel it makes
+// up.
+func taps(n, src int, scale float64) [][]tap {
+	t := make([][]tap, n)
+	for o := range t {
+		lo, hi := float64(o)*scale, float64(o+1)*scale
+		for i := int(lo); float64(i) < hi && i < src; i++ {
+			c := math.Min(hi, float64(i+1)) - math.Max(lo, float64(i))
+			t[o] = append(t[o], tap{i, float32(c / scale)})
+		}
+	}
+	return t
+}
+
+// lumaScaled returns the frame's luma at one pixel per logical pixel for a
+// fractional scale, each pixel the mean of the frame area it covers.
+func lumaScaled(img *image.RGBA, scale float64) ([]uint8, int, int) {
+	sw, sh := img.Rect.Dx(), img.Rect.Dy()
+	w, h := int(float64(sw)/scale), int(float64(sh)/scale)
+	xt, yt := taps(w, sw, scale), taps(h, sh, scale)
+	rows := make([]float32, w*sh)
+	bands(sh, func(y0, y1 int) {
+		for y := y0; y < y1; y++ {
+			src, o := img.Pix[y*img.Stride:], rows[y*w:y*w+w]
+			for x, t := range xt {
+				var v float32
+				for _, p := range t {
+					v += p.w * float32(lum(src[p.i*4:]))
+				}
+				o[x] = v
+			}
+		}
+	})
+	out := make([]uint8, w*h)
+	bands(h, func(y0, y1 int) {
+		acc := make([]float32, w)
+		for y := y0; y < y1; y++ {
+			clear(acc)
+			for _, p := range yt[y] {
+				for x, v := range rows[p.i*w : p.i*w+w] {
+					acc[x] += p.w * v
+				}
+			}
+			o := out[y*w : y*w+w]
+			for x, v := range acc {
+				o[x] = uint8(v + 0.5)
 			}
 		}
 	})
@@ -748,4 +813,3 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 	}
 	return out
 }
-

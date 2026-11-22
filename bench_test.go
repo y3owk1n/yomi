@@ -3,6 +3,7 @@ package yomi_test
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -18,9 +19,9 @@ func BenchmarkEngine_Read(b *testing.B) {
 	}
 	for _, path := range frames {
 		frame := loadFrame(b, path)
-		scale := 1
-		if strings.Contains(path, "@2x") {
-			scale = 2
+		scale := 1.0
+		if _, at, ok := strings.Cut(filepath.Base(path), "@"); ok {
+			scale, _ = strconv.ParseFloat(strings.TrimSuffix(at, "x.png"), 64)
 		}
 		b.Run(filepath.Base(path), func(b *testing.B) {
 			for b.Loop() {

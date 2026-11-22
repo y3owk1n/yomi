@@ -88,7 +88,7 @@ func main() {
 	fs := flag.NewFlagSet(os.Args[1], flag.ExitOnError)
 	name := fs.String("model", "western", "recognizer: latin, western, cjk, rtl, indic, sea, caucasian, or auto for all of them")
 	dir := fs.String("model-dir", "", "load the recognizer from this directory (model.json, weights.bin) instead")
-	scale := fs.Int("scale", 1, "frame pixels per logical pixel (read)")
+	scale := fs.Float64("scale", 1, "frame pixels per logical pixel (read)")
 	reps := fs.Int("reps", 3, "timed reads after the first (bench)")
 	_ = fs.Parse(os.Args[2:])
 	e, err := engine(*name, *dir)
@@ -162,7 +162,7 @@ func bench(e *yomi.Engine, dir string, reps int) error {
 				return err
 			}
 			t := time.Now()
-			lines, err := e.Read(ctx, img, scale)
+			lines, err := e.Read(ctx, img, float64(scale))
 			first := time.Since(t)
 			if err != nil {
 				return err
@@ -170,7 +170,7 @@ func bench(e *yomi.Engine, dir string, reps int) error {
 			times := []time.Duration{first}
 			for range reps {
 				t := time.Now()
-				if _, err := e.Read(ctx, img, scale); err != nil {
+				if _, err := e.Read(ctx, img, float64(scale)); err != nil {
 					return err
 				}
 				times = append(times, time.Since(t))

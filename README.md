@@ -12,7 +12,7 @@ if err != nil {
 	return err
 }
 e := yomi.New(m)
-lines, err := e.Read(ctx, frame, 2) // frame is an *image.RGBA, 2 on a HiDPI display
+lines, err := e.Read(ctx, frame, 2) // frame is an *image.RGBA, 2 on a HiDPI display, 1.25 or 1.5 on a scaled one
 for _, l := range lines {
 	for _, w := range l.Words {
 		fmt.Println(w.Text, w.Box, w.Confidence)
@@ -88,7 +88,8 @@ screencapture -i -x /tmp/shot.png                  # drag a box around some text
 ./bin/yomi read -model auto -scale 2 /tmp/shot.png   # every recognizer, routed
 ```
 
-`-scale 2` is for a Retina capture, `-scale 1` for a standard display.
+`-scale 2` is for a Retina capture, `-scale 1` for a standard display, and
+`-scale 1.25` or `-scale 1.5` for a display scaled between.
 `yomi bench DIR` times every page of an evaluation set.
 
 ## Status

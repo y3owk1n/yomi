@@ -276,6 +276,34 @@ func TestEngine_Read_KeepsTightlySetThaiRowsApart(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_ReadsFractionalScales reads the tight Thai rows captured at
+// 1.25 and 1.5 pixels per point, as a display scaled to 125% or 150% draws
+// them. Read as a whole 2x frame, the text comes out at 0.625 or 0.75 of its
+// size and yields nothing.
+func TestEngine_Read_ReadsFractionalScales(t *testing.T) {
+	e := routedEngine(t)
+	for _, tt := range []struct {
+		frame string
+		scale float64
+	}{
+		{"thai-tight@1.25x.png", 1.25},
+		{"thai-tight@1.5x.png", 1.5},
+	} {
+		t.Run(tt.frame, func(t *testing.T) {
+			lines, err := e.Read(context.Background(), loadFrame(t, "testdata/fixtures/"+tt.frame), tt.scale)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := text(lines)
+			for _, want := range []string{"ค้นหาของฉัน", "iPhone"} {
+				if !strings.Contains(got, want) {
+					t.Errorf("did not read %q; read:\n%s", want, got)
+				}
+			}
+		})
+	}
+}
+
 // TestEngine_Read_KeepsTightlySetMyanmarRowsApart reads two rows of 11 px
 // Myanmar whose marks touch across the rows, and expects the Latin words in
 // each row, "pfizer" in the first and "Choice" in the second. Grouped from a
@@ -342,7 +370,7 @@ func TestEngine_Read_RoutesEachLineToItsScriptsRecognizer(t *testing.T) {
 	e := yomi.New(w, yomi.WithModel(c), yomi.WithRouter(r))
 	tests := []struct {
 		frame string
-		scale int
+		scale float64
 		want  []string
 	}{
 		{"hangul-stacked.png", 1, []string{"진단", "켜면"}},

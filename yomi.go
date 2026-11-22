@@ -96,14 +96,15 @@ func New(m *Model, opts ...Option) *Engine {
 }
 
 // Read finds the lines of frame and reads them. scale is frame pixels per
-// logical pixel (1, or 2 on a HiDPI display). Lines come back top to bottom.
-// Canceling ctx stops lines not yet started, and Read returns ctx's error.
-func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line, error) {
+// logical pixel: 1, 2 on a HiDPI display, or a fraction such as 1.25 or 1.5
+// on a display scaled between. Lines come back top to bottom. Canceling ctx
+// stops lines not yet started, and Read returns ctx's error.
+func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale float64) ([]Line, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	scale = max(1, scale)
-	boxes := linefind.Find(frame, float64(scale), linefind.DefaultParams())
+	boxes := linefind.Find(frame, scale, linefind.DefaultParams())
 	order := make([]int, len(boxes))
 	for i := range order {
 		order[i] = i
@@ -159,7 +160,7 @@ func fitInk(words []Word, ink image.Rectangle) {
 
 // ReadLine reads box, a region of frame in logical pixels holding one line of
 // text, without line finding, for a second look at a known line.
-func (e *Engine) ReadLine(frame *image.RGBA, box image.Rectangle, scale int) []Word {
+func (e *Engine) ReadLine(frame *image.RGBA, box image.Rectangle, scale float64) []Word {
 	scale = max(1, scale)
 	return e.readPrepared(frame, e.prepare(frame, box, scale), scale, nil)
 }
@@ -195,8 +196,10 @@ type prepared struct {
 	route route
 }
 
-func (e *Engine) prepare(frame *image.RGBA, box image.Rectangle, scale int) prepared {
-	r := image.Rect(box.Min.X*scale, box.Min.Y*scale, box.Max.X*scale, box.Max.Y*scale).
+func (e *Engine) prepare(frame *image.RGBA, box image.Rectangle, scale float64) prepared {
+	lo := func(v int) int { return int(math.Floor(float64(v) * scale)) }
+	hi := func(v int) int { return int(math.Ceil(float64(v) * scale)) }
+	r := image.Rect(lo(box.Min.X), lo(box.Min.Y), hi(box.Max.X), hi(box.Max.Y)).
 		Add(frame.Rect.Min).Intersect(frame.Rect)
 	// Every model reads the same input: an ink map 32 rows tall.
 	x, w := prep.Prepare(frame, r, e.model.net.Height)
@@ -213,7 +216,7 @@ func (e *Engine) prepare(frame *image.RGBA, box image.Rectangle, scale int) prep
 }
 
 // readPrepared reads p with the recognizers pick chooses for it on page.
-func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale int, page map[string]bool) []Word {
+func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale float64, page map[string]bool) []Word {
 	if p.x == nil {
 		return nil
 	}
@@ -293,13 +296,13 @@ const gapBreak = 0.75
 // It drops a lone character read below loneFloor, since that is nearly always
 // an icon, such as a checkbox read as O or a search glass read as Q, and
 // breaks a word at a gap wider than gapBreak.
-func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w, scale int) []Word {
+func decode(steps []nn.Step, alpha []rune, stride int, r image.Rectangle, w int, scale float64) []Word {
 	sx := float64(r.Dx()) / float64(w)
 	// x is the frame column where step t starts, in logical pixels.
 	x := func(t float64) int {
-		return int(math.Round((float64(r.Min.X) + t*float64(stride)*sx) / float64(scale)))
+		return int(math.Round((float64(r.Min.X) + t*float64(stride)*sx) / scale))
 	}
-	y0, y1 := r.Min.Y/scale, r.Max.Y/scale
+	y0, y1 := int(float64(r.Min.Y)/scale), int(float64(r.Max.Y)/scale)
 	var (
 		words []Word
 		cur   []rune

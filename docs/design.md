@@ -155,6 +155,37 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Fractional scales (measured 2026-11-22)
+
+A display scaled to 125%, 150% or 175% draws text at 1.25, 1.5 or 1.75
+pixels per point. Windows laptops ship at those scales, and so do many Linux
+desktops. `Read` took a whole scale, and the line finder shrank the frame by
+it, so a 1.25x frame read as 2x put text at 0.625 of its size. Thai at 11 px
+then read nothing at all. `Read` now takes the scale as a float, and the line
+finder resamples a fractional frame to one pixel per point by area. Whole
+scales keep their box filters and read exactly as before.
+
+The pages are the evaluation sets' 2x captures resized to each scale with
+Lanczos, as macOS and GNOME downsample a scaled display. Each cell gives word
+accuracy (characters for CJK and Thai) read as a whole 2x frame, the way Neru
+read these frames, and then read at the frame's own scale.
+
+| Set | 1x / 2x | 1.25x | 1.5x | 1.75x |
+|---|---|---|---|---|
+| Western UI | 95.3% / 95.5% | 93.0% to **95.5%** | 94.9% to **95.2%** | **95.6%** to 95.5% |
+| CJK UI | 95.4% / 95.5% | 90.9% to **94.4%** | 93.0% to **95.8%** | 94.4% to **95.4%** |
+| Right-to-left UI | 83.1% / 86.0% | 84.8% to **84.9%** | **85.8%** to 85.5% | **86.4%** to 85.4% |
+| Hindi UI | 89.5% / 89.3% | 85.9% to **90.3%** | 88.9% to **89.6%** | **90.5%** to 89.7% |
+| Thai UI | 97.3% / 97.5% | 88.3% to **96.5%** | **96.8%** to 96.6% | **97.8%** to 96.3% |
+| Code | 98.6% / 98.7% | 97.1% to **98.8%** | 98.8% to 98.8% | 98.8% to 98.8% |
+| App layouts | 93.7% / 93.7% | 90.1% to **93.4%** | 93.8% to **94.2%** | **93.8%** to 93.5% |
+
+Every set now reads within 2 points of its 1x and 2x scores at every scale,
+the bar the Milestone 6 gate set. The largest gains are at 1.25x, the scale
+that read worst before. At 1.75x a whole 2x read was already close, and
+right-to-left and Thai lose 1 and 1.5 points read at their own scale. A
+fractional frame takes about as long to read as the same frame at 1x.
+
 ## Answer keys and kernel speed (measured 2026-11-22)
 
 The script that `evalgen.py` puts in each page kept a word only when its text

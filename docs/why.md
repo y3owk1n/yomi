@@ -176,8 +176,6 @@ read every evaluation set within 0.2 points of float32 and halve the size.
   Myanmar and Amharic sit below 80%.
 - **CJK** trails PaddleOCR by about 2.5 points.
 - **Urdu** in Nastaliq reads at about 38%.
-- **Fractional scales.** A capture at 1.25 pixels per point reads about 2
-  points below the same text at 1x.
 
 ## Checking the numbers
 
