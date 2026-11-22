@@ -155,6 +155,40 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Large type and underlined links (measured 2026-11-22)
+
+A live run of Neru in the Linux VM read a web page's 26 px bold heading as
+noise, its 34 px bold figure as two lines and its underlined links without
+spaces. Each traced to one fault.
+
+- The border pass cleared any marked column run 16 px or longer, and the stems
+  of large bold text are that tall. It now keeps a run when at least half its
+  rows sit in ink three or more pixels wide, which no border or field side is.
+- A heading in large type split into two lines at a gap wider than its core
+  allowed, and a tall blob that spans both counted as marks fused across two
+  rows. When every line a tall blob overlaps shares a row with the best one,
+  the lines merge.
+- Large letters fuse into a few wide blobs, and a piece inside one gave the
+  line its x-height. A baseline blob inside a taller member's columns no longer
+  counts.
+- Browsers draw an underline under the spaces between linked words. Prepare
+  now erases a run of ink at least the crop's height long in the crop's bottom
+  quarter, below the baseline, when it forms a band at most a tenth of the
+  crop thick and stays clear of the crop's sides. The Devanagari headline and
+  Arabic joins run higher, a button's background below its text is thicker,
+  and a table rule reaches the sides.
+
+| Set | Before (1x / 2x) | After (1x / 2x) |
+|---|---|---|
+| Layout scenes | 93.3% / 93.0% | 93.5% / 93.6% |
+| Right-to-left UI | 83.8% / 85.1% | 86.3% / 87.7% |
+| CJK UI (characters) | 92.5% / 92.2% | 93.1% / 92.9% |
+| Thai UI (characters) | 96.3% / 96.6% | 96.5% / 96.8% |
+
+Code, Western, Hindi and the held-out pages read the same. The layout scenes
+read 50 and 45 stray words where they read 45 and 43. On the Korean fixture
+통계 now reads right and 옵션 reads as 옵선.
+
 ## Half-precision weights (measured 2026-11-22)
 
 The models ship their weights as IEEE half floats, widened to float32 once at
