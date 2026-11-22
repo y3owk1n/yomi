@@ -34,25 +34,20 @@ func charTile(w0, w1, w2, w3, b, h []float32, r, n, c int, z []float32) int {
 	if r == 0 || r%4 != 0 {
 		return charTile4(w0, w1, w2, w3, b, h, r, n, c, z)
 	}
-	var acc [64]float32
+	bias := (*[4]float32)(b)
 	s := 0
 	for ; s+4 <= n; s += 4 {
-		dot4x4(&w0[0], &w1[0], &w2[0], &w3[0], &h[s*r], &h[(s+1)*r], &h[(s+2)*r], &h[(s+3)*r], r, &acc)
-		for ci := range 4 {
-			for si := range 4 {
-				v := acc[(ci*4+si)*4 : (ci*4+si)*4+4 : (ci*4+si)*4+4]
-				z[(s+si)*c+ci] = b[ci] + (v[0] + v[1]) + (v[2] + v[3])
-			}
-		}
+		dot4x4(&w0[0], &w1[0], &w2[0], &w3[0], &h[s*r], &h[(s+1)*r], &h[(s+2)*r], &h[(s+3)*r], r, bias,
+			&z[s*c:][:4][0], &z[(s+1)*c:][:4][0], &z[(s+2)*c:][:4][0], &z[(s+3)*c:][:4][0])
 	}
 	return s
 }
 
-// dot4x4 writes, for each of the four weight rows w and four step rows h of
-// length r, the dot product's four lane sums to acc[(w*4+h)*4:].
+// dot4x4 writes, for each step row h of length r, the dot products with the
+// four weight rows w plus their biases b to the four floats at that step's z.
 //
 //go:noescape
-func dot4x4(w0, w1, w2, w3, h0, h1, h2, h3 *float32, r int, acc *[64]float32)
+func dot4x4(w0, w1, w2, w3, h0, h1, h2, h3 *float32, r int, b *[4]float32, z0, z1, z2, z3 *float32)
 
 // axpy16 adds k times src to dst for the leading multiple of 16 of their
 // length with NEON and returns how many it did.

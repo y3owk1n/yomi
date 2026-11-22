@@ -74,8 +74,8 @@ store:
 done:
 	RET
 
-// func dot4x4(w0, w1, w2, w3, h0, h1, h2, h3 *float32, r int, acc *[64]float32)
-TEXT ·dot4x4(SB), NOSPLIT, $0-80
+// func dot4x4(w0, w1, w2, w3, h0, h1, h2, h3 *float32, r int, b *[4]float32, z0, z1, z2, z3 *float32)
+TEXT ·dot4x4(SB), NOSPLIT, $0-112
 	MOVD w0+0(FP), R0
 	MOVD w1+8(FP), R1
 	MOVD w2+16(FP), R2
@@ -85,7 +85,11 @@ TEXT ·dot4x4(SB), NOSPLIT, $0-80
 	MOVD h2+48(FP), R6
 	MOVD h3+56(FP), R7
 	MOVD r+64(FP), R8
-	MOVD acc+72(FP), R9
+	MOVD b+72(FP), R9
+	MOVD z0+80(FP), R10
+	MOVD z1+88(FP), R11
+	MOVD z2+96(FP), R12
+	MOVD z3+104(FP), R13
 	VEOR V16.B16, V16.B16, V16.B16
 	VEOR V17.B16, V17.B16, V17.B16
 	VEOR V18.B16, V18.B16, V18.B16
@@ -131,10 +135,30 @@ loopK:
 	SUBS   $4, R8, R8
 	BNE    loopK
 
-	VST1.P [V16.S4, V17.S4, V18.S4, V19.S4], 64(R9)
-	VST1.P [V20.S4, V21.S4, V22.S4, V23.S4], 64(R9)
-	VST1.P [V24.S4, V25.S4, V26.S4, V27.S4], 64(R9)
-	VST1   [V28.S4, V29.S4, V30.S4, V31.S4], (R9)
+	// V16+w*4+s holds class w's lane sums for step s. Two rounds of pairwise
+	// adds turn step s's four into one vector of its four classes' logits,
+	// which sit next to each other in z.
+	VLD1   (R9), [V0.S4]
+	VFADDP V20.S4, V16.S4, V1.S4
+	VFADDP V28.S4, V24.S4, V2.S4
+	VFADDP V2.S4, V1.S4, V3.S4
+	VFADD  V0.S4, V3.S4, V3.S4
+	VST1   [V3.S4], (R10)
+	VFADDP V21.S4, V17.S4, V1.S4
+	VFADDP V29.S4, V25.S4, V2.S4
+	VFADDP V2.S4, V1.S4, V3.S4
+	VFADD  V0.S4, V3.S4, V3.S4
+	VST1   [V3.S4], (R11)
+	VFADDP V22.S4, V18.S4, V1.S4
+	VFADDP V30.S4, V26.S4, V2.S4
+	VFADDP V2.S4, V1.S4, V3.S4
+	VFADD  V0.S4, V3.S4, V3.S4
+	VST1   [V3.S4], (R12)
+	VFADDP V23.S4, V19.S4, V1.S4
+	VFADDP V31.S4, V27.S4, V2.S4
+	VFADDP V2.S4, V1.S4, V3.S4
+	VFADD  V0.S4, V3.S4, V3.S4
+	VST1   [V3.S4], (R13)
 	RET
 
 // func axpy(dst, src *float32, n int, k float32)
