@@ -331,6 +331,15 @@ the base recognizer alone. The layout scenes drop from 58 / 58 stray words to
 UI and held-out set stays within 0.6 points. The GitHub page reads in about
 30 to 50% less time.
 
+That rule also fixed what looked like a weakness on low-contrast text. A
+dimmed banner in an unfocused window read as mixed Latin, Greek and Cyrillic
+garbage, because the router sent its faint lines to other scripts'
+recognizers. Read on its own, the Western recognizer reads it word for word.
+A Western model fine-tuned on dimmed and faint text, 18 to 40 px figures and
+symbols beside words read every Western set the same, and the layout scenes
+with twice the stray words, 76 / 74, so it was not shipped. Figures at about
+28 pt on a dashboard still misread with either model.
+
 Two attempts at the Southeast Asian gap changed nothing. Router-4,
 fine-tuned from router-3 on lines with the current fonts, scored within 0.3
 points of it on every set. Reading a line with the runner-up family too
