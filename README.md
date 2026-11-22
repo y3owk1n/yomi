@@ -20,6 +20,25 @@ for _, l := range lines {
 }
 ```
 
+## Why yomi
+
+Operating systems each ship an OCR engine, and none fits a tool that has to
+read any window, in any script, within a keystroke, the same way on macOS,
+Linux and Windows. Vision's fast mode reads 37 to 57% of UI words across 17
+languages and its accurate mode takes up to 0.7 s a frame. tesseract takes 3
+to 12 times as long as yomi and needs a language package per script, and
+Windows.Media.Ocr needs an OCR pack per language. yomi reads only screens, so its models are small, and
+one pure-Go engine reads the same pixels to the same words everywhere.
+
+In Neru's vim mode, on the same captures, yomi reads 91.7% of words right
+against Vision fast's 85.1% and Vision accurate's 88.4%, in 11 to 60 ms a
+frame against 22 to 75 ms and 193 to 696 ms. On Linux it reads more words than
+tesseract on every script but Hindi, at a fraction of the time.
+[docs/why.md](docs/why.md) compares it with every engine, says how it works,
+and lists where it is still behind.
+
+## Reading a frame
+
 Read returns lines top to bottom. Each word has a box and one box per
 character, in logical pixels. Its confidence is the lowest probability the
 model gave any of its characters. An Engine is safe for concurrent use, and
