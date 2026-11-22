@@ -492,18 +492,33 @@ func TestEngine_Read_ReadsLargeType(t *testing.T) {
 	}
 }
 
-// TestEngine_Read_ReadsUnderlinedLinksAsWords reads a row of underlined links,
-// whose underline fills the gaps between words, and expects the spaces.
+// TestEngine_Read_ReadsUnderlinedLinksAsWords reads underlined links, whose
+// underline fills the gaps between words, and expects the spaces: a row of
+// links, and a link in serif body text whose underline falls across two pixel
+// rows at 1x and once read "commit move" as "commit_oxg".
 func TestEngine_Read_ReadsUnderlinedLinksAsWords(t *testing.T) {
-	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/heading-links.png"), 1)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := text(lines)
-	for _, want := range []string{"Pull requests", "Security and quality"} {
-		if !strings.Contains(got, want) {
-			t.Errorf("did not read %q; read:\n%s", want, got)
-		}
+	e := routedEngine(t)
+	for _, tt := range []struct {
+		frame string
+		scale float64
+		want  []string
+	}{
+		{"heading-links.png", 1, []string{"Pull requests", "Security and quality"}},
+		{"serif-links.png", 1, []string{"share commit move rename"}},
+		{"serif-links@2x.png", 2, []string{"share commit move rename"}},
+	} {
+		t.Run(tt.frame, func(t *testing.T) {
+			lines, err := e.Read(context.Background(), loadFrame(t, "testdata/fixtures/"+tt.frame), tt.scale)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := text(lines)
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("did not read %q; read:\n%s", want, got)
+				}
+			}
+		})
 	}
 }
 

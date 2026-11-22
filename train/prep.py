@@ -54,21 +54,29 @@ def bilinear(x, oh, ow):
 def erase_rules(x):
     h, w = x.shape
 
-    def runs(y):
-        row, out, i = x[y], [], 0
+    def scan(row, floor, even):
+        out, i = [], 0
         while i < w:
-            if row[i] < 0.5:
+            if row[i] < floor:
                 i += 1
                 continue
-            s = i
-            while i < w and row[i] >= 0.5:
+            s, lo, hi = i, row[i], row[i]
+            while i < w and row[i] >= floor:
+                lo, hi = min(lo, row[i]), max(hi, row[i])
                 i += 1
-            if i - s >= h and s > 0 and i < w:
+            if i - s >= h and s > 0 and i < w and (not even or hi - lo <= np.float32(0.15)):
                 out.append((s, i))
         return out
 
+    def runs(y):
+        return scan(x[y], 0.5, False) + scan(x[y], 0.25, True)
+
+    def same(a, b):
+        return bool(a) and len(a) == len(b) and all(
+            abs(p[0] - q[0]) <= 3 and abs(p[1] - q[1]) <= 3 for p, q in zip(a, b))
+
     thin = max(2, h // 10)
-    y = h * 3 // 4
+    top = y = h * 3 // 4
     while y < h:
         if not runs(y):
             y += 1
@@ -78,6 +86,11 @@ def erase_rules(x):
             y += 1
         if y - s > thin:
             continue
+        # An underline the quarter's top row cuts through starts above it, in a
+        # row with the same runs.
+        while s == top and s > 0 and y - s < thin and same(runs(s - 1), runs(s)):
+            s -= 1
+            top = s
         for r in range(s, y):
             for a, b in runs(r):
                 x[r, a:b] = 0

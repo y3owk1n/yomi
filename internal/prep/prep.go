@@ -77,54 +77,94 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	return bilinear(x, h, w, height, ow), ow
 }
 
-// eraseRules clears runs of ink at least half strong and at least the
-// crop's height long in the crop's bottom quarter, below the baseline, where
-// they form a band at most a tenth of the crop thick. No glyph stroke there is
-// that long, so the band is an underline, which the recognizers never saw and
-// which fills the gaps between words. Browsers break an underline at each
-// descender, so its pieces can be a few letters long. Higher up, the headline
-// of Devanagari and the joins of Arabic run as long as a word. A thicker band
-// is the background past a button's edge, and a run reaching the crop's side
-// is a table rule. The recognizers saw both in training and read them as
-// nothing.
+// eraseRules clears long runs of ink in the crop's bottom quarter, below the
+// baseline, where they form a band at most a tenth of the crop thick. A run
+// is at least the crop's height long, and either at least half strong or, as
+// an underline falling between two pixel rows at 1x leaves it, faint but even
+// along its length. No glyph stroke there is that long, so the band is an
+// underline, which the recognizers never saw and which fills the gaps between
+// words. A band starting on the quarter's top row takes the rows just above
+// it with the same runs, up to that thickness. Browsers break an underline at
+// each descender, so its pieces can be a few letters long. Higher up, the
+// headline of Devanagari and the joins of Arabic run as long as a word. A
+// thicker band is the background past a button's edge, and a run reaching the
+// crop's side is a table rule. The recognizers saw both in training and read
+// them as nothing.
 func eraseRules(x []float32, h, w int) {
-	long := func(y int, fn func(s, e int)) bool {
-		row, found := x[y*w:y*w+w], false
-		for i := 0; i < w; {
-			if row[i] < 0.5 {
+	// runs adds to out the runs of at least floor ink that a rule could be:
+	// at least h long, touching neither side and, when even is set, no more
+	// uneven than a drawn line.
+	runs := func(out [][2]int, row []float32, floor float32, even bool) [][2]int {
+		for i := 0; i < len(row); {
+			if row[i] < floor {
 				i++
 				continue
 			}
-			s := i
-			for i < w && row[i] >= 0.5 {
+			s, lo, hi := i, row[i], row[i]
+			for i < len(row) && row[i] >= floor {
+				lo, hi = min(lo, row[i]), max(hi, row[i])
 				i++
 			}
-			if i-s >= h && s > 0 && i < w {
-				found = true
-				if fn != nil {
-					fn(s, i)
-				}
+			if i-s >= h && s > 0 && i < len(row) && (!even || hi-lo <= 0.15) {
+				out = append(out, [2]int{s, i})
 			}
 		}
-		return found
+		return out
 	}
+	// A rule is ink at least half strong, or at 1x a line that falls between
+	// two rows and leaves each faint but even along its length. The faint edge
+	// below Arabic joins varies letter by letter.
+	spans := func(y int) [][2]int {
+		row := x[y*w : y*w+w]
+		return runs(runs(nil, row, 0.5, false), row, 0.25, true)
+	}
+	long := func(y int) bool { return len(spans(y)) > 0 }
 	thin := max(2, h/10)
-	for y := h * 3 / 4; y < h; {
-		if !long(y, nil) {
+	top := h * 3 / 4
+	for y := top; y < h; {
+		if !long(y) {
 			y++
 			continue
 		}
 		s := y
-		for y < h && long(y, nil) {
+		for y < h && long(y) {
 			y++
 		}
 		if y-s > thin {
 			continue
 		}
+		// An underline the quarter's top row cuts through starts above it, in
+		// a row with the same runs.
+		for s == top && s > 0 && y-s < thin && sameRuns(spans(s-1), spans(s)) {
+			s--
+			top = s
+		}
 		for r := s; r < y; r++ {
-			long(r, func(a, b int) { clear(x[r*w+a : r*w+b]) })
+			for _, sp := range spans(r) {
+				clear(x[r*w+sp[0] : r*w+sp[1]])
+			}
 		}
 	}
+}
+
+// sameRuns reports whether a and b are the same runs, each end within 3 px.
+func sameRuns(a, b [][2]int) bool {
+	if len(a) == 0 || len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if absInt(a[i][0]-b[i][0]) > 3 || absInt(a[i][1]-b[i][1]) > 3 {
+			return false
+		}
+	}
+	return true
+}
+
+func absInt(v int) int {
+	if v < 0 {
+		return -v
+	}
+	return v
 }
 
 func abs32(v int32) int32 {

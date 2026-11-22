@@ -97,6 +97,7 @@ the Thai unscored.
 | Thai UI | **97.3% / 97.5%** | 94.7% / 94.7% | 97.2% / 93.3% |
 | Lao, Khmer, Myanmar, held out, 1x | **84.9%, 89.9%, 76.4%** | 22.1%, 28.2%, 7.2% | no recognizer |
 | Georgian, Armenian, Amharic, held out, 1x | **91.1%, 85.2%, 67.2%** | 15.2%, 12.4%, 19.9% | no recognizer |
+| App layouts, 11 scenes | **94.1% / 94.3%** | 90.2% / 92.4% | not run |
 
 ### In Neru's vim mode, against Vision
 
@@ -171,7 +172,8 @@ read every evaluation set within 0.2 points of float32 and halve the size.
 
 ## Where yomi is behind
 
-- **Long prose.** Vision accurate reads an article at 99.6%, yomi at 94.5%.
+- **Long prose.** Vision accurate reads the article page at 100% / 99.6%,
+  yomi at 95.7% / 96.8%. Most of the gap is a bold serif heading at 26 px.
 - **Hindi** trails Vision by 3 points and **Arabic** by 1.3 at 2x, and
   Myanmar and Amharic sit below 80%.
 - **CJK** trails PaddleOCR by about 2.5 points.

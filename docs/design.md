@@ -155,6 +155,25 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Underlined links in body text (measured 2026-11-22)
+
+The underline eraser looked only at the bottom quarter of a line's crop and
+only at ink at least half strong. Under serif body text a link's underline
+sits on the quarter's top row. At 2x the eraser cleared the lower of its two
+rows and left the upper one, and at 1x the underline falls between two pixel
+rows, which leaves each about 40% ink. Either way the underline joined the
+words, and "commit move" read as "commit_oxg". A band starting on the
+quarter's top row now takes the rows above it whose runs match, and a run
+counts when it is faint but even along its length. The faint edge under
+Arabic joins varies letter by letter, so it fails that test and stays.
+
+App layouts read 93.7% to 94.1% at 1x and 93.7% to 94.3% at 2x. The article
+page goes from 93.3% to 95.7% at 1x and from 93.7% to 96.8% at 2x, and the
+settings page gains 0.7 and 2 points. Every other set reads as before. Most of
+what the article still misses is its heading, bold serif at 26 px, which the
+Western recognizer reads as noise. That needs bold serif display type in
+training.
+
 ## Fractional scales (measured 2026-11-22)
 
 A display scaled to 125%, 150% or 175% draws text at 1.25, 1.5 or 1.75
