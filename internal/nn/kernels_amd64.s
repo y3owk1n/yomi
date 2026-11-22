@@ -1,0 +1,214 @@
+#include "textflag.h"
+
+// func pointwise4x16(wt, in, out *float32, b *[4]float32, cin, n, end, relu int)
+TEXT ·pointwise4x16(SB), NOSPLIT, $0-64
+	MOVQ wt+0(FP), SI
+	MOVQ in+8(FP), DI
+	MOVQ out+16(FP), DX
+	MOVQ b+24(FP), BX
+	MOVQ cin+32(FP), CX
+	MOVQ n+40(FP), R8
+	MOVQ end+48(FP), R9
+	MOVQ relu+56(FP), R10
+	SHLQ $2, R8 // a row of in or out, in bytes
+	VBROADCASTSS (BX), Y12
+	VBROADCASTSS 4(BX), Y13
+	VBROADCASTSS 8(BX), Y14
+	VBROADCASTSS 12(BX), Y15
+	VXORPS Y11, Y11, Y11
+	XORQ R12, R12 // p
+
+loopP:
+	CMPQ R12, R9
+	JGE  done
+	VMOVUPS Y12, Y0
+	VMOVUPS Y12, Y1
+	VMOVUPS Y13, Y2
+	VMOVUPS Y13, Y3
+	VMOVUPS Y14, Y4
+	VMOVUPS Y14, Y5
+	VMOVUPS Y15, Y6
+	VMOVUPS Y15, Y7
+	MOVQ SI, R13          // wt
+	LEAQ (DI)(R12*4), AX  // in + p
+	MOVQ CX, BX           // channels left
+
+loopC:
+	VMOVUPS      (AX), Y8
+	VMOVUPS      32(AX), Y9
+	ADDQ         R8, AX
+	VBROADCASTSS (R13), Y10
+	VFMADD231PS  Y10, Y8, Y0
+	VFMADD231PS  Y10, Y9, Y1
+	VBROADCASTSS 4(R13), Y10
+	VFMADD231PS  Y10, Y8, Y2
+	VFMADD231PS  Y10, Y9, Y3
+	VBROADCASTSS 8(R13), Y10
+	VFMADD231PS  Y10, Y8, Y4
+	VFMADD231PS  Y10, Y9, Y5
+	VBROADCASTSS 12(R13), Y10
+	VFMADD231PS  Y10, Y8, Y6
+	VFMADD231PS  Y10, Y9, Y7
+	ADDQ         $16, R13
+	DECQ         BX
+	JNZ          loopC
+
+	TESTQ  R10, R10
+	JZ     store
+	VMAXPS Y11, Y0, Y0
+	VMAXPS Y11, Y1, Y1
+	VMAXPS Y11, Y2, Y2
+	VMAXPS Y11, Y3, Y3
+	VMAXPS Y11, Y4, Y4
+	VMAXPS Y11, Y5, Y5
+	VMAXPS Y11, Y6, Y6
+	VMAXPS Y11, Y7, Y7
+
+store:
+	LEAQ    (DX)(R12*4), R11 // out + p
+	VMOVUPS Y0, (R11)
+	VMOVUPS Y1, 32(R11)
+	ADDQ    R8, R11
+	VMOVUPS Y2, (R11)
+	VMOVUPS Y3, 32(R11)
+	ADDQ    R8, R11
+	VMOVUPS Y4, (R11)
+	VMOVUPS Y5, 32(R11)
+	ADDQ    R8, R11
+	VMOVUPS Y6, (R11)
+	VMOVUPS Y7, 32(R11)
+	ADDQ    $16, R12
+	JMP     loopP
+
+done:
+	VZEROUPPER
+	RET
+
+// func dot4x2(w0, w1, w2, w3, h0, h1 *float32, r int, acc *[64]float32)
+TEXT ·dot4x2(SB), NOSPLIT, $0-64
+	MOVQ w0+0(FP), SI
+	MOVQ w1+8(FP), DI
+	MOVQ w2+16(FP), R8
+	MOVQ w3+24(FP), R9
+	MOVQ h0+32(FP), R10
+	MOVQ h1+40(FP), R11
+	MOVQ r+48(FP), CX
+	MOVQ acc+56(FP), DX
+	VXORPS Y0, Y0, Y0
+	VXORPS Y1, Y1, Y1
+	VXORPS Y2, Y2, Y2
+	VXORPS Y3, Y3, Y3
+	VXORPS Y4, Y4, Y4
+	VXORPS Y5, Y5, Y5
+	VXORPS Y6, Y6, Y6
+	VXORPS Y7, Y7, Y7
+
+loopK:
+	VMOVUPS     (SI), Y8
+	VMOVUPS     (DI), Y9
+	VMOVUPS     (R8), Y10
+	VMOVUPS     (R9), Y11
+	VMOVUPS     (R10), Y12
+	VMOVUPS     (R11), Y13
+	VFMADD231PS Y12, Y8, Y0
+	VFMADD231PS Y13, Y8, Y1
+	VFMADD231PS Y12, Y9, Y2
+	VFMADD231PS Y13, Y9, Y3
+	VFMADD231PS Y12, Y10, Y4
+	VFMADD231PS Y13, Y10, Y5
+	VFMADD231PS Y12, Y11, Y6
+	VFMADD231PS Y13, Y11, Y7
+	ADDQ        $32, SI
+	ADDQ        $32, DI
+	ADDQ        $32, R8
+	ADDQ        $32, R9
+	ADDQ        $32, R10
+	ADDQ        $32, R11
+	SUBQ        $8, CX
+	JNZ         loopK
+
+	VMOVUPS Y0, (DX)
+	VMOVUPS Y1, 32(DX)
+	VMOVUPS Y2, 64(DX)
+	VMOVUPS Y3, 96(DX)
+	VMOVUPS Y4, 128(DX)
+	VMOVUPS Y5, 160(DX)
+	VMOVUPS Y6, 192(DX)
+	VMOVUPS Y7, 224(DX)
+	VZEROUPPER
+	RET
+
+// func axpy(dst, src *float32, n int, k float32)
+TEXT ·axpy(SB), NOSPLIT, $0-28
+	MOVQ         dst+0(FP), DI
+	MOVQ         src+8(FP), SI
+	MOVQ         n+16(FP), CX
+	VBROADCASTSS k+24(FP), Y0
+
+loopA:
+	VMOVUPS     (SI), Y1
+	VMOVUPS     32(SI), Y2
+	VMOVUPS     64(SI), Y3
+	VMOVUPS     96(SI), Y4
+	VMOVUPS     (DI), Y5
+	VMOVUPS     32(DI), Y6
+	VMOVUPS     64(DI), Y7
+	VMOVUPS     96(DI), Y8
+	VFMADD231PS Y0, Y1, Y5
+	VFMADD231PS Y0, Y2, Y6
+	VFMADD231PS Y0, Y3, Y7
+	VFMADD231PS Y0, Y4, Y8
+	VMOVUPS     Y5, (DI)
+	VMOVUPS     Y6, 32(DI)
+	VMOVUPS     Y7, 64(DI)
+	VMOVUPS     Y8, 96(DI)
+	ADDQ        $128, DI
+	ADDQ        $128, SI
+	SUBQ        $32, CX
+	JNZ         loopA
+	VZEROUPPER
+	RET
+
+// func relu32(p *float32, n int)
+TEXT ·relu32(SB), NOSPLIT, $0-16
+	MOVQ   p+0(FP), DI
+	MOVQ   n+8(FP), CX
+	VXORPS Y0, Y0, Y0
+
+loopR:
+	VMOVUPS (DI), Y1
+	VMOVUPS 32(DI), Y2
+	VMOVUPS 64(DI), Y3
+	VMOVUPS 96(DI), Y4
+	VMAXPS  Y0, Y1, Y1
+	VMAXPS  Y0, Y2, Y2
+	VMAXPS  Y0, Y3, Y3
+	VMAXPS  Y0, Y4, Y4
+	VMOVUPS Y1, (DI)
+	VMOVUPS Y2, 32(DI)
+	VMOVUPS Y3, 64(DI)
+	VMOVUPS Y4, 96(DI)
+	ADDQ    $128, DI
+	SUBQ    $32, CX
+	JNZ     loopR
+	VZEROUPPER
+	RET
+
+// func cpuid(leaf, sub uint32) (a, b, c, d uint32)
+TEXT ·cpuid(SB), NOSPLIT, $0-24
+	MOVL leaf+0(FP), AX
+	MOVL sub+4(FP), CX
+	CPUID
+	MOVL AX, a+8(FP)
+	MOVL BX, b+12(FP)
+	MOVL CX, c+16(FP)
+	MOVL DX, d+20(FP)
+	RET
+
+// func xgetbv() (lo, hi uint32)
+TEXT ·xgetbv(SB), NOSPLIT, $0-8
+	MOVL $0, CX
+	XGETBV
+	MOVL AX, lo+0(FP)
+	MOVL DX, hi+4(FP)
+	RET
