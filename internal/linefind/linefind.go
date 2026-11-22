@@ -9,6 +9,7 @@ import (
 	"image"
 	"math"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 )
@@ -95,6 +96,9 @@ func absInt(a int) int {
 const (
 	flatRun    = 6
 	flatSpread = 6
+	// stemWidth is the narrowest ink a tall vertical run sits in for it to
+	// count as a glyph's stroke and not a border.
+	stemWidth = 3
 	// strokeRun is the longest even run that can still be the inside of a
 	// glyph's stroke: three flat runs, past a 26 px bold figure's 6.
 	strokeRun = 3 * flatRun
@@ -215,7 +219,7 @@ func edges(l []uint8, w, h int, p Params) []bool {
 	bands(w, func(x0, x1 int) {
 		run := make([]int, x1-x0)
 		end := func(x, y int) {
-			if n := run[x-x0]; n >= p.RunMaxV {
+			if n := run[x-x0]; n >= p.RunMaxV && !stem(e, w, x, y-n, y) {
 				for i := y - n; i < y; i++ {
 					clear[i*w+x] = true
 				}
@@ -242,6 +246,28 @@ func edges(l []uint8, w, h int, p Params) []bool {
 		}
 	}
 	return e
+}
+
+// stem reports whether the marked run in column x from row y0 up to y1 is a
+// glyph's stroke rather than a border: at least half its rows sit in ink at
+// least stemWidth wide, as the stem of large bold text does. A border or the
+// side of a field is one or two pixels wide.
+func stem(e []bool, w, x, y0, y1 int) bool {
+	wide := 0
+	for y := y0; y < y1; y++ {
+		row := e[y*w : y*w+w]
+		a, b := x, x
+		for a > 0 && row[a-1] {
+			a--
+		}
+		for b+1 < w && row[b+1] {
+			b++
+		}
+		if b-a+1 >= stemWidth {
+			wide++
+		}
+	}
+	return wide*2 >= y1-y0
 }
 
 // blobs labels 8-connected marked pixels with a union-find over pixels.
@@ -415,6 +441,48 @@ func overlap(a0, a1, b0, b1 int) int {
 // heights of the blobs that sit on it, sorted. Of an even count the higher of
 // the middle two wins, so a comma or descender among two members never sets
 // the baseline below the glyph beside it.
+// oneRow reports whether every line in hits has a core overlapping best's by
+// at least half the shorter of the two.
+func oneRow(lines []line, hits []int, best int) bool {
+	b0, b1 := lines[best].core()
+	for _, i := range hits {
+		c0, c1 := lines[i].core()
+		if overlap(c0, c1, b0, b1)*2 < min(c1-c0+1, b1-b0+1) {
+			return false
+		}
+	}
+	return true
+}
+
+// mergeLines folds the lines in hits, which are in ascending order, into the
+// first of them and drops the rest.
+func mergeLines(lines []line, hits []int) []line {
+	ln := &lines[hits[0]]
+	for _, i := range hits[1:] {
+		o := lines[i]
+		ln.x0, ln.x1 = min(ln.x0, o.x0), max(ln.x1, o.x1)
+		ln.y0, ln.y1 = min(ln.y0, o.y0), max(ln.y1, o.y1)
+		ln.sy0, ln.sy1, ln.n = ln.sy0+o.sy0, ln.sy1+o.sy1, ln.n+o.n
+		ln.members = append(ln.members, o.members...)
+	}
+	for k := len(hits) - 1; k > 0; k-- {
+		lines = slices.Delete(lines, hits[k], hits[k]+1)
+	}
+	return lines
+}
+
+// within reports whether b lies inside the columns of a taller member, as a
+// piece of a large glyph does when its strokes come apart. Its height is not
+// the glyph's.
+func (l line) within(b blob) bool {
+	for _, m := range l.members {
+		if m.h() > b.h() && m.x0 <= b.x0 && b.x1 <= m.x1 {
+			return true
+		}
+	}
+	return false
+}
+
 func (l line) metrics() (int, []int) {
 	bottoms := make([]int, len(l.members))
 	for i, b := range l.members {
@@ -424,7 +492,7 @@ func (l line) metrics() (int, []int) {
 	base := bottoms[(len(bottoms)-1)/2]
 	var hs []int
 	for _, b := range l.members {
-		if absInt(b.y1-base) <= 1 {
+		if absInt(b.y1-base) <= 1 && !l.within(b) {
 			hs = append(hs, b.h())
 		}
 	}
@@ -546,12 +614,14 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 	}
 
 	// A tall blob joins the line whose core it overlaps most, as the first
-	// pass would have. A blob overlapping two lines' cores is marks fused
-	// across rows, so it widens its line without making it taller. A blob
-	// overlapping none, such as a heading's glyph, seeds a line.
+	// pass would have. A blob overlapping two lines' cores on different rows
+	// is marks fused across them, so it widens its line without making it
+	// taller. Lines on one row that it spans, as the halves of a heading in
+	// large type split at a wide gap, merge with it. A blob overlapping none,
+	// such as a heading's glyph, seeds a line.
 	sort.Slice(tall, func(i, j int) bool { return tall[i].x0 < tall[j].x0 })
 	for _, b := range tall {
-		best, bestOv, hits := -1, 0, 0
+		best, bestOv, hits := -1, 0, []int(nil)
 		for i, ln := range lines {
 			c0, c1 := ln.core()
 			ch := c1 - c0 + 1
@@ -563,15 +633,19 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 			if ov*2 < min(b.h(), ch) {
 				continue
 			}
-			hits++
+			hits = append(hits, i)
 			if ov > bestOv {
 				best, bestOv = i, ov
 			}
 		}
+		if len(hits) > 1 && oneRow(lines, hits, best) {
+			lines = mergeLines(lines, hits)
+			best, hits = hits[0], hits[:1]
+		}
 		switch {
 		case best < 0:
 			lines = append(lines, line{b.x0, b.y0, b.x1, b.y1, b.y0, b.y1, 1, []blob{b}})
-		case hits > 1:
+		case len(hits) > 1:
 			ln := &lines[best]
 			ln.x0, ln.x1 = min(ln.x0, b.x0), max(ln.x1, b.x1)
 		default:

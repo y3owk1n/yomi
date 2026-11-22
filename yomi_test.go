@@ -345,7 +345,7 @@ func TestEngine_Read_RoutesEachLineToItsScriptsRecognizer(t *testing.T) {
 		scale int
 		want  []string
 	}{
-		{"hangul-stacked.png", 1, []string{"진단", "옵션"}},
+		{"hangul-stacked.png", 1, []string{"진단", "켜면"}},
 		{"lookalikes@2x.png", 2, []string{"Сохранить копию", "Copy screen", "Ελληνικά κείμενα"}},
 	}
 	for _, tt := range tests {
@@ -445,5 +445,21 @@ func TestEngine_Read_ReadsLatinBesideAnArrowAsLatin(t *testing.T) {
 	}
 	if !strings.Contains(got, "gamma →") {
 		t.Errorf("did not read the caption %q:\n%s", "gamma →", got)
+	}
+}
+
+// TestEngine_Read_ReadsLargeType reads a web page's 26 px bold heading and a
+// 34 px bold figure at 1x, whose stems are as tall as the field borders the
+// line finder clears and whose letters touch.
+func TestEngine_Read_ReadsLargeType(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/heading-links.png"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"Repository settings", "21,780"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
 	}
 }
