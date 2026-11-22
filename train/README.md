@@ -19,5 +19,7 @@ oku). Run the scripts with `uv run python SCRIPT` from this directory.
   pages in WebKit with exact word boxes, and `mklines.py` cuts line crops.
 - `vision.swift` reads the pages with Apple's Vision for the baseline,
   `yomi bench` reads them with yomi, and `pagescore.py` scores both.
+  `tesseract.c` and `winocr.ps1` give the baselines Neru has on Linux and
+  Windows, and `paddle.py` gives PaddleOCR's.
 
 Everything generated goes to `data/`, which stays out of the repository.
