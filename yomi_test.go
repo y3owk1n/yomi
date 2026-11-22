@@ -18,7 +18,7 @@ import (
 	"github.com/y3owk1n/yomi/models/western"
 )
 
-func loadFrame(t *testing.T, path string) *image.RGBA {
+func loadFrame(t testing.TB, path string) *image.RGBA {
 	t.Helper()
 	f, err := os.Open(path)
 	if err != nil {
