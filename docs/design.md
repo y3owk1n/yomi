@@ -127,7 +127,7 @@ CI's `bench` job runs `BenchmarkEngine_Read` on GitHub's hosted runners. It
 reads each frame with every recognizer and the router on all of the runner's
 cores. The table gives the median of five, in ms per frame.
 
-| Frame | Apple M1, 3 vCPU | Cobalt 100 arm64, 4 vCPU | EPYC 7763 (Zen 3), 4 vCPU | EPYC 9V45 (Zen 5), 4 vCPU |
+| Frame | Apple M1, 3 vCPU | Linux arm64, 4 vCPU | EPYC 7763 (Zen 3), 4 vCPU | EPYC 9V45 (Zen 5), 4 vCPU |
 |---|---|---|---|---|
 | 1080p window, 11 pt | 18 | 18 | 43 | 24 |
 | 4K window, 11 pt | 45 | 48 | 108 | 62 |
@@ -136,8 +136,8 @@ cores. The table gives the median of five, in ms per frame.
 | Korean, 1x | 24 | 31 | 88 | 58 |
 
 A Zen 3 runner takes 2.4 to 3.7 times as long as the M1 and a Zen 5 one 1.3
-to 2.4 times. The slowest frame, dense Thai on Zen 3, still reads in 0.13 s,
-where tesseract takes 0.7 to 2.6 s a page on the Linux VM.
+to 2.4 times. The slowest frame, dense Thai on Zen 3, reads in 0.13 s. In the
+first table tesseract takes 348 and 603 ms a page, on the Linux VM.
 
 amd64 leaves 15 vector registers for floats against 32 on arm64, so the four
 by four pointwise tile spilled about 40 stack accesses per input channel
