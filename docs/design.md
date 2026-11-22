@@ -194,16 +194,16 @@ yomi replaces a platform's native engine in Neru only if all of these hold
 there. Removing the native engine's code and packaging is a separate change
 after that.
 
-Neru builds the engine from the locale. It always reads with the western
-model, adds the family of each other script the locale names, and adds the
-router when there is more than one family. That matches what Neru reads with today, English
-plus the locale's other languages.
+Neru reads with one engine on every machine. It has every recognizer and the
+router, as `yomi -model auto` builds it. The router picks each line's script,
+so Neru drops the locale lookups it makes today to choose tesseract's
+languages, Windows' OCR engines and Vision's languages.
 
 | Criterion | Set | Baseline | Bar |
 |---|---|---|---|
 | Neru's own tests | its fixture and integration tests for text, on the platform | the native engine passes them | they pass, changed only where they name the native engine |
 | Accuracy | every `eval-*` set the native engine has language data for, read on the platform | the native engine with the page's own language data, its best case | at least the native engine on each set at both scales |
-| Stray words | `layout`, through the engine an English locale builds | the native engine | at most the native engine and at most 70, at both scales |
+| Stray words | `layout` | the native engine | at most the native engine and at most 70, at both scales |
 | Speed | the same sets, the same machine | the native engine's median ms per page | at most the native engine's |
 | Fractional scales | a page captured at 1.25x and at 1.5x | the same page at 1x and 2x | within 2 points |
 | x86 speed (Windows) | `BenchmarkEngine_Read` frames on `windows-latest` | Windows.Media.Ocr on the same runner | at most Windows.Media.Ocr's |
