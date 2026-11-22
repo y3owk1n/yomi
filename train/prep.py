@@ -5,7 +5,10 @@ integer luma and plain loops.
 2. Background: median of the crop's 1 px border. Ink: the pixel farthest from
    it. Ink strength x = clip((bg - v) * sign / max(32, |bg - ink|), 0, 1),
    so ink is 1 and background 0 whatever the polarity.
-3. Height to H: integer box downsample by k = h // H when k >= 2, then
+3. Rules: each run of x >= 0.5 within a row at least the crop's height long
+   is set to 0. No glyph stroke is that long, so it is an underline, a
+   strikethrough or a rule.
+4. Height to H: integer box downsample by k = h // H when k >= 2, then
    bilinear (half-pixel centres, edge clamp) to height H, width scaled by the
    same factor, at least 4.
 """
@@ -48,9 +51,25 @@ def bilinear(x, oh, ow):
     return (top * (1 - fy) + bot * fy).astype(np.float32)
 
 
+def erase_rules(x):
+    h, w = x.shape
+    for row in x:
+        i = 0
+        while i < w:
+            if row[i] < 0.5:
+                i += 1
+                continue
+            s = i
+            while i < w and row[i] >= 0.5:
+                i += 1
+            if i - s >= h:
+                row[s:i] = 0
+
+
 def prepare(rgb):
     """RGB uint8 crop (h, w, 3) -> float32 (H, W') ink map."""
     x = ink(luma(rgb))
+    erase_rules(x)
     k = x.shape[0] // H
     if k >= 2:
         x = box_down(x, k)

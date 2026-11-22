@@ -9,8 +9,8 @@ import (
 )
 
 // Prepare reproduces train/prep.py: integer luma, ink strength against the border
-// median, integer box downsample when the crop is at least twice Height,
-// then bilinear (half-pixel centres, edge clamp) to Height rows.
+// median, rules erased, integer box downsample when the crop is at least
+// twice Height, then bilinear (half-pixel centres, edge clamp) to Height rows.
 func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	r = r.Intersect(img.Rect)
 	h, w := r.Dy(), r.Dx()
@@ -54,6 +54,7 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	for i, v := range g {
 		x[i] = min(1, max(0, (float32(bg)-float32(v))*sign/span))
 	}
+	eraseRules(x, h, w)
 
 	if k := h / height; k >= 2 {
 		nh, nw := h/k, w/k
@@ -74,6 +75,56 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	}
 	ow := max(4, int(math.RoundToEven(float64(w)*float64(height)/float64(h))))
 	return bilinear(x, h, w, height, ow), ow
+}
+
+// eraseRules clears runs of ink at least half strong and at least the
+// crop's height long in the crop's bottom quarter, below the baseline, where
+// they form a band at most a tenth of the crop thick. No glyph stroke there is
+// that long, so the band is an underline, which the recognizers never saw and
+// which fills the gaps between words. Browsers break an underline at each
+// descender, so its pieces can be a few letters long. Higher up, the headline
+// of Devanagari and the joins of Arabic run as long as a word. A thicker band
+// is the background past a button's edge, and a run reaching the crop's side
+// is a table rule. The recognizers saw both in training and read them as
+// nothing.
+func eraseRules(x []float32, h, w int) {
+	long := func(y int, fn func(s, e int)) bool {
+		row, found := x[y*w:y*w+w], false
+		for i := 0; i < w; {
+			if row[i] < 0.5 {
+				i++
+				continue
+			}
+			s := i
+			for i < w && row[i] >= 0.5 {
+				i++
+			}
+			if i-s >= h && s > 0 && i < w {
+				found = true
+				if fn != nil {
+					fn(s, i)
+				}
+			}
+		}
+		return found
+	}
+	thin := max(2, h/10)
+	for y := h * 3 / 4; y < h; {
+		if !long(y, nil) {
+			y++
+			continue
+		}
+		s := y
+		for y < h && long(y, nil) {
+			y++
+		}
+		if y-s > thin {
+			continue
+		}
+		for r := s; r < y; r++ {
+			long(r, func(a, b int) { clear(x[r*w+a : r*w+b]) })
+		}
+	}
 }
 
 func abs32(v int32) int32 {

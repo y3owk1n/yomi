@@ -463,3 +463,18 @@ func TestEngine_Read_ReadsLargeType(t *testing.T) {
 		}
 	}
 }
+
+// TestEngine_Read_ReadsUnderlinedLinksAsWords reads a row of underlined links,
+// whose underline fills the gaps between words, and expects the spaces.
+func TestEngine_Read_ReadsUnderlinedLinksAsWords(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/heading-links.png"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"Pull requests", "Security and quality"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
+	}
+}
