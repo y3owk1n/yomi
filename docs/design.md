@@ -118,12 +118,33 @@ with the native engines on all three platforms through the same harness.
    mixing scripts reads without locale configuration.
 6. **Neru integration.** A VisionPort adapter on yomi keeps native capture.
    Then tesseract, the WinRT OCR code and Vision text recognition go. This
-   needs x86 timing on real hardware first. All timing so far is Apple
-   Silicon. amd64 leaves 15 vector registers for floats against 32 on
-   arm64, so the four by four pointwise tile spilled about 40 stack accesses
-   per input channel there. amd64 takes a four by two tile with 5 instead.
-   It makes arm64 8 to 25% slower, so arm64 keeps the wider tile. Emulation
-   checks that amd64 reads match but cannot time them.
+   needed x86 timing on real hardware first, recorded under x86 timing
+   below.
+
+## x86 timing (measured, 2026-11-22)
+
+CI's `bench` job runs `BenchmarkEngine_Read` on GitHub's hosted runners. It
+reads each frame with every recognizer and the router on all of the runner's
+cores. The table gives the median of five, in ms per frame.
+
+| Frame | Apple M1, 3 vCPU | Cobalt 100 arm64, 4 vCPU | EPYC 7763 (Zen 3), 4 vCPU | EPYC 9V45 (Zen 5), 4 vCPU |
+|---|---|---|---|---|
+| 1080p window, 11 pt | 18 | 18 | 43 | 24 |
+| 4K window, 11 pt | 45 | 48 | 108 | 62 |
+| Thai, dense, 2x | 49 | 41 | 127 | 76 |
+| Myanmar, dense, 2x | 33 | 32 | 97 | 58 |
+| Korean, 1x | 24 | 31 | 88 | 58 |
+
+A Zen 3 runner takes 2.4 to 3.7 times as long as the M1 and a Zen 5 one 1.3
+to 2.4 times. The slowest frame, dense Thai on Zen 3, still reads in 0.13 s,
+where tesseract takes 0.7 to 2.6 s a page on the Linux VM.
+
+amd64 leaves 15 vector registers for floats against 32 on arm64, so the four
+by four pointwise tile spilled about 40 stack accesses per input channel
+there. amd64 takes a four by two tile with 5 instead. With both builds run in
+one job on the same runner, the narrower tile reads 1.22 times as fast on Zen
+3 and on Zen 5, and up to 1.5 times as fast on the dense frames. It makes
+arm64 8 to 25% slower, so arm64 keeps the wider tile.
 
 ## Milestone 1 gate (fixed 2026-11-21, before training)
 
