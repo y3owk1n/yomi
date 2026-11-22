@@ -336,3 +336,33 @@ func TestEngine_Read_RoutesEachLineToItsScriptsRecognizer(t *testing.T) {
 		})
 	}
 }
+
+// TestEngine_Read_SkipsRoundIconsOnRoutedLines reads mail rows whose unread
+// dots the CJK recognizer would read as 〇, through the routed engine, and
+// expects the rows' text without them.
+func TestEngine_Read_SkipsRoundIconsOnRoutedLines(t *testing.T) {
+	w, err := western.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := cjk.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := router.Model()
+	if err != nil {
+		t.Fatal(err)
+	}
+	e := yomi.New(w, yomi.WithModel(c), yomi.WithRouter(r))
+	lines, err := e.Read(context.Background(), loadFrame(t, "testdata/fixtures/mail-rows@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	if !strings.Contains(got, "profile review") {
+		t.Errorf("did not read the row's subject; read:\n%s", got)
+	}
+	if strings.Contains(got, "〇") {
+		t.Errorf("read a round icon as 〇; read:\n%s", got)
+	}
+}

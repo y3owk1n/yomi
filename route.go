@@ -98,3 +98,9 @@ func sureness(steps []nn.Step) float64 {
 	}
 	return sum / float64(n)
 }
+
+// roundIcon is what the CJK recognizer reads a round icon as. Nearly every 〇
+// standing alone on a screen is an icon rather than the ideographic zero, and
+// on the layout scenes they are half of the stray words routing adds. Other
+// symbols stay, since a ☆ or ✓ is as often text as an icon.
+const roundIcon = "〇"

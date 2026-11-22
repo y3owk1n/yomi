@@ -284,7 +284,13 @@ of the first is read by both recognizers, and the surer read kept. That
 recovers 0.7 points on those pages and reads about 4% of Western UI lines
 twice. The router sends some icons to CJK, which reads a round one as 〇
 and others as Han or Hangul characters where Western reads nothing. That
-nearly doubles the stray words on the layout scenes.
+nearly doubled the stray words on the layout scenes. A routed read now drops
+a word that is a lone 〇 when a recognizer other than the base read it, which
+takes the layout scenes from 75 / 77 stray words to 58 / 60 and changes no
+score on any set, since no page has a 〇 to read. Mail's unread dots were 16
+of them at each scale. Dropping every lone
+symbol took the stray words to 42 / 43 but lost the ☆ that mail draws as
+text, so ✓, ✕ and the rest stay.
 
 Two attempts at the Southeast Asian gap changed nothing. Router-4,
 fine-tuned from router-3 on lines with the current fonts, scored within 0.3

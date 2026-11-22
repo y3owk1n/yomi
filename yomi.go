@@ -21,6 +21,7 @@ import (
 	"io/fs"
 	"math"
 	"runtime"
+	"slices"
 	"sort"
 	"sync"
 
@@ -175,6 +176,9 @@ func (e *Engine) readBox(frame *image.RGBA, box image.Rectangle, scale int) []Wo
 		return nil
 	}
 	words := decode(steps, []rune(net.Alphabet), net.Stride, r.Sub(frame.Rect.Min), w, scale)
+	if net != e.model.net {
+		words = slices.DeleteFunc(words, func(w Word) bool { return w.Text == roundIcon })
+	}
 	settleScripts(words)
 	for i := range words {
 		logicalOrder(&words[i])
