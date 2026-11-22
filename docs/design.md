@@ -149,6 +149,40 @@ character tile, which CJK reads with, spilled the same way. Two steps per tile
 instead of four read the Korean frame 1.22 times as fast on an Intel Xeon
 6975P and 1.36 times on Zen 3, and leave the other frames as they were.
 
+AVX2 with FMA now runs the same four kernels as NEON on amd64, chosen at run
+time from CPUID, with the scalar tiles for an older CPU. Both builds timed in
+one job on the same runner, the fixture frames read 3.1 times as fast at the
+geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
+as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
+
+## Line finder fixes (measured 2026-11-22)
+
+Large figures on a dashboard read as noise, and following them turned up
+three faults in the line finder that touched every page. A stroke wider than
+six pixels, as in 26 px bold digits or the long horizontal strokes of Han
+characters, counted as background, since background is any even run that
+long. Glyphs broke into pieces, and a crop could start below a character's
+top stroke, so 不 read as 个 and 正 as 止. A short even run whose level
+differs from the runs on both sides, which agree with each other, now counts
+as ink. A large figure's comma, too tall for a small mark, became a line of its
+own, and with two members a line's baseline was the comma's. A one-blob line
+at most half the height of a line it sits in now joins it, and the baseline
+is the lower median. Crops that keep a glyph's top strokes run taller than its
+ink, so the gap that breaks a word fell from 0.8 to 0.75 line heights.
+
+| Set | Before (1x / 2x) | After (1x / 2x) |
+|---|---|---|
+| Layout scenes | 92.3% / 91.7% | 93.3% / 92.7% |
+| Code | 98.0% / 98.1% | 98.6% / 98.7% |
+| Western UI | 94.6% / 94.9% | 95.0% / 95.2% |
+| Right-to-left UI | 82.2% / 83.8% | 83.8% / 85.1% |
+| Hindi UI | 84.0% / 84.8% | 84.5% / 85.8% |
+| CJK UI (characters) | 91.8% / 92.1% | 92.5% / 92.2% |
+| Georgian, Armenian, Amharic, held out | 79.3% / 78.2% | 79.8% / 79.9% |
+
+Thai and the held-out Southeast Asian pages hold or gain. The layout scenes
+read 44 stray words at 2x where they read 33.
+
 ## NEON kernels (measured 2026-11-22)
 
 On arm64 the pointwise convolution, the depthwise rows, ReLU and the gated
