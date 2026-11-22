@@ -144,7 +144,10 @@ by four pointwise tile spilled about 40 stack accesses per input channel
 there. amd64 takes a four by two tile with 5 instead. With both builds run in
 one job on the same runner, the narrower tile reads 1.22 times as fast on Zen
 3 and on Zen 5, and up to 1.5 times as fast on the dense frames. It makes
-arm64 8 to 25% slower, so arm64 keeps the wider tile.
+arm64 8 to 25% slower, so arm64 keeps the wider tile. The gated head's
+character tile, which CJK reads with, spilled the same way. Two steps per tile
+instead of four read the Korean frame 1.22 times as fast on an Intel Xeon
+6975P and 1.36 times on Zen 3, and leave the other frames as they were.
 
 ## Milestone 1 gate (fixed 2026-11-21, before training)
 
