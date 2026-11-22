@@ -478,3 +478,31 @@ func TestEngine_Read_ReadsUnderlinedLinksAsWords(t *testing.T) {
 		}
 	}
 }
+
+// TestEngine_Read_FitsWordBoxesToTheInk expects a word's box to span its
+// line's ink, not the padded crop the recognizer read, so a short word in
+// large type keeps a word's shape: "21,780" in 34 px bold is wider than twice
+// its height.
+func TestEngine_Read_FitsWordBoxesToTheInk(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/heading-links.png"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, l := range lines {
+		for _, w := range l.Words {
+			if !w.Box.In(l.Box) {
+				t.Errorf("word %q box %v is outside its line's box %v", w.Text, w.Box, l.Box)
+			}
+			if w.Text == "21,780" {
+				found = true
+				if w.Box.Dx() <= 2*w.Box.Dy() {
+					t.Errorf("box of %q is %v, no wider than twice its height", w.Text, w.Box)
+				}
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("did not read %q:\n%s", "21,780", text(lines))
+	}
+}

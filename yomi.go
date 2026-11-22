@@ -45,7 +45,8 @@ func LoadModel(fsys fs.FS) (*Model, error) {
 }
 
 // Word is one word read off a frame. Box is in logical pixels (frame pixels
-// divided by the scale Read was given). Text is in logical order, so an
+// divided by the scale Read was given), and from Read it spans the line's ink
+// from top to bottom, as an app's own text bounds do. Text is in logical order, so an
 // Arabic or Hebrew word reads as written, not as drawn. Chars holds one box
 // per character of Text, in Text's order. Each spans from halfway to the
 // character drawn before it to halfway to the one drawn after, so the boxes
@@ -108,18 +109,20 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line
 		order[i] = i
 	}
 	// Longest lines first, so no worker is left with a long one at the end.
-	sort.Slice(order, func(a, b int) bool { return boxes[order[a]].Dx() > boxes[order[b]].Dx() })
+	sort.Slice(order, func(a, b int) bool { return boxes[order[a]].Crop.Dx() > boxes[order[b]].Crop.Dx() })
 	// Every line is prepared and routed before any is read, so the scripts
 	// the whole page is written in decide each line's recognizer.
 	preps := make([]prepared, len(boxes))
-	e.each(ctx, order, func(i int) { preps[i] = e.prepare(frame, boxes[i], scale) })
+	e.each(ctx, order, func(i int) { preps[i] = e.prepare(frame, boxes[i].Crop, scale) })
 	var page map[string]bool
 	if e.router != nil {
 		page = pageFamilies(preps)
 	}
 	lines := make([]Line, len(boxes))
 	e.each(ctx, order, func(i int) {
-		lines[i] = Line{Box: boxes[i], Words: e.readPrepared(frame, preps[i], scale, page)}
+		words := e.readPrepared(frame, preps[i], scale, page)
+		fitInk(words, boxes[i].Ink)
+		lines[i] = Line{Box: boxes[i].Crop, Words: words}
 	})
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -138,6 +141,19 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line
 		}
 	}
 	return out, nil
+}
+
+// fitInk gives words and their characters the top and bottom of ink, the
+// line's marks. The recognizer reads a crop padded above and below the text,
+// and boxes that tall make a short word look square.
+func fitInk(words []Word, ink image.Rectangle) {
+	for i := range words {
+		w := &words[i]
+		w.Box.Min.Y, w.Box.Max.Y = ink.Min.Y, ink.Max.Y
+		for j := range w.Chars {
+			w.Chars[j].Min.Y, w.Chars[j].Max.Y = ink.Min.Y, ink.Max.Y
+		}
+	}
 }
 
 // ReadLine reads box, a region of frame in logical pixels holding one line of

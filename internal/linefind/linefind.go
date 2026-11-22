@@ -510,8 +510,15 @@ const (
 	sideXH  = 0.5
 )
 
-// Find returns line boxes in logical pixels, sized for the recognizer.
-func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
+// Box is a line found in a frame, in logical pixels. Crop is the region the
+// recognizer reads, padded around the text the way it trained. Ink bounds the
+// line's marks.
+type Box struct {
+	Crop, Ink image.Rectangle
+}
+
+// Find returns the lines in img.
+func Find(img *image.RGBA, scale float64, p Params) []Box {
 	l, w, h := luma1x(img, scale)
 	bs := blobs(edges(l, w, h, p), w, h)
 
@@ -728,13 +735,16 @@ func Find(img *image.RGBA, scale float64, p Params) []image.Rectangle {
 		}
 	}
 
-	out := make([]image.Rectangle, 0, len(lines))
+	out := make([]Box, 0, len(lines))
 	for i, ln := range lines {
 		xh := xhs[i]
 		top := min(ln.y0-1, bases[i]-int(aboveXH*xh+0.5))
 		bot := max(ln.y1+2, bases[i]+1+int(belowXH*xh+0.5))
 		side := int(sideXH*xh + 0.5)
-		out = append(out, image.Rect(ln.x0-side, top, ln.x1+1+side, bot).Intersect(image.Rect(0, 0, w, h)))
+		out = append(out, Box{
+			Crop: image.Rect(ln.x0-side, top, ln.x1+1+side, bot).Intersect(image.Rect(0, 0, w, h)),
+			Ink:  image.Rect(ln.x0, ln.y0, ln.x1+1, ln.y1+1),
+		})
 	}
 	return out
 }
