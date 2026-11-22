@@ -17,12 +17,12 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	if h < 2 || w < 2 {
 		return nil, 0
 	}
-	g := make([]int32, h*w)
+	g := make([]uint8, h*w)
 	for y := range h {
 		row := img.Pix[(r.Min.Y+y-img.Rect.Min.Y)*img.Stride:]
 		for x := range w {
 			p := row[(r.Min.X+x-img.Rect.Min.X)*4:]
-			g[y*w+x] = (299*int32(p[0]) + 587*int32(p[1]) + 114*int32(p[2])) / 1000
+			g[y*w+x] = uint8((299*int32(p[0]) + 587*int32(p[1]) + 114*int32(p[2])) / 1000)
 		}
 	}
 	// Background: the luma most of the crop has. A crop fitted to a line of
@@ -38,9 +38,12 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 			bg = int32(v)
 		}
 	}
-	lo, hi := g[0], g[0]
-	for _, v := range g {
-		lo, hi = min(lo, v), max(hi, v)
+	lo, hi := int32(0), int32(255)
+	for hist[lo] == 0 {
+		lo++
+	}
+	for hist[hi] == 0 {
+		hi--
 	}
 	far, sign := hi, float32(-1)
 	if bg-lo >= hi-bg {
