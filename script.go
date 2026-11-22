@@ -1,6 +1,9 @@
 package yomi
 
-import "unicode"
+import (
+	"strings"
+	"unicode"
+)
 
 // Latin, Cyrillic and Greek share letters that draw the same in most fonts
 // (o, о and ο), so no recognizer can tell them apart from pixels. A word on
@@ -115,6 +118,59 @@ func settleScripts(words []Word) {
 		}
 		if changed {
 			words[i].Text = string(rs)
+		}
+	}
+}
+
+// Arabic and Persian write yeh and kaf with different letters, ي and ی, ك and
+// ک, that draw alike at the start and in the middle of a word and differ only
+// at its end. A recognizer reads the end, so settleYehKaf settles the rest on
+// the page's word endings: Persian and Urdu when more words end in ی or ک
+// than in ي or ك, Arabic otherwise. Letters only Persian and Urdu use are no
+// evidence, since the recognizer reads Arabic's dots as them now and then.
+var (
+	toArabic  = map[rune]rune{'ی': 'ي', 'ک': 'ك'}
+	toPersian = map[rune]rune{'ي': 'ی', 'ك': 'ک'}
+)
+
+func settleYehKaf(lines []Line) {
+	votes := 0
+	for _, l := range lines {
+		for _, w := range l.Words {
+			// The word's last Arabic letter, past any punctuation after it.
+			rs := []rune(w.Text)
+			end := len(rs) - 1
+			for end >= 0 && !(unicode.Is(unicode.Arabic, rs[end]) && unicode.IsLetter(rs[end])) {
+				end--
+			}
+			if end < 0 {
+				continue
+			}
+			switch rs[end] {
+			case 'ی', 'ک':
+				votes++
+			case 'ي', 'ك':
+				votes--
+			}
+		}
+	}
+	to := toArabic
+	if votes > 0 {
+		to = toPersian
+	}
+	for i := range lines {
+		for j := range lines[i].Words {
+			w := &lines[i].Words[j]
+			if !strings.ContainsAny(w.Text, "یکيك") {
+				continue
+			}
+			rs := []rune(w.Text)
+			for k := 0; k+1 < len(rs); k++ {
+				if c, ok := to[rs[k]]; ok && unicode.Is(unicode.Arabic, rs[k+1]) {
+					rs[k] = c
+				}
+			}
+			w.Text = string(rs)
 		}
 	}
 }

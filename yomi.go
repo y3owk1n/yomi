@@ -140,6 +140,7 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale int) ([]Line
 			out = append(out, l)
 		}
 	}
+	settleYehKaf(out)
 	return out, nil
 }
 

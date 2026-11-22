@@ -522,3 +522,37 @@ func TestEngine_Read_ReadsTextOnAButtonItsCropOverruns(t *testing.T) {
 		}
 	}
 }
+
+// TestEngine_Read_SettlesYehAndKafOnThePagesLanguage reads an Arabic page and
+// a Persian one. Yeh and kaf draw alike in the two at the start and in the
+// middle of a word, and each page should keep its own language's letters
+// there: ي and ك in Arabic, ی and ک in Persian.
+func TestEngine_Read_SettlesYehAndKafOnThePagesLanguage(t *testing.T) {
+	e := routedEngine(t)
+	tests := []struct {
+		frame      string
+		want, lose []string
+	}{
+		{"arabic-yeh@2x.png", []string{"تعديل", "خلايا"}, []string{"ی", "ک"}},
+		{"persian-yeh@2x.png", []string{"جنایتکار", "فیلتر", "کارهایی"}, []string{"ي", "ك"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.frame, func(t *testing.T) {
+			lines, err := e.Read(context.Background(), loadFrame(t, "testdata/fixtures/"+tt.frame), 2)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := text(lines)
+			for _, want := range tt.want {
+				if !strings.Contains(got, want) {
+					t.Errorf("did not read %q; read:\n%s", want, got)
+				}
+			}
+			for _, lose := range tt.lose {
+				if strings.Contains(got, lose) {
+					t.Errorf("read %q, the other language's letter; read:\n%s", lose, got)
+				}
+			}
+		})
+	}
+}
