@@ -2,9 +2,11 @@ package nn
 
 // positions runs a tile of four output channels over runs of eight positions
 // with NEON (pointwise4x8, kernels_arm64.s), four lanes per instruction, and
-// the scalar kernel over the four after them, and returns the first position
-// it left. A tile short of four channels, the last of a layer whose width is
-// not a multiple of four, takes the scalar kernel throughout.
+// returns the first position it left. The last run ends at n, overlapping the
+// one before, since a scalar tail costs as much as a third of the vector
+// work on a short line. A tile short of four channels, the last of a layer
+// whose width is not a multiple of four, or a line under eight positions,
+// takes the scalar kernel throughout.
 func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu bool) int {
 	cin := len(wt) / 4
 	end := n &^ 7
@@ -16,7 +18,10 @@ func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu b
 		r = 1
 	}
 	pointwise4x8(&wt[0], &in[0], &out[0], &b, cin, n, end, r)
-	return positions4(wt, b, in, out, end, n, nco, relu)
+	if end < n {
+		pointwise4x8(&wt[0], &in[n-8], &out[n-8], &b, cin, n, 8, r)
+	}
+	return n
 }
 
 // pointwise4x8 writes out[co*n+p] = b[co] + sum over ci of wt[ci*4+co] *

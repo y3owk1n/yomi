@@ -6,9 +6,11 @@ var hasAVX2 = cpuHasAVX2()
 
 // positions runs a tile of four output channels over runs of sixteen
 // positions with AVX2 (pointwise4x16, kernels_amd64.s), eight lanes per
-// instruction, and the scalar kernel over the rest, and returns the first
-// position it left. A tile short of four channels, the last of a layer whose
-// width is not a multiple of four, takes the scalar kernel throughout.
+// instruction, and returns the first position it left. The last run ends at
+// n, overlapping the one before, since a scalar tail costs as much as the
+// vector work on a short line. A tile short of four channels, the last of a
+// layer whose width is not a multiple of four, or a line under sixteen
+// positions, takes the scalar kernel throughout.
 func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu bool) int {
 	cin := len(wt) / 4
 	end := n &^ 15
@@ -20,7 +22,10 @@ func positions(wt []float32, b [4]float32, in, out []float32, n, nco int, relu b
 		r = 1
 	}
 	pointwise4x16(&wt[0], &in[0], &out[0], &b, cin, n, end, r)
-	return positions2(wt, b, in, out, end, n, nco, relu)
+	if end < n {
+		pointwise4x16(&wt[0], &in[n-16], &out[n-16], &b, cin, n, 16, r)
+	}
+	return n
 }
 
 // pointwise4x16 writes out[co*n+p] = b[co] + sum over ci of wt[ci*4+co] *
