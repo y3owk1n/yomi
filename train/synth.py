@@ -13,6 +13,7 @@ import glob
 import math
 import os
 import random
+import re
 
 import numpy as np
 from fontTools.ttLib import TTFont
@@ -191,7 +192,14 @@ def render(rng, text, primary, fallbacks, scale, other_text, shaped=False):
     subpixel = not shaped and rng.random() < 0.1
     label = text
     if shaped:
-        a, line_h, label = shaping.coverage(text, primary, px, weight, supersample)
+        # A monospaced font without the script draws its own wide space between
+        # fallback glyphs, as code and terminals show it: about two of the
+        # script font's spaces.
+        wide = rng.random() < 0.15
+        src = text.replace(" ", "  ") if wide else text
+        a, line_h, label = shaping.coverage(src, primary, px, weight, supersample)
+        if wide:
+            label = re.sub(" +", " ", label)
     else:
         a, line_h = coverage(text, primary, fallbacks, px, weight, supersample, subpixel)
     if a is None:
