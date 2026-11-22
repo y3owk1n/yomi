@@ -155,6 +155,22 @@ timed in one job on the same runner, the fixture frames read 3.1 times as
 fast at the geometric mean on Zen 5 and on Zen 4, and dense Thai and Myanmar 5 to 7 times
 as fast: small Thai at 2x goes from 85 to 12 ms, a 4K window from 42 to 30 ms.
 
+## Gradient backgrounds (measured 2026-11-22)
+
+A video page in a dark theme draws its title in white over a soft gradient,
+YouTube's glow behind the player. The gradient spread over lumas 30 to 45
+while the text sat on 239, so the commonest single luma was the text's. The
+crop read inverted, the router called it no text, and the title read as
+nothing. The background is now the busiest band of 17 lumas, then the
+commonest luma in it. Every evaluation set reads exactly as before, and the
+title now goes to the CJK recognizer.
+
+That recognizer still reads only half the title's characters right. The title
+is bold at about 20 px, beyond training's 10 to 18 px, and it reads perfectly
+only from a crop with a fifth of its height below the ink. A minimum of that
+much costs Thai UI pages 0.9 points and right-to-left 0.6, so the crop stays
+and the fix belongs in training, with larger and bolder type.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and

@@ -7,6 +7,9 @@ import (
 	"math"
 )
 
+// bgBand is how far either side of a luma the background's band reaches.
+const bgBand = 8
+
 // Prepare reproduces train/prep.py: integer luma, ink strength against the
 // crop's commonest luma, underlines erased, integer box downsample when the
 // crop is at least twice Height, then bilinear (half-pixel centres, edge
@@ -27,15 +30,28 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	}
 	// Background: the luma most of the crop has. A crop fitted to a line of
 	// text is mostly background, and its border can run past the edge of the
-	// button or field the text sits in.
+	// button or field the text sits in. A background drawn as a gradient, as
+	// behind a video's title, spreads over many lumas while solid text sits on
+	// one, so the pick is the busiest band of bgBand lumas first, then the
+	// commonest luma in it.
 	var hist [256]int
 	for _, v := range g {
 		hist[v]++
 	}
-	var bg int32
+	band, best := 0, -1
 	for v := range hist {
+		n := 0
+		for u := max(0, v-bgBand); u <= min(255, v+bgBand); u++ {
+			n += hist[u]
+		}
+		if n > best {
+			band, best = v, n
+		}
+	}
+	bg := int32(max(0, band-bgBand))
+	for v := bg; v <= int32(min(255, band+bgBand)); v++ {
 		if hist[v] > hist[bg] {
-			bg = int32(v)
+			bg = v
 		}
 	}
 	lo, hi := int32(0), int32(255)

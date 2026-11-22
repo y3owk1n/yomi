@@ -276,6 +276,23 @@ func TestEngine_Read_KeepsTightlySetThaiRowsApart(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_ReadsTextOnAGradient reads white text on a dark gradient,
+// as behind a video's title. The gradient spreads over many lumas while the
+// text sits on one, and the text, read as the background, once inverted every
+// line to nothing.
+func TestEngine_Read_ReadsTextOnAGradient(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/gradient-title@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"挑戰世界經典馬拉松", "Weekly highlights from the marathon finish line"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
+	}
+}
+
 // TestEngine_Read_ReadsFractionalScales reads the tight Thai rows captured at
 // 1.25 and 1.5 pixels per point, as a display scaled to 125% or 150% draws
 // them. Read as a whole 2x frame, the text comes out at 0.625 or 0.75 of its

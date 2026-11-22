@@ -24,7 +24,12 @@ def luma(rgb):
 
 
 def ink(gray):
-    bg = int(np.bincount(gray.ravel(), minlength=256).argmax())
+    # The busiest band of 17 lumas, then its commonest luma, so a gradient
+    # background outweighs solid text (prep.go).
+    hist = np.bincount(gray.ravel(), minlength=256)
+    band = int(np.convolve(hist, np.ones(17, dtype=np.int64), mode="same").argmax())
+    lo = max(0, band - 8)
+    bg = lo + int(hist[lo:band + 9].argmax())
     far = gray.min() if bg - gray.min() >= gray.max() - bg else gray.max()
     span = max(32, abs(bg - int(far)))
     sign = 1 if far < bg else -1
