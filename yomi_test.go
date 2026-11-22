@@ -429,3 +429,21 @@ func TestEngine_Read_ReadsLargeFigures(t *testing.T) {
 		}
 	}
 }
+
+// TestEngine_Read_ReadsLatinBesideAnArrowAsLatin reads dashboard captions, a
+// word and an arrow, which the router sends to the Indic recognizer, and
+// expects them in Latin. A recognizer for another script that reads a line as
+// mostly ASCII hands it to the base recognizer.
+func TestEngine_Read_ReadsLatinBesideAnArrowAsLatin(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/figures@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	if strings.ContainsFunc(got, func(r rune) bool { return unicode.Is(unicode.Malayalam, r) }) {
+		t.Errorf("read a Latin caption as Malayalam:\n%s", got)
+	}
+	if !strings.Contains(got, "gamma →") {
+		t.Errorf("did not read the caption %q:\n%s", "gamma →", got)
+	}
+}

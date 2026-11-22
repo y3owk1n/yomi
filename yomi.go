@@ -24,6 +24,7 @@ import (
 	"slices"
 	"sort"
 	"sync"
+	"unicode"
 
 	"github.com/y3owk1n/yomi/internal/linefind"
 	"github.com/y3owk1n/yomi/internal/nn"
@@ -206,7 +207,8 @@ func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale int, page map
 		steps []nn.Step
 		sure  float64
 	)
-	for _, n := range e.pick(p.route, page) {
+	tried := e.pick(p.route, page)
+	for _, n := range tried {
 		st := n.Steps(p.x, p.w, s)
 		if v := sureness(st); net == nil || v > sure {
 			net, steps, sure = n, st, v
@@ -214,6 +216,14 @@ func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale int, page map
 	}
 	if net == nil {
 		return nil
+	}
+	// A line another script's recognizer reads as mostly ASCII is Latin it was
+	// sent away from, often for an arrow or icon beside a word, and the base
+	// recognizer reads it too. The surer read stays.
+	if net != e.model.net && !slices.Contains(tried, e.model.net) && mostlyASCII(steps, []rune(net.Alphabet)) {
+		if st := e.model.net.Steps(p.x, p.w, s); sureness(st) >= sure {
+			net, steps = e.model.net, st
+		}
 	}
 	words := decode(steps, []rune(net.Alphabet), net.Stride, p.r.Sub(frame.Rect.Min), p.w, scale)
 	if net != e.model.net {
@@ -224,6 +234,25 @@ func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale int, page map
 		logicalOrder(&words[i])
 	}
 	return words
+}
+
+// mostlyASCII reports whether at least half the characters steps read are
+// ASCII letters or digits.
+func mostlyASCII(steps []nn.Step, alpha []rune) bool {
+	ascii, n, prev := 0, 0, 0
+	for _, st := range steps {
+		if st.Class != prev && st.Class != 0 {
+			c := alpha[st.Class-1]
+			if c != ' ' {
+				n++
+				if c < 0x80 && (unicode.IsLetter(c) || unicode.IsDigit(c)) {
+					ascii++
+				}
+			}
+		}
+		prev = st.Class
+	}
+	return n > 0 && ascii*2 >= n
 }
 
 // loneFloor is the confidence a one-character word needs. On the layout
