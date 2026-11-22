@@ -157,9 +157,6 @@ Every script together is 13 MB.
 
 ## Where yomi is behind
 
-- **Low-contrast text.** Light grey on dark grey, as in an unfocused window or
-  a disabled control, can read as noise. A model trained with dimmed and faint
-  text is training now.
 - **Large display text and some symbols.** Figures at about 28 pt on a
   dashboard misread, and an arrow beside a word can read as a letter of
   another script.
