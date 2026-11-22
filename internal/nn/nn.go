@@ -3,12 +3,12 @@
 package nn
 
 import (
-	"slices"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/fs"
 	"math"
+	"slices"
 )
 
 // layer is one step of the network as export.py writes it: a convolution
