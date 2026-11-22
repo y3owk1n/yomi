@@ -275,6 +275,29 @@ languages, Windows' OCR engines and Vision's languages.
 Vision has two baselines on macOS. Vision fast is what hints read with and
 Vision accurate is what vim reads with.
 
+## Against Windows.Media.Ocr (measured 2026-11-22)
+
+The evaluation sets read in the Windows 11 arm64 VM by `train/winocr.ps1`,
+which gives each page an engine for its own language, its best case.
+Windows has no OCR pack for Hebrew, Ukrainian or Vietnamese, so those pages
+are left out for both engines. Accuracy is the current yomi's over the same
+pages. Times are each engine's median ms per page in the VM.
+
+| Set | yomi | Windows.Media.Ocr | yomi, Windows ms at 1x | at 2x |
+|---|---|---|---|---|
+| Code | **98.6% / 98.7%** | 88.9% / 98.1% | 121, 104 | 138, 192 |
+| English (Linux pages) | **98.8%** | 91.5% | 95, 113 | |
+| Layout scenes | **93.3% / 93.0%** | 86.2% / 90.8% | 105, 115 | 100, 252 |
+| Layout stray words | **45 / 43** | 70 / 96 | | |
+| Western UI, 15 languages | **95.4% / 95.6%** | 86.8% / 93.5% | 94, 171 | 94, 289 |
+| CJK UI (characters) | **92.5%** / 92.2% | 86.1% / **93.4%** | 420, 591 | 417, 1,006 |
+| Arabic UI | **83.5%** / 85.4% | 56.3% / **87.4%** | 118, 1,672 | 133, 1,692 |
+
+Against the milestone 6 gate, Windows passes stray words and speed and
+misses accuracy on two sets at 2x. Windows.Media.Ocr reads CJK 1.2 points
+better and Arabic 2 points better there. At 1x yomi leads both by 6 and 27
+points.
+
 ## Against PaddleOCR (measured 2026-11-22)
 
 The same Mac UI and held-out pages, read by three engines: Vision accurate,

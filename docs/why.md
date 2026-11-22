@@ -59,8 +59,8 @@ three sets of quirks and three answers to "why did this read wrong".
   in the margins. Text comes from word lists and real interface strings, and
   the evaluation pages use Apple's own UI strings, which training never sees.
 - **Small and fast.** Each recognizer is a convolutional network with CTC
-  decoding. On arm64 the hot loops run in NEON assembly, on amd64 in
-  register tiles sized for its 16 vector registers.
+  decoding. On arm64 the hot loops run in NEON assembly, on amd64 in AVX2
+  with FMA, and in plain Go on a CPU without them.
 - **Private by construction.** No network, no logs. Frames and text live only
   for the call.
 
@@ -130,16 +130,24 @@ engines rather than measure either.
 
 ### On Windows, against Windows.Media.Ocr
 
-On fresh English text in a Windows VM, Windows.Media.Ocr reads 88.9% at 1x
-and 98.1% at 2x, and yomi 97.7% at both. The full comparison across scripts
-is still running.
+Both read the same pages in a Windows 11 VM, Windows.Media.Ocr with each
+page's own language pack. Windows has no pack for Hebrew, Ukrainian or
+Vietnamese, so those pages are left out.
+
+| Set | yomi | Windows.Media.Ocr | Time per page at 2x, yomi / Windows |
+|---|---|---|---|
+| Code | **98.6% / 98.7%** | 88.9% / 98.1% | 138 / 192 ms |
+| Western UI, 15 languages | **95.4% / 95.6%** | 86.8% / 93.5% | 94 / 289 ms |
+| CJK UI | **92.5%** / 92.2% | 86.1% / **93.4%** | 417 / 1,006 ms |
+| Arabic UI | **83.5%** / 85.4% | 56.3% / **87.4%** | 133 / 1,692 ms |
+| App layouts, stray words | **45 / 43** | 70 / 96 | 100 / 252 ms |
 
 ### Speed on x86
 
-CI times a frame read with every recognizer and the router on GitHub's hosted
-runners. A 4K window reads in 44 ms on a 4-core arm64 runner and 60 to 110 ms
-on 4-core x86 ones, and the densest test frame, small Thai at 2x, in 15 to
-21 ms on arm64 and 94 to 121 ms on x86. x86 has no vector kernels yet.
+On amd64 the hot loops run in AVX2 with FMA when the CPU has them, chosen at
+run time. On GitHub's hosted x86 runners that reads the test frames 3.1
+times as fast as plain Go at the geometric mean: a 4K window in 30 ms and
+the densest frame, small Thai at 2x, in 12 ms.
 
 ### Size
 
@@ -158,13 +166,11 @@ read every evaluation set within 0.2 points of float32 and halve the size.
 
 ## Where yomi is behind
 
-- **Large display text and some symbols.** Figures at about 28 pt on a
-  dashboard misread, and an arrow beside a word can read as a letter of
-  another script.
 - **Long prose.** Vision accurate reads an article at 99.6%, yomi at 94.5%.
 - **Hindi and Arabic** trail Vision by 5 to 8 points at 2x, and Myanmar,
   Armenian and Amharic sit below 80%.
-- **CJK** trails PaddleOCR by about 4 points.
+- **CJK** trails PaddleOCR by about 4 points, and CJK and Arabic at 2x trail
+  Windows.Media.Ocr by 1 to 2 points.
 - **Fractional scales.** A capture at 1.25 pixels per point reads about 2
   points below the same text at 1x.
 
