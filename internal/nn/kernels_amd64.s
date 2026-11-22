@@ -84,8 +84,8 @@ done:
 	VZEROUPPER
 	RET
 
-// func dot4x2(w0, w1, w2, w3, h0, h1 *float32, r int, acc *[64]float32)
-TEXT ·dot4x2(SB), NOSPLIT, $0-64
+// func dot4x2(w0, w1, w2, w3, h0, h1 *float32, r int, b *[4]float32, z0, z1 *float32)
+TEXT ·dot4x2(SB), NOSPLIT, $0-80
 	MOVQ w0+0(FP), SI
 	MOVQ w1+8(FP), DI
 	MOVQ w2+16(FP), R8
@@ -93,7 +93,9 @@ TEXT ·dot4x2(SB), NOSPLIT, $0-64
 	MOVQ h0+32(FP), R10
 	MOVQ h1+40(FP), R11
 	MOVQ r+48(FP), CX
-	MOVQ acc+56(FP), DX
+	MOVQ b+56(FP), DX
+	MOVQ z0+64(FP), R12
+	MOVQ z1+72(FP), R13
 	VXORPS Y0, Y0, Y0
 	VXORPS Y1, Y1, Y1
 	VXORPS Y2, Y2, Y2
@@ -127,14 +129,24 @@ loopK:
 	SUBQ        $8, CX
 	JNZ         loopK
 
-	VMOVUPS Y0, (DX)
-	VMOVUPS Y1, 32(DX)
-	VMOVUPS Y2, 64(DX)
-	VMOVUPS Y3, 96(DX)
-	VMOVUPS Y4, 128(DX)
-	VMOVUPS Y5, 160(DX)
-	VMOVUPS Y6, 192(DX)
-	VMOVUPS Y7, 224(DX)
+	// Y(w*2+s) holds class w's lane sums for step s. Two rounds of horizontal
+	// adds and the high half added to the low give step s one vector of its
+	// four classes' logits, which sit next to each other in z.
+	VMOVUPS      (DX), X15
+	VHADDPS      Y2, Y0, Y8
+	VHADDPS      Y6, Y4, Y9
+	VHADDPS      Y9, Y8, Y10
+	VEXTRACTF128 $1, Y10, X11
+	VADDPS       X11, X10, X10
+	VADDPS       X10, X15, X10
+	VMOVUPS      X10, (R12)
+	VHADDPS      Y3, Y1, Y8
+	VHADDPS      Y7, Y5, Y9
+	VHADDPS      Y9, Y8, Y10
+	VEXTRACTF128 $1, Y10, X11
+	VADDPS       X11, X10, X10
+	VADDPS       X10, X15, X10
+	VMOVUPS      X10, (R13)
 	VZEROUPPER
 	RET
 
