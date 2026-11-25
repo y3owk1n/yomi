@@ -91,8 +91,8 @@ class Writer:
 def settled(word):
     """Whether a word's visual order is its own on a right-to-left line. A
     word with no right-to-left letter keeps its order only when it starts
-    and ends with a letter or digit and has no currency or percent sign:
-    after Arabic, "$638" draws as "638$"."""
+    and ends with a letter or digit and has no currency or percent sign.
+    After Arabic, "$638" draws as "638$"."""
     if any(unicodedata.bidirectional(ch) in ("R", "AL") for ch in word):
         return True
     return word[0].isalnum() and word[-1].isalnum() and not any(unicodedata.bidirectional(ch) == "ET" for ch in word)

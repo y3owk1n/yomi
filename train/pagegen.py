@@ -16,7 +16,7 @@ import sys
 
 TRAIN = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TRAIN)
-from families import FAMILIES  # noqa: E402
+from families import FAMILIES, ROUTED  # noqa: E402
 
 DISPLAY_LATIN = ["Anton-Regular", "Oswaldwght", "PlayfairDisplaywght", "AbrilFatface-Regular",
                  "Lobster-Regular", "Pacifico-Regular", "ArchivoBlack-Regular", "Montserratwght", "Poppins-Bold",
@@ -260,8 +260,10 @@ def main():
     out, count = sys.argv[1], int(sys.argv[2])
     rng = random.Random(int(sys.argv[3]) if len(sys.argv) > 3 else 1)
     families = sys.argv[4].split(",") if len(sys.argv) > 4 else ["western", "cjk"]
+    if not set(families) <= set(ROUTED):
+        sys.exit(f"families must be among {','.join(ROUTED)}")
     os.makedirs(os.path.join(out, "fonts"), exist_ok=True)
-    # Every family's train fonts, since FALLBACK names them all.
+    # Every family's train fonts, which hold everything FALLBACK names.
     dirs = {d for f in FAMILIES.values() for d in f[3]["train"]} | {"display"}
     srcs = [s for d in sorted(dirs) for s in glob.glob(os.path.join(TRAIN, "fonts", d, "*.ttf"))]
     fonts = []
