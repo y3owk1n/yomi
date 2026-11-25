@@ -60,7 +60,7 @@ A program links only the models it imports.
 | `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 95.4% / 95.9% of UI characters | 94.1% / 93.7% |
 | `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 82.8% / 85.6%, Hebrew 86.0% / 86.9% of UI words | Arabic 81.6% / 87.3%, Hebrew 2.3% |
 | `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 89.8% / 89.6% of UI words | 92.1% / 92.4% |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 97.6% / 97.8% of UI characters | 94.7% / 94.7% |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 97.9% / 98.0% of UI characters | 94.7% / 94.7% |
 | `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB | 92.0%, 84.0% and 77.5% of held-out words at 1x | 15%, 12% and 20% |
 | `models/latin` | printable ASCII | 0.6 MB | English only | |
 | `models/router` | names each line's script family | 0.1 MB | | |
