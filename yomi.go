@@ -115,7 +115,7 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale float64) ([]
 	// the whole page is written in decide each line's recognizer.
 	preps := make([]prepared, len(boxes))
 	e.each(ctx, order, func(i int) { preps[i] = e.prepare(frame, boxes, i, scale) })
-	var page map[string]bool
+	var page map[string]int
 	if e.router != nil {
 		page = pageFamilies(preps)
 	}
@@ -239,7 +239,7 @@ func (e *Engine) prepare(frame *image.RGBA, boxes []linefind.Box, i int, scale f
 }
 
 // readPrepared reads p with the recognizers pick chooses for it on page.
-func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale float64, page map[string]bool) []Word {
+func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale float64, page map[string]int) []Word {
 	if p.x == nil {
 		return nil
 	}
@@ -250,7 +250,7 @@ func (e *Engine) readPrepared(frame *image.RGBA, p prepared, scale float64, page
 		steps []nn.Step
 		sure  float64
 	)
-	tried := e.pick(p.route, page)
+	tried := e.pick(p.route, p.w, page)
 	for _, n := range tried {
 		st := n.Steps(p.x, p.w, s)
 		if v := sureness(st); net == nil || v > sure {

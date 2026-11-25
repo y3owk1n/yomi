@@ -2,6 +2,7 @@ package yomi
 
 import (
 	"math"
+	"slices"
 	"sort"
 
 	"github.com/y3owk1n/yomi/internal/nn"
@@ -27,6 +28,13 @@ func WithRouter(r *Model) Option {
 // 2, about 4% of Western UI lines and 14% of held-out Southeast Asian lines
 // take a second read.
 const secondReadMargin = 2
+
+// mainReadMargin is how close the router's runner-up comes, in mean
+// log-probability per step, for a line at least pageWidth wide to read with
+// the page's main family as well. Display type the router rarely saw, as a
+// bold Thai headline or a short bold menu label, leads by 2 to 3 for the
+// wrong family.
+const mainReadMargin = 4
 
 // route is the router's view of a line: each class's mean log-probability
 // per step, best first.
@@ -80,24 +88,26 @@ const (
 	pageWidth  = 64
 )
 
-// pageFamilies returns the families the lines of one page are written in.
-func pageFamilies(lines []prepared) map[string]bool {
-	page := map[string]bool{}
+// pageFamilies returns the families the lines of one page are written in,
+// each with how many of its lines the router picked it for confidently.
+func pageFamilies(lines []prepared) map[string]int {
+	page := map[string]int{}
 	for _, l := range lines {
 		r := l.route
 		if len(r.labels) > 1 && l.w >= pageWidth && r.scores[0]-r.scores[1] >= pageMargin {
-			page[r.labels[0]] = true
+			page[r.labels[0]]++
 		}
 	}
 	return page
 }
 
-// pick returns the recognizers to read a line the router saw as r: the
-// router's family, then the runner-up when it comes within secondReadMargin.
-// A family not on page reads with the model New was given instead, and a nil
-// page holds every family. It returns nil when the router finds no text in
-// the line.
-func (e *Engine) pick(r route, page map[string]bool) []*nn.Model {
+// pick returns the recognizers to read a line w prepared pixels wide that
+// the router saw as r: the router's family, then the runner-up when it comes
+// within secondReadMargin, then the page's main family when the runner-up
+// comes within mainReadMargin. A family not on page reads with the model New
+// was given instead, and a nil page holds every family. It returns nil when
+// the router finds no text in the line.
+func (e *Engine) pick(r route, w int, page map[string]int) []*nn.Model {
 	if e.router == nil {
 		return []*nn.Model{e.model.net}
 	}
@@ -105,18 +115,41 @@ func (e *Engine) pick(r route, page map[string]bool) []*nn.Model {
 		return nil
 	}
 	onPage := func(family string) bool {
-		return page == nil || page[family] || e.recognizer(family) == e.model.net
+		return page == nil || page[family] > 0 || e.recognizer(family) == e.model.net
+	}
+	margin := r.scores[0] - r.scores[1]
+	// A line the router is unsure of, as a heading in a display weight it
+	// rarely saw, also reads with the family most of the page is in.
+	withMain := func(nets []*nn.Model) []*nn.Model {
+		if main := mainFamily(page); margin < mainReadMargin && w >= pageWidth && main != "" {
+			if n := e.recognizer(main); !slices.Contains(nets, n) {
+				nets = append(nets, n)
+			}
+		}
+		return nets
 	}
 	if !onPage(r.labels[0]) {
-		return []*nn.Model{e.model.net}
+		return withMain([]*nn.Model{e.model.net})
 	}
 	nets := []*nn.Model{e.recognizer(r.labels[0])}
-	if second := r.labels[1]; second != "none" && onPage(second) && r.scores[0]-r.scores[1] < secondReadMargin {
+	if second := r.labels[1]; second != "none" && onPage(second) && margin < secondReadMargin {
 		if n := e.recognizer(second); n != nets[0] {
 			nets = append(nets, n)
 		}
 	}
-	return nets
+	return withMain(nets)
+}
+
+// mainFamily is the family the most lines of page are confidently in, or ""
+// for none.
+func mainFamily(page map[string]int) string {
+	main, best := "", 0
+	for f, n := range page {
+		if n > best || n == best && f < main {
+			main, best = f, n
+		}
+	}
+	return main
 }
 
 // recognizer returns the recognizer added for family, or the model New was
