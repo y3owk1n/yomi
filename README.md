@@ -56,11 +56,11 @@ A program links only the models it imports.
 
 | Package | Scripts | Size | yomi (1x / 2x) | Vision accurate (1x / 2x) |
 |---|---|---|---|---|
-| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB | 95.3% / 95.5% of UI words | 86.3% / 86.3% |
-| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 95.4% / 95.5% of UI characters | 94.1% / 93.7% |
-| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 83.1% / 86.0%, Hebrew 86.3% / 87.2% of UI words | Arabic 81.6% / 87.3%, Hebrew 2.3% |
-| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 89.5% / 89.3% of UI words | 92.1% / 92.4% |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 97.3% / 97.5% of UI characters | 94.7% / 94.7% |
+| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB | 95.3% / 95.6% of UI words | 86.3% / 86.3% |
+| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 95.4% / 95.9% of UI characters | 94.1% / 93.7% |
+| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 83.0% / 85.8%, Hebrew 86.3% / 87.3% of UI words | Arabic 81.6% / 87.3%, Hebrew 2.3% |
+| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 89.6% / 89.4% of UI words | 92.1% / 92.4% |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 97.4% / 97.7% of UI characters | 94.7% / 94.7% |
 | `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB | 91.1%, 85.2% and 67.2% of held-out words at 1x | 15%, 12% and 20% |
 | `models/latin` | printable ASCII | 0.6 MB | English only | |
 | `models/router` | names each line's script family | 0.1 MB | | |
