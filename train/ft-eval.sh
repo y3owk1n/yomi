@@ -3,7 +3,8 @@
 # models (restored on exit, so commit models first), and scores it on every eval set, the web dev and
 # held-out sets (data/web-dev, data/web-heldout, rendered by urlrender.swift
 # and read by Vision into runs/vision-accurate.jsonl), and the private real
-# captures when data/real-bench exists. Usage: ft-eval.sh TAG [western=PT] [cjk=PT]
+# captures when data/real-bench exists. Usage: ft-eval.sh TAG [DIR=PT]...
+# where DIR is the package under models/ (western, cjk, router, caucasian).
 set -e
 TAG=$1; shift
 cd "$(dirname "$0")"
@@ -13,7 +14,7 @@ for kv in "$@"; do
   fam=${kv%%=*}; pt=${kv#*=}
   out=data/exp-$TAG-$fam
   rm -rf $out
-  .venv/bin/python export.py $pt $out $fam > /dev/null
+  .venv/bin/python export.py $pt $out > /dev/null
   cp $out/model.json $out/weights.bin $ROOT/models/$fam/
 done
 (cd $ROOT && go build -o bin/yomi-$TAG ./cmd/yomi)
