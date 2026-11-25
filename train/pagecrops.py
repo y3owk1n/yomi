@@ -4,24 +4,28 @@ finder's own crops (bin/crops), labelled from the page's DOM words.
 A crop keeps only when every word whose centre and middle sit in it is whole
 inside it and visible (the page rendered without its text differs from it
 there), and no other word reaches into it. A crop with no word near it is a
-negative and reads as nothing. Lines go to OUT-western or OUT-cjk in
-prerender.py's format, Latin-only lines from CJK pages to Western.
+negative and reads as nothing. Lines go to OUT-FAMILY in prerender.py's
+format (family_of says which), and every line also goes to OUT-router with
+its routed family as the label.
 
 Usage: python pagecrops.py PAGEDIR OUT [NEG_KEEP]
 """
 import array
 import json
 import os
+import random
 import subprocess
 import sys
+import unicodedata
 
 import numpy as np
 from PIL import Image
 
 TRAIN = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TRAIN)
-from charsets import CJK, WESTERN  # noqa: E402
+from families import FAMILIES, ROUTED  # noqa: E402
 from prep import prepare  # noqa: E402
+from shaping import runs  # noqa: E402
 from synth import Alphabet, coverage_of  # noqa: E402
 
 CROPS = os.path.join(TRAIN, "..", "bin", "crops")
@@ -30,9 +34,22 @@ VISIBLE = 40  # 90th percentile luma difference a word needs against the textles
 # other character came from a system font and stays out.
 COVERED = set()
 for _f in ["train/Arimowght.ttf", "train/NotoSanswdth_wght.ttf", "cjk-train/NotoSansJPwght.ttf", "cjk-train/NotoSansKRwght.ttf",
-           "cjk-train/NotoSansSCwght.ttf", "cjk-train/NotoSansTCwght.ttf"]:
+           "cjk-train/NotoSansSCwght.ttf", "cjk-train/NotoSansTCwght.ttf", "rtl-train/NotoSansArabicwdth_wght.ttf",
+           "rtl-train/NotoSansHebrewwdth_wght.ttf"] + \
+        [f"indic-train/NotoSans{s}wdth_wght.ttf" for s in
+         ["Devanagari", "Bengali", "Gujarati", "Gurmukhi", "Kannada", "Malayalam", "Sinhala", "Tamil", "Telugu"]] + \
+        [f"sea-train/NotoSans{s}wdth_wght.ttf" for s in ["Thai", "Lao", "Khmer", "Myanmar"]] + \
+        [f"cau-train/NotoSans{s}wdth_wght.ttf" for s in ["Georgian", "Armenian", "Ethiopic"]]:
     COVERED |= {chr(c) for c in coverage_of(os.path.join(TRAIN, "fonts", _f))}
-ALPHA = {"western": (set(WESTERN), Alphabet(WESTERN)), "cjk": (set(CJK), Alphabet(CJK))}
+rng = random.Random(0)
+ALPHA = {f: (set(FAMILIES[f][0]), Alphabet(FAMILIES[f][0])) for f in ROUTED}
+
+
+def visual(word):
+    """A word in the order the shaped families train on: right-to-left runs
+    reversed, as shaping.coverage labels its lines."""
+    base_rtl, rs = runs(word)
+    return "".join(t[::-1] if rtl else t for rtl, t in (reversed(rs) if base_rtl else rs))
 
 
 def luma(a):
@@ -71,14 +88,43 @@ class Writer:
         return len(self.widths)
 
 
-def label_of(words):
+def settled(word):
+    """Whether a word's visual order is its own on a right-to-left line. A
+    word with no right-to-left letter keeps its order only when it starts
+    and ends with a letter or digit and has no currency or percent sign:
+    after Arabic, "$638" draws as "638$"."""
+    if any(unicodedata.bidirectional(ch) in ("R", "AL") for ch in word):
+        return True
+    return word[0].isalnum() and word[-1].isalnum() and not any(unicodedata.bidirectional(ch) == "ET" for ch in word)
+
+
+def label_of(words, rtl):
+    """The line's words left to right, or None when bidi context would order
+    one differently. On a right-to-left page each word is in visual order,
+    and the word on the right is the one logically before."""
     words = sorted(words, key=lambda w: w["x"])
+    if rtl and not all(settled(w["t"]) for w in words):
+        return None
     h = float(np.median([w["h"] for w in words]))
-    out = words[0]["t"]
-    for a, b in zip(words, words[1:]):
+    t = [visual(w["t"]) if rtl else w["t"] for w in words]
+    out = t[0]
+    for k, (a, b) in enumerate(zip(words, words[1:]), 1):
         gap = b["x"] - (a["x"] + a["w"])
-        out += (" " if b.get("sp") or gap > 0.3 * h else "") + b["t"]
+        out += (" " if (a if rtl else b).get("sp") or gap > 0.3 * h else "") + t[k]
     return out
+
+
+def family_of(chars, page):
+    """The family a line trains: Latin-only lines go to Western (one in twenty
+    stays with its page's family, which must read embedded Latin too), the
+    rest to their page's family when it covers them, else the first that
+    does, as the router labels them."""
+    fams = [f for f in ROUTED if chars <= ALPHA[f][0]]
+    if not fams:
+        return None
+    if fams[0] == "western" and page in fams and page != "western":
+        return page if rng.random() < 0.05 else "western"
+    return page if page in fams else fams[0]
 
 
 def main():
@@ -94,9 +140,10 @@ def main():
         for rec in map(json.loads, r.stdout.splitlines()):
             boxes[(rec["page"], scale)] = rec["boxes"] or []
     writers = {f: Writer(f"{out}-{f}") for f in ALPHA}
-    rng = np.random.default_rng(0)
-    stats = {"kept": 0, "cut": 0, "intrusion": 0, "invisible": 0, "alphabet": 0, "neg": 0}
+    router = Writer(f"{out}-router")
+    stats = {"kept": 0, "cut": 0, "intrusion": 0, "invisible": 0, "alphabet": 0, "bidi": 0, "neg": 0}
     for n in names:
+        page = n.rsplit("-", 1)[0]
         words = json.load(open(os.path.join(d, n + ".json")))
         full = luma(np.asarray(Image.open(os.path.join(d, n + "@2x.png")).convert("RGB")))
         bare = luma(np.asarray(Image.open(os.path.join(d, n + "-bare@2x.png")).convert("RGB")))
@@ -131,27 +178,33 @@ def main():
                 if bad:
                     stats[bad] += 1
                     continue
-                text = label_of(inl) if inl else ""
+                text = label_of(inl, page == "rtl") if inl else ""
+                if text is None:
+                    stats["bidi"] += 1
+                    continue
                 chars = set(text) - {" "}
-                fams = [f for f in ("western", "cjk") if chars <= ALPHA[f][0]]
                 if not inl:
                     if rng.random() > neg_keep:
                         continue
-                    fams = ["western", "cjk"][rng.integers(2):][:1]
+                    fam = page if rng.random() < 0.5 else "western"
                     stats["neg"] += 1
-                elif not fams:
-                    stats["alphabet"] += 1
-                    continue
+                else:
+                    fam = family_of(chars, page)
+                    if fam is None:
+                        stats["alphabet"] += 1
+                        continue
                 r0x, r0y = int(np.floor(cx0 * scale)), int(np.floor(cy0 * scale))
                 r1x, r1y = int(np.ceil(cx1 * scale)), int(np.ceil(cy1 * scale))
                 crop = frame[max(0, r0y):r1y, max(0, r0x):r1x]
                 if crop.shape[0] < 4 or crop.shape[1] < 4:
                     continue
                 x = np.round(prepare(crop) * 255).astype(np.uint8)
-                fam = fams[0] if len(fams) == 1 or rng.random() < 0.7 else fams[1]
                 writers[fam].add(x, ALPHA[fam][1].labels(text), text)
+                # The router's label is the first family covering the line.
+                r = next((i for i, f in enumerate(ROUTED) if chars <= ALPHA[f][0]), len(ROUTED)) if inl else len(ROUTED)
+                router.add(x, [r], (ROUTED + ["none"])[r])
                 stats["kept"] += bool(inl)
-    for f, w in writers.items():
+    for f, w in list(writers.items()) + [("router", router)]:
         print(f, w.close(), "lines")
     print(json.dumps(stats))
 

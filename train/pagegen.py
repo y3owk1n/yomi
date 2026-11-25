@@ -2,11 +2,11 @@
 pages showed yomi missing. Display type 20-72 px in open display fonts, text
 over gradients and noise textures, titles over thumbnails, promo tiles that
 mix sizes in one line, pills and chips, dimming scrims, plus ordinary body
-text so the old distribution stays. Each page is Western or CJK. pagerender.swift
-renders them in WebKit and words.js returns each visible word with its box
-and whether a space precedes it.
+text so the old distribution stays. Each page draws its text from one family
+in families.py. pagerender.swift renders them in WebKit and words.js returns
+each visible word with its box and whether a space precedes it.
 
-Usage: python pagegen.py OUTDIR COUNT [SEED]
+Usage: python pagegen.py OUTDIR COUNT [SEED] [FAMILY,...]  (default western,cjk)
 """
 import glob
 import html
@@ -16,13 +16,17 @@ import sys
 
 TRAIN = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, TRAIN)
-from charsets import CJK, WESTERN  # noqa: E402
-from textsrc import CJK_LANGS, WESTERN_LANGS, cjk_line, line  # noqa: E402
+from families import FAMILIES  # noqa: E402
 
 DISPLAY_LATIN = ["Anton-Regular", "Oswaldwght", "PlayfairDisplaywght", "AbrilFatface-Regular",
                  "Lobster-Regular", "Pacifico-Regular", "ArchivoBlack-Regular", "Montserratwght", "Poppins-Bold",
                  "Poppins-ExtraBold", "DMSerifDisplay-Regular", "Merriweatheropsz_wdth_wght", "Ralewaywght"]
-FALLBACK = ["Arimowght", "NotoSanswdth_wght", "NotoSansJPwght", "NotoSansKRwght", "NotoSansSCwght", "NotoSansTCwght"]
+FALLBACK = ["Arimowght", "NotoSanswdth_wght", "NotoSansJPwght", "NotoSansKRwght", "NotoSansSCwght", "NotoSansTCwght",
+            "NotoSansArabicwdth_wght", "NotoSansHebrewwdth_wght", "NotoSansDevanagariwdth_wght", "NotoSansBengaliwdth_wght",
+            "NotoSansGujaratiwdth_wght", "NotoSansGurmukhiwdth_wght", "NotoSansKannadawdth_wght", "NotoSansMalayalamwdth_wght",
+            "NotoSansSinhalawdth_wght", "NotoSansTamilwdth_wght", "NotoSansTeluguwdth_wght", "NotoSansThaiwdth_wght",
+            "NotoSansLaowdth_wght", "NotoSansKhmerwdth_wght", "NotoSansMyanmarwdth_wght", "NotoSansGeorgianwdth_wght",
+            "NotoSansArmenianwdth_wght", "NotoSansEthiopicwdth_wght"]
 DISPLAY_CJK = ["DelaGothicOne-Regular", "MochiyPopOne-Regular", "ZenMaruGothic-Bold", "YujiSyuku-Regular",
                "MaShanZheng-Regular", "ZCOOLKuaiLe-Regular", "BlackHanSans-Regular", "DoHyeon-Regular",
                "RocknRollOne-Regular", "ReggaeOne-Regular", "NotoSansJPwght"]
@@ -81,15 +85,15 @@ def esc(s):
 class Page:
     def __init__(self, rng, family):
         self.rng, self.family = rng, family
-        self.body_fonts = [os.path.splitext(os.path.basename(f))[0] for f in
-                           sorted(glob.glob(os.path.join(TRAIN, "fonts", "train" if family == "western" else "cjk-train", "*.ttf")))]
-        self.display = DISPLAY_LATIN if family == "western" else DISPLAY_CJK + DISPLAY_LATIN[:3]
+        self.charset, self.langs, self.line, folders = FAMILIES[family]
+        self.body_fonts = [os.path.splitext(os.path.basename(f))[0] for d in folders["train"]
+                           for f in sorted(glob.glob(os.path.join(TRAIN, "fonts", d, "*.ttf")))]
+        # Display faces exist for Latin and CJK. Other scripts set headlines
+        # in their own fonts at heavy weights.
+        self.display = {"western": DISPLAY_LATIN, "cjk": DISPLAY_CJK + DISPLAY_LATIN[:3]}.get(family, self.body_fonts)
 
     def text(self, n=None):
-        r = self.rng
-        if self.family == "western":
-            return line(r, WESTERN_LANGS, WESTERN, "train", n)
-        return cjk_line(r, CJK_LANGS, CJK, "train", n)
+        return self.line(self.rng, self.langs, self.charset, "train", n)
 
     def short(self):
         return self.text(self.rng.choice([1, 1, 2, 2, 3]))
@@ -247,16 +251,19 @@ class Page:
                ".ov{position:absolute;left:10px;right:10px}"
                ".badge{position:absolute;background:rgba(0,0,0,.75);color:#fff;font:600 12px sans-serif;padding:2px 5px;border-radius:4px}"
                ".tile{border-radius:10px;padding:14px;min-height:110px}p{margin:6px 0}")
-        return (f"<!doctype html><html><head><meta charset=utf-8><style>{css}</style><script>{JS}</script></head>"
+        rtl = " dir=rtl" if self.family == "rtl" else ""
+        return (f"<!doctype html><html{rtl}><head><meta charset=utf-8><style>{css}</style><script>{JS}</script></head>"
                 f"<body>{''.join(parts)}</body></html>")
 
 
 def main():
     out, count = sys.argv[1], int(sys.argv[2])
     rng = random.Random(int(sys.argv[3]) if len(sys.argv) > 3 else 1)
+    families = sys.argv[4].split(",") if len(sys.argv) > 4 else ["western", "cjk"]
     os.makedirs(os.path.join(out, "fonts"), exist_ok=True)
-    srcs = glob.glob(os.path.join(TRAIN, "fonts", "train", "*.ttf")) + glob.glob(os.path.join(TRAIN, "fonts", "cjk-train", "*.ttf")) + \
-        glob.glob(os.path.join(TRAIN, "fonts", "display", "*.ttf"))
+    # Every family's train fonts, since FALLBACK names them all.
+    dirs = {d for f in FAMILIES.values() for d in f[3]["train"]} | {"display"}
+    srcs = [s for d in sorted(dirs) for s in glob.glob(os.path.join(TRAIN, "fonts", d, "*.ttf"))]
     fonts = []
     for s in srcs:
         dst = os.path.join(out, "fonts", os.path.basename(s))
@@ -265,7 +272,7 @@ def main():
         fonts.append(os.path.basename(s))
     names = []
     for i in range(count):
-        family = "western" if rng.random() < 0.5 else "cjk"
+        family = rng.choice(families)
         name = f"{family}-{i:05d}"
         with open(os.path.join(out, name + ".html"), "w") as f:
             f.write(Page(rng, family).html(fonts))
