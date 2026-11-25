@@ -315,7 +315,7 @@ func TestEngine_Read_ReadsFaintText(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := text(lines)
-	for _, want := range []string{"Store", "Support", "Amazing price", "the newest lineup today"} {
+	for _, want := range []string{"Store", "Support", "Amazing price", "Meet the newest"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("did not read %q; read:\n%s", want, got)
 		}

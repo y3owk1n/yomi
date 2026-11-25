@@ -327,7 +327,44 @@ func edges(l []uint8, w, h int, p Params) []bool {
 			e[i] = false
 		}
 	}
+	bridge(e, clear, l, w, h, p.Edge)
 	return e
+}
+
+// bridgeInk is the tallest stroke on either side of a cut that bridge
+// joins, half a body glyph at one pixel per point.
+const bridgeInk = 8
+
+// bridge marks the pixels of a cut one row deep through body text: an
+// unmarked pixel the row pass did not clear, between marked strokes of at
+// most bridgeInk rows directly above and below, within edge of both their
+// lumas. A flat run at the text's own level, as the crossbar of an e at body
+// sizes, is background to the row pass, and every stroke beside it compares
+// against it and goes unmarked, which cuts the row's glyphs in two.
+func bridge(e, clear []bool, l []uint8, w, h, edge int) {
+	src := slices.Clone(e)
+	stroke := func(x, y, dy int) int {
+		n := 0
+		for ; y >= 0 && y < h && src[y*w+x] && n <= bridgeInk; y += dy {
+			n++
+		}
+		return n
+	}
+	bands(w, func(x0, x1 int) {
+		for x := x0; x < x1; x++ {
+			for y := 1; y+1 < h; y++ {
+				i := y*w + x
+				if src[i] || clear[i] || !src[i-w] || !src[i+w] {
+					continue
+				}
+				v, up, down := int(l[i]), int(l[i-w]), int(l[i+w])
+				if absInt(v-up) <= edge && absInt(v-down) <= edge &&
+					stroke(x, y-1, -1) <= bridgeInk && stroke(x, y+1, 1) <= bridgeInk {
+					e[i] = true
+				}
+			}
+		}
+	})
 }
 
 // stem reports whether the marked run in column x from row y0 up to y1 is a
