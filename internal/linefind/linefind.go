@@ -225,12 +225,25 @@ func edges(l []uint8, w, h int, p Params) []bool {
 			if allFlat && len(runs) == 1 {
 				continue
 			}
+			// A run is background when it is at the level of the row's longest
+			// run or too long to be a stroke.
+			var bg run
+			for _, r := range runs {
+				if r.e-r.s > bg.e-bg.s {
+					bg = r
+				}
+			}
+			ground := func(k int) bool {
+				return k >= 0 && k < len(runs) &&
+					(absInt(runs[k].level-bg.level) <= p.Edge || runs[k].e-runs[k].s > strokeRun)
+			}
 			for k, r := range runs {
 				// A short run whose level differs from the runs on both sides,
-				// which agree with each other, is the inside of a stroke too
-				// wide to be anything but even, as in large bold text. It is
-				// ink, not background.
-				if k > 0 && k+1 < len(runs) && r.e-r.s <= strokeRun &&
+				// which agree with each other and are background, is the inside
+				// of a stroke too wide to be anything but even, as in large bold
+				// text. It is ink, not background. Two strokes beside a gap too
+				// wide to be a run do not make the gap a stroke.
+				if r.e-r.s <= strokeRun && ground(k-1) && ground(k+1) &&
 					absInt(r.level-runs[k-1].level) > p.Edge &&
 					absInt(r.level-runs[k+1].level) > p.Edge &&
 					absInt(runs[k-1].level-runs[k+1].level) <= p.Edge {

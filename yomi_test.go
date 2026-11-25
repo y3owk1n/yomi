@@ -293,6 +293,19 @@ func TestEngine_Read_ReadsTextOnAGradient(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_ReadsLargeBoldHeadings reads a 48 point bold heading. Its
+// strokes are wider than a background run, and the gaps between them can be
+// too narrow to be one, which once split it into a dozen lines.
+func TestEngine_Read_ReadsLargeBoldHeadings(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/bold-heading@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := text(lines); !strings.Contains(got, "Amazing price") {
+		t.Errorf("did not read %q; read:\n%s", "Amazing price", got)
+	}
+}
+
 // TestEngine_Read_ReadsFaintText reads grey text on an off-white page and
 // pale labels on a light grey bar, under 40 luma levels from their
 // background, as faded heroes and translucent navigation bars draw them.
@@ -302,7 +315,7 @@ func TestEngine_Read_ReadsFaintText(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := text(lines)
-	for _, want := range []string{"Store", "Support", "Amazing price", "Meet the newest"} {
+	for _, want := range []string{"Store", "Support", "Amazing price", "the newest lineup today"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("did not read %q; read:\n%s", want, got)
 		}
