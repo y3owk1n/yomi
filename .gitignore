@@ -16,6 +16,7 @@ bin/
 /train/fonts/cau-train/
 /train/fonts/cau-heldout/
 /train/fonts/rtl-nastaliq/
+/train/fonts/display/
 /train/fonts/dl/
 __pycache__/
 *.test

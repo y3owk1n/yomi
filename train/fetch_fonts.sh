@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout fonts/rtl-nastaliq
+mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout fonts/rtl-nastaliq fonts/display
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -222,6 +222,20 @@ done
 for f in "ofl/notoserifgeorgian/NotoSerifGeorgian[wdth,wght].ttf" "ofl/notoserifarmenian/NotoSerifArmenian[wdth,wght].ttf" \
   "ofl/notoserifethiopic/NotoSerifEthiopic[wdth,wght].ttf"; do
   get cau-heldout "$f" OFL-1.1
+done
+
+# Display fonts for pagegen.py's headlines, promos and banners: condensed,
+# heavy, serif, script and rounded faces, Latin and CJK.
+for f in "ofl/anton/Anton-Regular.ttf" "ofl/oswald/Oswald[wght].ttf" "ofl/playfairdisplay/PlayfairDisplay[wght].ttf" \
+  "ofl/abrilfatface/AbrilFatface-Regular.ttf" "ofl/lobster/Lobster-Regular.ttf" "ofl/pacifico/Pacifico-Regular.ttf" \
+  "ofl/archivoblack/ArchivoBlack-Regular.ttf" "ofl/montserrat/Montserrat[wght].ttf" "ofl/poppins/Poppins-Regular.ttf" \
+  "ofl/poppins/Poppins-Bold.ttf" "ofl/poppins/Poppins-ExtraBold.ttf" "ofl/dmserifdisplay/DMSerifDisplay-Regular.ttf" \
+  "ofl/merriweather/Merriweather[opsz,wdth,wght].ttf" "ofl/raleway/Raleway[wght].ttf" \
+  "ofl/delagothicone/DelaGothicOne-Regular.ttf" "ofl/mochiypopone/MochiyPopOne-Regular.ttf" \
+  "ofl/zenmarugothic/ZenMaruGothic-Bold.ttf" "ofl/yujisyuku/YujiSyuku-Regular.ttf" "ofl/mashanzheng/MaShanZheng-Regular.ttf" \
+  "ofl/zcoolkuaile/ZCOOLKuaiLe-Regular.ttf" "ofl/blackhansans/BlackHanSans-Regular.ttf" "ofl/dohyeon/DoHyeon-Regular.ttf" \
+  "ofl/rocknrollone/RocknRollOne-Regular.ttf" "ofl/reggaeone/ReggaeOne-Regular.ttf"; do
+  get display "$f" OFL-1.1
 done
 
 # DejaVu Sans and Sans Mono (Bitstream Vera licence plus public-domain changes).
