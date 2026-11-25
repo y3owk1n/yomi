@@ -114,7 +114,7 @@ func (e *Engine) Read(ctx context.Context, frame *image.RGBA, scale float64) ([]
 	// Every line is prepared and routed before any is read, so the scripts
 	// the whole page is written in decide each line's recognizer.
 	preps := make([]prepared, len(boxes))
-	e.each(ctx, order, func(i int) { preps[i] = e.prepare(frame, boxes[i].Crop, scale) })
+	e.each(ctx, order, func(i int) { preps[i] = e.prepare(frame, boxes, i, scale) })
 	var page map[string]bool
 	if e.router != nil {
 		page = pageFamilies(preps)
@@ -162,7 +162,7 @@ func fitInk(words []Word, ink image.Rectangle) {
 // text, without line finding, for a second look at a known line.
 func (e *Engine) ReadLine(frame *image.RGBA, box image.Rectangle, scale float64) []Word {
 	scale = max(1, scale)
-	return e.readPrepared(frame, e.prepare(frame, box, scale), scale, nil)
+	return e.readPrepared(frame, e.prepare(frame, []linefind.Box{{Crop: box, Ink: box}}, 0, scale), scale, nil)
 }
 
 // each runs f for each index in order on the engine's workers, and stops
@@ -196,13 +196,36 @@ type prepared struct {
 	route route
 }
 
-func (e *Engine) prepare(frame *image.RGBA, box image.Rectangle, scale float64) prepared {
-	lo := func(v int) int { return int(math.Floor(float64(v) * scale)) }
-	hi := func(v int) int { return int(math.Ceil(float64(v) * scale)) }
-	r := image.Rect(lo(box.Min.X), lo(box.Min.Y), hi(box.Max.X), hi(box.Max.Y)).
-		Add(frame.Rect.Min).Intersect(frame.Rect)
+// blankMinH is the shortest line, in logical pixels, whose crop has its
+// neighbours blanked. A shorter box is a mark or a picture's detail, and
+// with the text around it gone the recognizer reads it as letters.
+const blankMinH = 9
+
+func (e *Engine) prepare(frame *image.RGBA, boxes []linefind.Box, i int, scale float64) prepared {
+	px := func(b image.Rectangle) image.Rectangle {
+		lo := func(v int) int { return int(math.Floor(float64(v) * scale)) }
+		hi := func(v int) int { return int(math.Ceil(float64(v) * scale)) }
+		return image.Rect(lo(b.Min.X), lo(b.Min.Y), hi(b.Max.X), hi(b.Max.Y)).Add(frame.Rect.Min)
+	}
+	r := px(boxes[i].Crop).Intersect(frame.Rect)
+	// The marks of the lines above and below that reach into the crop read
+	// as background. Only lines count: a box at least three fifths this
+	// line's height and as wide as it is tall, so a mark of the line's own,
+	// as a vowel sign set above it, stays. So does a box on the same row, as
+	// an arrow beside a caption.
+	ink := boxes[i].Ink
+	var blank []image.Rectangle
+	if ink.Dy() >= blankMinH {
+		for j, b := range boxes {
+			shared := min(b.Ink.Max.Y, ink.Max.Y) - max(b.Ink.Min.Y, ink.Min.Y)
+			line := b.Ink.Dy()*5 >= ink.Dy()*3 && b.Ink.Dx() >= ink.Dy()
+			if j != i && line && b.Ink.Overlaps(boxes[i].Crop) && shared*3 < min(b.Ink.Dy(), ink.Dy()) {
+				blank = append(blank, px(b.Ink.Inset(-1)))
+			}
+		}
+	}
 	// Every model reads the same input: an ink map 32 rows tall.
-	x, w := prep.Prepare(frame, r, e.model.net.Height)
+	x, w := prep.PrepareBlanked(frame, r, e.model.net.Height, px(ink), blank)
 	if x == nil || w < e.model.net.Stride {
 		return prepared{}
 	}

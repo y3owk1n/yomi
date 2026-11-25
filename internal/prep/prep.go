@@ -15,6 +15,16 @@ const bgBand = 8
 // crop is at least twice Height, then bilinear (half-pixel centres, edge
 // clamp) to Height rows.
 func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
+	return PrepareBlanked(img, r, height, image.Rectangle{}, nil)
+}
+
+// PrepareBlanked is Prepare with the pixels in blank, other lines' marks
+// that reach into r, set to the background before the ink map is made,
+// except those in keep, the line's own marks. The background and contrast
+// still come from the whole crop. A tight line spacing puts the bottom of the line above
+// and the top of the one below inside a line's crop, and the recognizer,
+// trained on crops no other word reached into, misreads the line for them.
+func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.Rectangle, blank []image.Rectangle) ([]float32, int) {
 	r = r.Intersect(img.Rect)
 	h, w := r.Dy(), r.Dx()
 	if h < 2 || w < 2 {
@@ -66,6 +76,18 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 		far, sign = lo, 1
 	}
 	span := float32(max(32, abs32(bg-far)))
+	for _, b := range blank {
+		b = b.Intersect(r)
+		for y := b.Min.Y; y < b.Max.Y; y++ {
+			for x := b.Min.X; x < b.Max.X; x++ {
+				if image.Pt(x, y).In(keep) {
+					continue
+				}
+				i := (y-r.Min.Y)*w + x - r.Min.X
+				g[i] = uint8(bg)
+			}
+		}
+	}
 	x := make([]float32, h*w)
 	for i, v := range g {
 		x[i] = min(1, max(0, (float32(bg)-float32(v))*sign/span))

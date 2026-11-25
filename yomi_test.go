@@ -293,6 +293,22 @@ func TestEngine_Read_ReadsTextOnAGradient(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_ReadsTightlySpacedLines reads three lines of Chinese set
+// 18 points apart at 14 points, so each line's crop holds the bottom of the
+// line above and the top of the one below, which once garbled the middle one.
+func TestEngine_Read_ReadsTightlySpacedLines(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/tight-cjk@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"對夜貓子的我來說", "不過一到比賽現場", "大家都在路邊加油"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
+	}
+}
+
 // TestEngine_Read_ReadsLargeBoldHeadings reads a 48 point bold heading. Its
 // strokes are wider than a background run, and the gaps between them can be
 // too narrow to be one, which once split it into a dozen lines.
