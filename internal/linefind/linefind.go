@@ -17,6 +17,8 @@ import (
 // Params tune the finder, in logical pixels.
 type Params struct {
 	Edge      int     // how far ink differs from the background beside it
+	LowEdge   int     // the same, for lines on a plain background found in a second pass
+	QuietRing int     // how far a plain background's luma may spread around its line
 	RunMax    int     // horizontal ink runs at least this long are rules, not glyphs
 	RunMaxV   int     // vertical ink runs at least this long are borders, not glyphs
 	MinGlyphH int     // blobs at least this tall seed lines
@@ -28,6 +30,8 @@ type Params struct {
 func DefaultParams() Params {
 	return Params{
 		Edge:      40,
+		LowEdge:   15,
+		QuietRing: 8,
 		RunMax:    24,
 		RunMaxV:   16,
 		MinGlyphH: 5,
@@ -593,6 +597,75 @@ type Box struct {
 // Find returns the lines in img.
 func Find(img *image.RGBA, scale float64, p Params) []Box {
 	l, w, h := luma1x(img, scale)
+	if p.LowEdge >= p.Edge {
+		return find(l, w, h, p)
+	}
+	// Faint text, as grey on white or white on a light bar, differs from its
+	// background by less than Edge. A second pass at LowEdge, run alongside
+	// the first, adds the lines it finds where the first found none and the
+	// background around the line is plain, which leaves out the texture and
+	// photographs a low edge marks.
+	lp := p
+	lp.Edge = p.LowEdge
+	var faint []Box
+	var wg sync.WaitGroup
+	wg.Go(func() { faint = find(l, w, h, lp) })
+	out := find(l, w, h, p)
+	wg.Wait()
+	first := len(out)
+	for _, b := range faint {
+		if !overlapsAny(b.Ink, out[:first]) && quiet(l, w, h, b.Ink, p.QuietRing) {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+func overlapsAny(r image.Rectangle, boxes []Box) bool {
+	for _, b := range boxes {
+		if r.Overlaps(b.Ink) {
+			return true
+		}
+	}
+	return false
+}
+
+// quiet reports whether the ring of pixels around ink, half its height wide,
+// spreads over at most spread luma levels, the 5th to the 95th percentile.
+func quiet(l []uint8, w, h int, ink image.Rectangle, spread int) bool {
+	m := max(2, ink.Dy()/2)
+	o := ink.Inset(-m).Intersect(image.Rect(0, 0, w, h))
+	var hist [256]int
+	n := 0
+	for y := o.Min.Y; y < o.Max.Y; y++ {
+		for x := o.Min.X; x < o.Max.X; x++ {
+			if image.Pt(x, y).In(ink) {
+				continue
+			}
+			hist[l[y*w+x]]++
+			n++
+		}
+	}
+	if n == 0 {
+		return false
+	}
+	lo, hi, c := -1, 0, 0
+	for v, k := range hist {
+		c += k
+		if lo < 0 && c*20 > n {
+			lo = v
+		}
+		if c*20 >= n*19 {
+			hi = v
+			break
+		}
+	}
+	return hi-lo <= spread
+}
+
+// find runs the finder over l, the frame's luma at one pixel per logical
+// pixel, with p.Edge.
+func find(l []uint8, w, h int, p Params) []Box {
 	bs := blobs(edges(l, w, h, p), w, h)
 
 	var big, small []blob

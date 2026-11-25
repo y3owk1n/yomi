@@ -293,6 +293,22 @@ func TestEngine_Read_ReadsTextOnAGradient(t *testing.T) {
 	}
 }
 
+// TestEngine_Read_ReadsFaintText reads grey text on an off-white page and
+// pale labels on a light grey bar, under 40 luma levels from their
+// background, as faded heroes and translucent navigation bars draw them.
+func TestEngine_Read_ReadsFaintText(t *testing.T) {
+	lines, err := routedEngine(t).Read(context.Background(), loadFrame(t, "testdata/fixtures/faint-text@2x.png"), 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := text(lines)
+	for _, want := range []string{"Store", "Support", "Amazing price", "Meet the newest"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("did not read %q; read:\n%s", want, got)
+		}
+	}
+}
+
 // TestEngine_Read_ReadsFractionalScales reads the tight Thai rows captured at
 // 1.25 and 1.5 pixels per point, as a display scaled to 125% or 150% draws
 // them. Read as a whole 2x frame, the text comes out at 0.625 or 0.75 of its
