@@ -411,12 +411,6 @@ func (l line) h() int { return l.y1 - l.y0 + 1 }
 
 func (l line) w() int { return l.x1 - l.x0 + 1 }
 
-// mergeStacked merges lines that lie mostly over one another. A CJK glyph
-// stacks separate parts, such as a Hangul syllable's final consonant, and a
-// part too low to join its line's core seeds a second line along the bottom
-// of the first, which would read the same text again. Lines of text never
-// overlap like this, so lines whose spans share over half the smaller one's
-// height, and whose bounds share over half its width, are one line.
 // absorbMarks folds a line of one blob into a line at least twice its height
 // that it sits beside, in that line's band, as the first pass folds in small
 // marks. The comma of a large figure is too tall to count as a small mark, but
@@ -451,6 +445,14 @@ func absorbMarks(lines []line, p Params) []line {
 	return lines
 }
 
+// mergeStacked merges lines that lie mostly over one another. A CJK glyph
+// stacks separate parts, such as a Hangul syllable's final consonant, and a
+// part too low to join its line's core seeds a second line along the bottom
+// of the first, which would read the same text again. The upper parts of a
+// large heading's glyphs can seed one that overlaps its row by half. Lines of
+// text never overlap like this, so lines whose spans share over two fifths of
+// the smaller one's height, and whose bounds share over half its width, are
+// one line.
 func mergeStacked(lines []line) []line {
 	for merged := true; merged; {
 		merged = false
@@ -459,7 +461,7 @@ func mergeStacked(lines []line) []line {
 				a, b := lines[i], lines[j]
 				a0, a1 := a.span()
 				b0, b1 := b.span()
-				if overlap(a0, a1, b0, b1)*2 <= min(a1-a0+1, b1-b0+1) ||
+				if overlap(a0, a1, b0, b1)*5 <= min(a1-a0+1, b1-b0+1)*2 ||
 					overlap(a.x0, a.x1, b.x0, b.x1)*2 <= min(a.w(), b.w()) {
 					continue
 				}
@@ -502,10 +504,6 @@ func overlap(a0, a1, b0, b1 int) int {
 	return max(0, min(a1, b1)-max(a0, b0)+1)
 }
 
-// metrics returns a line's baseline (the lower median blob bottom) and the
-// heights of the blobs that sit on it, sorted. Of an even count the higher of
-// the middle two wins, so a comma or descender among two members never sets
-// the baseline below the glyph beside it.
 // oneRow reports whether every line in hits has a core overlapping best's by
 // at least half the shorter of the two.
 func oneRow(lines []line, hits []int, best int) bool {
@@ -548,6 +546,10 @@ func (l line) within(b blob) bool {
 	return false
 }
 
+// metrics returns a line's baseline (the lower median blob bottom) and the
+// heights of the blobs that sit on it, sorted. Of an even count the higher of
+// the middle two wins, so a comma or descender among two members never sets
+// the baseline below the glyph beside it.
 func (l line) metrics() (int, []int) {
 	bottoms := make([]int, len(l.members))
 	for i, b := range l.members {
@@ -564,6 +566,12 @@ func (l line) metrics() (int, []int) {
 	sort.Ints(hs)
 	return base, hs
 }
+
+// noBaseline is how far above the bottom of a line's ink, as a share of its
+// height, the median bottom of its glyphs may sit and still be its baseline.
+// Latin descenders reach about a quarter, the split CJK heading that set it
+// 0.58.
+const noBaseline = 0.55
 
 // Crop geometry in x-heights, matching the training crops: the font's line
 // box is about 2.3 x-heights, ascent 1.8 and descent 0.5, and training pads
@@ -772,6 +780,15 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 	for i, ln := range lines {
 		base, hs := ln.metrics()
 		bases[i] = base
+		// The parts of large CJK glyphs end at many heights, and their median
+		// bottom can sit mid-glyph, which crops the line to its ink. A baseline
+		// that far above the ink's bottom is none, and the line reads as one
+		// height standing on its ink.
+		if float64(ln.y1-base) > noBaseline*float64(ln.h()) {
+			bases[i] = ln.y1
+			ambiguous[i] = float64(ln.h())
+			continue
+		}
 		if len(hs) == 0 {
 			ambiguous[i] = float64(ln.h())
 			continue
