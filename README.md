@@ -109,8 +109,8 @@ Against Apple Vision's accurate mode, the best OCR macOS ships. 1x / 2x.
 | Text | yomi | Vision accurate |
 | :--- | :--- | :-------------- |
 | Interface text, 17 Western languages | **95.4% / 95.8%** | 86.3% / 86.3% |
-| Interface text, Chinese, Japanese, Korean (characters) | **96.6% / 96.9%** | 94.1% / 93.7% |
-| Interface text, Thai (characters) | **97.8% / 98.0%** | 94.7% / 94.7% |
+| Interface text, Chinese, Japanese, Korean (characters) | **96.9% / 97.1%** | 92.6% / 92.4% |
+| Interface text, Thai (characters) | **98.0% / 98.1%** | 93.3% / 92.6% |
 | Interface text, Hebrew | **86.1% / 86.5%** | 2.2% / 2.3% |
 | Interface text, Arabic | **81.8%** / 84.5% | 81.6% / **87.3%** |
 | Interface text, Hindi | 90.2% / 91.0% | **92.1% / 92.4%** |

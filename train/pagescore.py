@@ -8,9 +8,14 @@ whose centre is in no ground-truth box. Page names start with their language
 (evalgen.py), which the per-language breakdown uses.
 
 With --chars, accuracy is per character instead, for scripts written
-without spaces: ground-truth words group into lines, the read words whose
-centres fall in a line join in reading order, and the score is one minus the
-edit distance over the ground-truth characters, spaces ignored.
+without spaces. Each read character goes to the smallest ground-truth word
+whose box, grown by 2 px, holds its centre: at the box yomi gives it, or an
+even share of its word's box for an engine that gives none. Each word's
+characters join in reading order, and the score is one minus the edit
+distance over the ground-truth characters, both sides NFKC-normalized with
+spaces dropped, as webscore.py does. Scoring whole words against whole rows
+charged a word to a row it did not sit in wherever a layout's rows ran into
+each other, as a wrapped sidebar item beside a heading does.
 
 Usage: python pagescore.py PAGESDIR RUN.jsonl [RUN.jsonl ...] [--by-lang] [--chars]
 """
@@ -19,6 +24,8 @@ import json
 import os
 import statistics
 import sys
+
+from webscore import chars as char_boxes, norm
 
 
 def edit(a, b):
@@ -31,39 +38,25 @@ def edit(a, b):
     return prev[-1]
 
 
-def gt_lines(gt):
-    """Ground-truth words grouped into lines: same row, joined in x order."""
-    rows = []
-    for g in sorted(gt, key=lambda g: (g["y"] + g["h"] / 2, g["x"])):
-        cy = g["y"] + g["h"] / 2
-        for r in rows:
-            if abs(r["cy"] - cy) < 0.4 * g["h"] and g["x"] - r["x1"] < 2 * g["h"]:
-                r["words"].append(g)
-                r["x1"] = max(r["x1"], g["x"] + g["w"])
-                break
-        else:
-            rows.append({"cy": cy, "x1": g["x"] + g["w"], "words": [g]})
-    out = []
-    for r in rows:
-        ws = sorted(r["words"], key=lambda g: g["x"])
-        x0, y0 = min(g["x"] for g in ws), min(g["y"] for g in ws)
-        x1, y1 = max(g["x"] + g["w"] for g in ws), max(g["y"] + g["h"] for g in ws)
-        out.append(((x0 - 2, y0 - 2, x1 + 2, y1 + 2), "".join(g["t"] for g in ws)))
-    return out
-
-
 def score_chars(pages_dir, rows):
     tot = collections.Counter()
     lang = collections.defaultdict(collections.Counter)
     for r in rows:
-        gt = json.load(open(os.path.join(pages_dir, r["page"] + ".json")))
+        gt = [g for g in json.load(open(os.path.join(pages_dir, r["page"] + ".json"))) if norm(g["t"])]
+        boxes = [(g["x"] - 2, g["y"] - 2, g["x"] + g["w"] + 2, g["y"] + g["h"] + 2) for g in gt]
+        owned = collections.defaultdict(list)
         used = set()
-        for (x0, y0, x1, y1), text in gt_lines(gt):
-            got = [(w[1], i, w[0]) for i, w in enumerate(r["words"])
-                   if x0 <= w[1] + w[3] / 2 <= x1 and y0 <= w[2] + w[4] / 2 <= y1]
-            used.update(i for _, i, _ in got)
-            read = "".join(t for _, _, t in sorted(got)).replace(" ", "")
-            want = text.replace(" ", "")
+        for i, w in enumerate(r["words"]):
+            for ch, (x, y, cw, chh) in char_boxes([w], [r["chars"][i]] if r.get("chars") else None):
+                cx, cy = x + cw / 2, y + chh / 2
+                hits = [k for k, (x0, y0, x1, y1) in enumerate(boxes) if x0 <= cx <= x1 and y0 <= cy <= y1]
+                if hits:
+                    k = min(hits, key=lambda k: (boxes[k][2] - boxes[k][0]) * (boxes[k][3] - boxes[k][1]))
+                    owned[k].append((cx, ch))
+                    used.add(i)
+        for k, g in enumerate(gt):
+            want = norm(g["t"])
+            read = "".join(ch for _, ch in sorted(owned[k], key=lambda t: t[0]))
             for c in (tot, lang[r["page"].split("-")[0]]):
                 c["n"] += len(want)
                 c["edits"] += min(len(want), edit(want, read))

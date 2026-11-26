@@ -15,8 +15,15 @@ the same pages, unless a section says otherwise. Results read as 1x / 2x.
 | Websites | 43 development sites and 77 held out from all development, rendered at 1x and 2x | a Mac |
 | Live captures | 28 captures of apps and web pages in 15 languages, scored against each element's accessibility text | private |
 
-Western, right-to-left and Indic text is scored per word, CJK and Southeast
-Asian scripts per character. A sentence that wraps counts line by line.
+Western, right-to-left and Indic text is scored per word: a word counts when
+a read word with exactly its text sits inside its box. CJK and Southeast Asian
+scripts are scored per character: each character read goes to the
+ground-truth word its box sits in, and each word scores by edit distance.
+yomi gives a box per character. An engine that gives only word boxes gets an
+even share of the word's box per character, so a box that spans two rows
+costs it, as it would cost Neru's hints and cursor. Both sides are
+NFKC-normalized, so full-width and ASCII punctuation count as the same. A
+sentence that wraps counts line by line.
 
 ## On macOS
 
@@ -25,12 +32,12 @@ Asian scripts per character. A sentence that wraps counts line by line.
 | Set | yomi | Vision accurate | PaddleOCR |
 | :-- | :--- | :-------------- | :-------- |
 | Western, 17 languages | **95.4% / 95.8%** | 86.3% / 86.3% | 85.9% / 86.8% |
-| CJK | 96.6% / 96.9% | 94.1% / 93.7% | **97.8% / 98.1%** |
+| CJK | 96.9% / 97.1% | 92.6% / 92.4% | **98.4% / 98.8%** |
 | Arabic | **81.8%** / 84.5% | 81.6% / **87.3%** | 64.1% / 78.9% |
 | Hebrew | **86.1% / 86.5%** | 2.2% / 2.3% | no recognizer |
 | Hindi | 90.2% / 91.0% | **92.1% / 92.4%** | 83.1% / 86.7% |
-| Thai | **97.8% / 98.0%** | 94.7% / 94.7% | 97.2% / 93.3% |
-| Lao, Khmer, Myanmar, held out, 1x | **83.8%, 90.6%, 86.8%** | 22.1%, 28.2%, 7.2% | no recognizer |
+| Thai | **98.0% / 98.1%** | 93.3% / 92.6% | 97.1% / 92.7% |
+| Lao, Khmer, Myanmar, held out, 1x | **83.9%, 90.6%, 86.7%** | 21.8%, 26.8%, 7.1% | no recognizer |
 | Georgian, Armenian, Amharic, held out, 1x | **93.7%, 84.4%, 79.3%** | 15.2%, 12.4%, 19.9% | no recognizer |
 | Bengali, Tamil, Telugu, held out, 1x | **82.3%, 71.7%, 71.3%** | 18.8%, 12.5%, 15.4% | not run |
 | App layouts, 11 scenes | **94.5% / 94.9%** | 90.2% / 92.4% | not run |
@@ -46,13 +53,13 @@ used, reads Western interface text at 37% / 57% and the other scripts at
 | Text | yomi | Vision accurate |
 | :--- | :--- | :-------------- |
 | 17 Western languages | **98.2% / 98.5%** | 89.6% / 90.2% |
-| Chinese, Japanese, Korean | 94.4% / 94.6% | **95.8% / 96.8%** |
+| Chinese, Japanese, Korean | **98.2% / 98.5%** | 95.3% / 95.2% |
 | Arabic | 76.3% / 76.7% | **82.6% / 86.3%** |
 | Hebrew, Persian, Urdu, 1x | **91.9%, 68.8%, 79.0%** | 0.8%, 33.8%, 21.0% |
 | Hindi, Marathi, Nepali, 1x | **89.9%, 93.8%, 86.7%** | 89.2%, 92.9%, 85.5% |
 | Eight other Indic scripts | **48% to 83%** | 0% to 5% |
-| Thai | 91.7% / 92.3% | **93.4% / 95.6%** |
-| Lao, Khmer, Myanmar, 1x | **92.4%, 77.6%, 53.2%** | 3.1%, 1.3%, 0.2% |
+| Thai | **97.9% / 98.4%** | 96.7% / 96.2% |
+| Lao, Khmer, Myanmar, 1x | **95.8%, 79.1%, 52.7%** | 3.3%, 1.3%, 0.2% |
 | Georgian, Armenian, 1x | **96.1%, 78.1%** | 1.7%, 0.7% |
 
 The held-out fonts for Bengali, Tamil, Telugu, Kannada, Malayalam, Sinhala,
@@ -99,9 +106,9 @@ matched the Mac's word for word on every page.
 | :-- | :--- | :-------- | :------------------------------ |
 | English, 1x | **99.0%** | 93.0% | 25 / 862 ms |
 | Western | **95.4% / 95.8%** | 85.9% / 91.0% | 27 / 1,684 to 2,584 ms |
-| CJK | **96.6% / 96.9%** | 88.2% / 91.9% | 87 to 95 / 9,054 to 12,549 ms |
+| CJK | **96.9% / 97.1%** | 82.2% / 85.4% | 87 to 95 / 9,054 to 12,549 ms |
 | Right-to-left | **84.0% / 85.6%** | 65.2% / 77.9% | 43 / 1,167 to 1,655 ms |
-| Thai | **97.8% / 98.0%** | 89.8% / 91.2% | 65 to 79 / 8,409 to 10,033 ms |
+| Thai | **98.0% / 98.1%** | 90.6% / 92.1% | 65 to 79 / 8,409 to 10,033 ms |
 | Hindi | **90.2% / 91.0%** | 85.0% / 90.6% | 45 / 2,065 to 3,022 ms |
 | App layouts, stray words | **48 / 57** | 114 / 105 | 25 to 27 / 721 to 1,247 ms |
 
@@ -116,7 +123,7 @@ word for word.
 | :-- | :--- | :---------------- | :---------------------------------- |
 | Code | **99.0% / 98.9%** | 88.9% / 98.1% | 37 / 192 ms |
 | Western, 15 languages | **95.8% / 96.1%** | 86.8% / 93.5% | 46 / 289 ms |
-| CJK | **96.6% / 96.9%** | 87.4% / 94.6% | 156 / 1,006 ms |
+| CJK | **96.9% / 97.1%** | 88.6% / 95.9% | 156 / 1,006 ms |
 | Arabic | **81.8%** / 84.5% | 54.9% / **85.3%** | 74 / 1,692 ms |
 | App layouts, stray words | **48 / 57** | 70 / 96 | 40 / 252 ms |
 
@@ -129,10 +136,10 @@ as macOS and GNOME downsample a scaled display, and read at their own scale.
 | Set | 1x / 2x | 1.25x | 1.5x | 1.75x |
 | :-- | :------ | :---- | :--- | :---- |
 | Western | 95.4% / 95.8% | 95.3% | 95.5% | 95.5% |
-| CJK | 96.6% / 96.9% | 96.4% | 96.9% | 96.8% |
+| CJK | 96.9% / 97.1% | 96.4% | 97.0% | 96.8% |
 | Right-to-left | 84.0% / 85.6% | 85.0% | 85.0% | 85.9% |
 | Hindi | 90.6% / 90.0% | 90.5% | 90.5% | 89.7% |
-| Thai | 97.8% / 98.0% | 97.1% | 97.0% | 97.0% |
+| Thai | 98.0% / 98.1% | 98.1% | 98.1% | 98.1% |
 | Code | 99.0% / 98.9% | 98.4% | 99.1% | 98.9% |
 | App layouts | 94.5% / 94.9% | 94.3% | 94.7% | 94.2% |
 
@@ -164,8 +171,9 @@ within 0.2 points of float32.
 - **Arabic** trails Vision by 2.8 points at 2x on interface text and by 6 to
   10 on the open set, and Windows.Media.Ocr by 0.8 at 2x.
 - **Hindi** trails Vision by 1.4 to 1.9 points.
-- **CJK** trails PaddleOCR by about 1.2 points, and Vision by 1.4 to 2.2 on
-  the open set.
+- **CJK** trails PaddleOCR by 1.5 to 1.7 points on interface text, nearly
+  all of it Simplified Chinese (96% against 99%). Korean trails Vision on the
+  open set by a point at 1x.
 - **Live pages in scripts Vision reads** average 0.6 points behind, worst on
   Arabic Wikipedia, YouTube and apple.com's faint navigation.
 - **Lao, Armenian and Amharic** read 79% to 84%, and Kannada, Telugu, Tamil,

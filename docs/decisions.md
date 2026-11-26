@@ -238,6 +238,14 @@ split a word's box evenly across its characters, while Neru places them at
 yomi's own character boxes. Most of what looked like misreads on Chinese
 Wikipedia was that.
 
+**CJK and Thai score each character where it sits (2026-11-26).** The
+character scorer grouped ground-truth words into whole rows and charged each
+read word to the row its centre fell in. Where a layout's rows ran into each
+other, as a sidebar item that wraps beside a heading, a correct word counted
+against the wrong row. Characters now go to the ground-truth word their box
+sits in, as on the websites. Japanese on the open set went from 90.7% to
+98.7%, and yomi went from 1.4 points behind Vision on open CJK to 3 ahead.
+
 **An open evaluation set (2026-11-26).** Every set was built on a Mac from
 Apple's strings and fonts, so nobody else could score a model. The open set
 draws on Firefox's translations (MPL-2.0) in held-out open fonts, renders in
