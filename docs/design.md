@@ -273,15 +273,46 @@ BBC News goes 94.4 to 98.8% of its accessibility text and Korean Wikipedia
 characters 708 to 699. Four lines of the evaluation sets get a different
 crop and every set reads as before.
 
-Two other tight headlines stay misread, and both fixes tried cost more than
-they gained. BBC Thai's first row fuses into one wide blob that ends below
-the baseline, so its x-height comes from 8 px pieces and the crop cuts its
-marks. A floor of 0.55 of the ink height under thin evidence read that row
-but moved every short label's crop, for no net gain and five more held-out
-unseen lines. BBC Arabic's rows fuse on the left into a blob the tall pass
-gives to the lower row only. Widening every row such a blob touches read the
-upper row's left words but added 40 held-out strays and cost the SEA sets
-0.2 to 0.3 points.
+Two other tight headlines stayed misread here, and the causes first
+recorded for them were wrong. The next section has what they were.
+
+## Large words that come apart, and Thai without spaces (measured 2026-11-26)
+
+BBC Arabic's rows never touch. The tail of a letter in a large word came
+apart from it and seeded a one-blob line below the row, as did its dots and
+loop. The tall pass saw the word's blob overlap two rows' cores and only
+widened the row, so the row kept its short core and cropped the 29 px word
+to 20 px. A line inside a tall blob's bounds and under a third of its height
+is now a piece of that blob, not a row. Marks fused across two rows still
+widen one row without growing it, since each row there is at least half the
+blob's height. BBC Arabic goes 85.0 to 86.6% and web-dev recall up 0.2
+points, with held-out and the evaluation sets unchanged. The first attempt,
+widening every row such a blob touches, read the same words but added 40
+held-out strays and cost the SEA sets 0.2 to 0.3 points.
+
+BBC Thai's first row was one 283 by 24 px blob, not a blob below the
+baseline. Thai sets words without spaces, so on the rows through the tops
+of bold glyphs the tops are flat runs at the ink's level between gaps too
+narrow to be runs. The row pass took them for background and marked the
+gaps as ink, which joined the row. Counting a short run as ink when its
+level does not persist 12 rows down its column fixes the row, since
+background persists and a stroke does not. Applied to every row it cost
+held-out 0.2 to 0.5 points of recall at each setting tried: tolerances of 6
+to 40 levels, 6 to 12 rows, gating on the row's background level, on
+persistent ground beside the run, and on the run's level repeating along
+the row. A photograph's flat patches persist no more than strokes, so the
+rule turned photos beside text into glyph-sized ink. It also fires in the
+main pass, not only the faint one.
+
+So only a line with a member at least 16 px tall and ten times as wide,
+about one line in seven hundred, is found again from the region around it
+with the rule on, and only where the ground around it is plain. The first
+row now reads and Thai Wikipedia goes 74.5 to 75.2%, at no measurable cost.
+BBC Thai's second row still reads as garbage. Its x-height comes out 13 px
+against 15 because fragments of its glyphs sit on the baseline, and a crop
+6 px taller reads it exactly. A floor of 0.55 of the ink height for lines
+with little baseline evidence read it, but moved every short label's crop,
+for no net gain and five more held-out unseen lines.
 
 ## Underlined links in body text (measured 2026-11-22)
 
