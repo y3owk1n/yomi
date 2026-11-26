@@ -120,8 +120,8 @@ type. Two sets measure that, both read with every recognizer and the router.
 | Websites: share of the text Vision reads that yomi reads, 1x / 2x | 89.4% / 89.2% | |
 | Websites: the pages' own text, 1x / 2x | 81.0% / 81.3% | **81.5%** / 81.3% |
 | Websites: time per page | **31 to 33 ms** | 505 to 566 ms |
-| Live captures, all 28 | **80.7%** | 65.5% |
-| Live captures in scripts Vision reads, 23 | 83.5% | **84.3%** |
+| Live captures, all 28 | **80.8%** | 65.5% |
+| Live captures in scripts Vision reads, 23 | 83.7% | **84.3%** |
 | Live captures in Bengali, Tamil, Hebrew, Georgian and Armenian | **76.7%** | 0.6% |
 
 What Vision reads and yomi does not is mostly text inside pictures, text
@@ -202,11 +202,10 @@ read every evaluation set within 0.2 points of float32 and halve the size.
 
 ## Where yomi is behind
 
-- **Live pages in scripts Vision reads.** yomi averages 0.8 points behind.
-  The largest gaps are BBC Thai (72.0% against 81.9%, a bold headline row
-  whose crop comes out a few pixels short), Arabic Wikipedia (61.4% against
-  67.0%), YouTube (77.5% against 82.3%) and apple.com (84.2% against 88.0%,
-  faint navigation at low contrast).
+- **Live pages in scripts Vision reads.** yomi averages 0.6 points behind.
+  The largest gaps are Arabic Wikipedia (61.4% against 67.0%), YouTube
+  (77.5% against 82.3%), apple.com (84.2% against 88.0%, faint navigation at
+  low contrast) and BBC Thai (78.6% against 81.9%).
 - **Websites.** yomi reads 89% of the text Vision reads. Text in pictures,
   behind dialogs and at a few pixels tall makes up most of the rest.
 - **Hindi** trails Vision by 1.5 to 2.4 points and **Arabic** by 2.8 at 2x.

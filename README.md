@@ -86,12 +86,12 @@ automatic language detection. 1x / 2x where both were measured.
 | Hindi UI, words | 90.6% / 90.0% | **92.1% / 92.4%** |
 | Lao, Khmer, Myanmar, held-out text, characters at 1x | **84%, 91%, 87%** | 22%, 28%, 7% |
 | Georgian, Armenian, Amharic, held-out text, words at 1x | **94%, 84%, 79%** | 15%, 12%, 20% |
-| 28 live captures of apps and web pages in 15 languages, their accessibility text | **80.7%** | 65.5% |
+| 28 live captures of apps and web pages in 15 languages, their accessibility text | **80.8%** | 65.5% |
 | Time per window or page | **30 to 40 ms** | 0.1 to 1.4 s |
 
 No training text comes from the UI strings, and the held-out text is a part
 of the word lists training never saw. On the 23 captures in scripts Vision
-reads, yomi reads 83.5% to Vision's 84.3%. On the five it does not (Bengali,
+reads, yomi reads 83.7% to Vision's 84.3%. On the five it does not (Bengali,
 Tamil, Hebrew, Georgian, Armenian), yomi reads 76.7%. On 77 websites
 held out from all development, yomi reads 89% of the text Vision reads, and
 81.0% / 81.3% of the pages' own text to Vision's 81.5% / 81.3%.

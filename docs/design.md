@@ -308,11 +308,19 @@ So only a line with a member at least 16 px tall and ten times as wide,
 about one line in seven hundred, is found again from the region around it
 with the rule on, and only where the ground around it is plain. The first
 row now reads and Thai Wikipedia goes 74.5 to 75.2%, at no measurable cost.
-BBC Thai's second row still reads as garbage. Its x-height comes out 13 px
-against 15 because fragments of its glyphs sit on the baseline, and a crop
-6 px taller reads it exactly. A floor of 0.55 of the ink height for lines
-with little baseline evidence read it, but moved every short label's crop,
-for no net gain and five more held-out unseen lines.
+
+BBC Thai's second row had no fused blob, but the same flat tops cost its
+glyphs their top rows and split them into pieces, so its x-height came out
+13 px for 16 px glyphs and the crop cut its tone marks. The rows stacked
+directly on a fused line, within its tallest member's height and with a
+tallest member of 20 px or more within half again of its, are now found
+again with it. Every line with a 16 px member was too broad: Myanmar body
+text has members that tall, and held-out Myanmar fell 6 points. Without the
+20 px floor, the rule chained down a block of 16 px Chinese UI rows and cost
+that set 0.2. With both, BBC Thai goes 72.0 to 78.6% and every other set
+reads as before. A floor of 0.55 of the ink height for lines with little
+baseline evidence, tried earlier, read the row too, but moved every short
+label's crop, for no net gain and five more held-out unseen lines.
 
 ## Underlined links in body text (measured 2026-11-22)
 
