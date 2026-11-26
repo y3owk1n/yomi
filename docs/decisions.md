@@ -227,6 +227,14 @@ to 97.3 / 97.9%, with held-out website recall up 0.1 / 0.3 points and every
 other set unchanged. It fixed only 15 of the 108 quote swaps, and Japanese ブ
 read as プ did not move.
 
+The quotes were a rendering difference, not a frequency one. macOS sets curly
+quotes in Chinese text with Latin metrics, narrow and tight against the Han,
+while Noto Sans SC, the main Simplified Chinese training font, draws them
+full width. Training now sets the curly quotes of half its CJK lines in a
+Latin font. A second round with such lines took interface CJK from 97.0 /
+97.1% to 97.2 / 97.4% and Simplified Chinese from 96.1% to 97.0% at 2x, and
+curly quotes read as straight ones fell from 93 to 27.
+
 **Not adopted: Arabic interface fonts (2026-11-26).** A fine-tune on Arabic
 interface sans left Arabic interface text flat and did not fix ح read as ج
 in Safari's Arabic font.

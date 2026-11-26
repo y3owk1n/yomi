@@ -81,12 +81,30 @@ class Font:
         return f
 
 
-def runs(text, primary, fallbacks):
+# Curly quotes. CJK fonts draw them full width, as Noto Sans SC does, but
+# macOS sets them in Chinese text with Latin metrics, narrow and tight against
+# the Han beside them, and a model that saw only the wide ones reads the
+# narrow ones as ASCII quotes.
+QUOTES = frozenset("\u201c\u201d\u2018\u2019")
+_latin_quotes = []
+
+
+def latin_quote_fonts():
+    """The Latin training fonts that draw curly quotes."""
+    if not _latin_quotes:
+        _latin_quotes.extend(f for f in fonts("train") if QUOTES <= {chr(c) for c in coverage_of(f)})
+    return _latin_quotes
+
+
+def runs(text, primary, fallbacks, quotes=None):
     """Splits text into (font path, run) by the first font covering each
-    character. None means no font has it."""
+    character, with curly quotes in quotes when it is given. None means no
+    font has it."""
     out = []
     for ch in text:
         path = primary if ord(ch) in coverage_of(primary) or ch == " " else None
+        if quotes and ch in QUOTES:
+            path = quotes
         if path is None:
             path = next((f for f in fallbacks if ord(ch) in coverage_of(f)), None)
         if out and out[-1][0] == path:
@@ -96,12 +114,12 @@ def runs(text, primary, fallbacks):
     return out
 
 
-def coverage(text, primary, fallbacks, px, weight, supersample, subpixel=False):
+def coverage(text, primary, fallbacks, px, weight, supersample, subpixel=False, quotes=None):
     """Coverage of text on its line box and the line box height in pixels.
     Grey (h, w), or with subpixel (h, w, 3), one column of subpixels per
     channel, the way LCD antialiasing draws. None when a character has no
     font."""
-    rs = runs(text, primary, fallbacks)
+    rs = runs(text, primary, fallbacks, quotes)
     if any(p is None for p, _ in rs):
         return None, 0
     ss = 3 if subpixel else (4 if supersample else 1)
@@ -207,7 +225,12 @@ def render(rng, text, primary, fallbacks, scale, other_text, shaped=False):
         if wide:
             label = re.sub(" +", " ", label)
     else:
-        a, line_h = coverage(text, primary, fallbacks, px, weight, supersample, subpixel)
+        # Half of CJK lines set their curly quotes in a Latin font, as macOS
+        # does in Chinese interfaces.
+        cover = coverage_of(primary)
+        cjk = 0x4E00 in cover or 0xAC00 in cover or 0x3042 in cover
+        quotes = rng.choice(latin_quote_fonts()) if cjk and QUOTES & set(text) and rng.random() < 0.5 else None
+        a, line_h = coverage(text, primary, fallbacks, px, weight, supersample, subpixel, quotes)
     if a is None:
         return None, label
     a = a ** rng.uniform(0.6, 1.3)
