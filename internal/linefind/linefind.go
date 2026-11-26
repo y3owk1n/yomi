@@ -506,7 +506,10 @@ func absorbMarks(lines []line, p Params) []line {
 // large heading's glyphs can seed one that overlaps its row by half. Lines of
 // text never overlap like this, so lines whose spans share over two fifths of
 // the smaller one's height, and whose bounds share over half its width, are
-// one line.
+// one line. Two lines of three or more glyphs whose cores are within 1.6
+// times each other's height and share no row are two rows of tight type,
+// even when a picture's blobs beside the upper one stretch its span over the
+// lower.
 func mergeStacked(lines []line) []line {
 	for merged := true; merged; {
 		merged = false
@@ -515,7 +518,11 @@ func mergeStacked(lines []line) []line {
 				a, b := lines[i], lines[j]
 				a0, a1 := a.span()
 				b0, b1 := b.span()
-				if overlap(a0, a1, b0, b1)*5 <= min(a1-a0+1, b1-b0+1)*2 ||
+				ac0, ac1 := a.core()
+				bc0, bc1 := b.core()
+				ah, bh := ac1-ac0+1, bc1-bc0+1
+				rows := a.n >= 3 && b.n >= 3 && max(ah, bh)*5 < min(ah, bh)*8 && overlap(ac0, ac1, bc0, bc1) == 0
+				if overlap(a0, a1, b0, b1)*5 <= min(a1-a0+1, b1-b0+1)*2 || rows ||
 					overlap(a.x0, a.x1, b.x0, b.x1)*2 <= min(a.w(), b.w()) {
 					continue
 				}

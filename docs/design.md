@@ -256,6 +256,23 @@ horizontal strokes count as background, and most of apple.com's navigation,
 21 levels from its bar, fades below the faint pass's edge at one pixel per
 point.
 
+## Tight headline rows beside a picture (measured 2026-11-26)
+
+BBC News sets a three-line bold headline beside a photograph. The photo's
+texture joined the upper row, the tall pass added a 26 px blob of it, and
+that stretched the row's span over the row below until mergeStacked made the
+two rows one line, which read as nothing. Lines of three or more glyphs
+whose cores are within 1.6 times each other's height and share no row now
+stay apart. The pieces mergeStacked is for, a Hangul syllable's final
+consonant, a heading's upper parts, a row's tone marks or dots, have fewer
+members or a far smaller core, or share the main line's core.
+
+BBC News goes 94.4 to 98.8% of its accessibility text and Korean Wikipedia
+84.7 to 84.2%, punctuation read differently. Held-out recall goes 89.3 to
+89.4% at 1x and 89.1 to 89.3% at 2x, unseen lines 253 to 237, stray
+characters 708 to 699. Four lines of the evaluation sets get a different
+crop and every set reads as before.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and
