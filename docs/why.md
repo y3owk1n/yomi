@@ -69,8 +69,10 @@ three sets of quirks and three answers to "why did this read wrong".
 ```
 frame (RGBA, scale)
   -> line finder: luma at 1x, ink by flat-background runs, rules and borders
-     cleared, blobs grouped into lines
-  -> per line, on every core: an ink map 32 rows tall
+     cleared, blobs grouped into lines, and a second pass at low contrast
+     that keeps faint lines on plain ground
+  -> per line, on every core: an ink map 32 rows tall, measured against the
+     background around each pixel, so text on a bar or a gradient reads
   -> router: each line's script, then the scripts the page is written in
   -> that script's recognizer: convolutions, line context, CTC over its alphabet
   -> words split on spaces and wide gaps, a box per character, confidence the
@@ -82,26 +84,54 @@ frame (RGBA, scale)
 ### On macOS, against Vision and PaddleOCR
 
 Word accuracy (character accuracy for CJK and Thai) on pages no training text
-came from, at 1x and 2x. The answer keys count a token that wraps, as a CJK or
-Thai sentence with no spaces does, line by line. Until 2026-11-22 such a token
-dropped out of the key, which left a quarter of the CJK text and a fifth of
-the Thai unscored.
+came from, at 1x and 2x. The UI sets hold Apple's own interface strings,
+rendered by WebKit at 11 to 16 pixels in light and dark. The held-out sets
+hold the fifth of the training word lists that training never saw. The
+answer keys count a token that wraps, as a CJK or Thai sentence with no
+spaces does, line by line. yomi's numbers are from 2026-11-26, the other
+engines' from 2026-11-22.
 
 | Set | yomi | Vision accurate | PaddleOCR |
 |---|---|---|---|
-| Western UI, 17 languages | **95.3% / 95.5%** | 86.3% / 86.3% | 85.9% / 86.8% |
-| CJK UI | 95.4% / 95.5% | 94.1% / 93.7% | **97.8% / 98.1%** |
-| Arabic UI | **83.1%** / 86.0% | 81.6% / **87.3%** | 64.1% / 78.9% |
-| Hebrew UI | **86.3% / 87.2%** | 2.2% / 2.3% | no recognizer |
-| Hindi UI | 89.5% / 89.3% | **92.1% / 92.4%** | 83.1% / 86.7% |
-| Thai UI | **97.3% / 97.5%** | 94.7% / 94.7% | 97.2% / 93.3% |
-| Lao, Khmer, Myanmar, held out, 1x | **84.9%, 89.9%, 76.4%** | 22.1%, 28.2%, 7.2% | no recognizer |
-| Georgian, Armenian, Amharic, held out, 1x | **91.1%, 85.2%, 67.2%** | 15.2%, 12.4%, 19.9% | no recognizer |
-| App layouts, 11 scenes | **94.1% / 94.3%** | 90.2% / 92.4% | not run |
+| Western UI, 17 languages | **95.4% / 95.8%** | 86.3% / 86.3% | 85.9% / 86.8% |
+| CJK UI | 96.6% / 96.9% | 94.1% / 93.7% | **97.8% / 98.1%** |
+| Arabic UI | **81.8%** / 84.5% | 81.6% / **87.3%** | 64.1% / 78.9% |
+| Hebrew UI | **86.1% / 86.5%** | 2.2% / 2.3% | no recognizer |
+| Hindi UI | 90.6% / 90.0% | **92.1% / 92.4%** | 83.1% / 86.7% |
+| Thai UI | **97.8% / 98.0%** | 94.7% / 94.7% | 97.2% / 93.3% |
+| Lao, Khmer, Myanmar, held out, 1x | **83.8%, 90.6%, 86.8%** | 22.1%, 28.2%, 7.2% | no recognizer |
+| Georgian, Armenian, Amharic, held out, 1x | **93.7%, 84.4%, 79.3%** | 15.2%, 12.4%, 19.9% | no recognizer |
+| Bengali, Tamil, Telugu, held out, 1x | **82.3%, 70.1%, 71.6%** | 18.8%, 12.5%, 15.4% | not run |
+| App layouts, 11 scenes | **94.5% / 94.9%** | 90.2% / 92.4% | not run |
+
+### On real websites and live captures
+
+The UI sets are clean text on plain ground. Real pages put text on photos,
+bars and gradients, dim it behind dialogs and set headlines in large bold
+type. Two sets measure that, both read with every recognizer and the router.
+
+- **Websites.** 77 sites, rendered at 1x and 2x and held out from all
+  development. Their reads are scored, and the pages are never looked at.
+- **Live captures.** 28 captures of apps and web pages in 15 languages, taken
+  from a real screen, scored against each element's accessibility text.
+
+| | yomi | Vision accurate |
+|---|---|---|
+| Websites: share of the text Vision reads that yomi reads, 1x / 2x | 89.4% / 89.2% | |
+| Websites: the pages' own text, 1x / 2x | 81.0% / 81.3% | **81.5%** / 81.3% |
+| Websites: time per page | **31 to 33 ms** | 505 to 566 ms |
+| Live captures, all 28 | **80.7%** | 65.5% |
+| Live captures in scripts Vision reads, 23 | 83.5% | **84.3%** |
+| Live captures in Bengali, Tamil, Hebrew, Georgian and Armenian | **76.7%** | 0.6% |
+
+What Vision reads and yomi does not is mostly text inside pictures, text
+dimmed behind a cookie or sign-in dialog, and text a few pixels tall.
 
 ### In Neru's vim mode, against Vision
 
-The same captures through Neru's line-reading path, on one M5 with nothing
+### In Neru's vim mode, against Vision
+
+Measured 2026-11-22. The same captures through Neru's line-reading path, on one M5 with nothing
 else running. Accuracy is over 11 app scenes (mail, chat, editor, Finder,
 settings, tables, a dashboard, an article), and the times cover those and a
 GitHub page.
@@ -119,7 +149,7 @@ tables at 87 to 88%, where Vision reads 76 to 81%.
 
 Both read the same pages in the same Linux VM. tesseract runs as Neru ran it,
 LSTM only and sparse text, with each page's own language data, its best case.
-yomi's accuracy is the current build's, which reads the same pixels to the
+Measured 2026-11-22 with that day's build, which read the same pixels to the
 same words on every platform. The Mac hosting the VM was busy while they ran,
 so the times compare the two engines rather than measure either.
 
@@ -135,8 +165,8 @@ so the times compare the two engines rather than measure either.
 
 ### On Windows, against Windows.Media.Ocr
 
-Both read the same pages in a Windows 11 VM, Windows.Media.Ocr with each
-page's own language pack. Windows has no pack for Hebrew, Ukrainian or
+Both read the same pages in a Windows 11 VM on 2026-11-22, Windows.Media.Ocr
+with each page's own language pack. Windows has no pack for Hebrew, Ukrainian or
 Vietnamese, so those pages are left out.
 
 | Set | yomi | Windows.Media.Ocr | Time per page at 2x, yomi / Windows |
@@ -172,12 +202,18 @@ read every evaluation set within 0.2 points of float32 and halve the size.
 
 ## Where yomi is behind
 
-- **Long prose.** Vision accurate reads the article page at 100% / 99.6%,
-  yomi at 95.7% / 96.8%. Most of the gap is a bold serif heading at 26 px.
-- **Hindi** trails Vision by 3 points and **Arabic** by 1.3 at 2x, and
-  Myanmar and Amharic sit below 80%.
-- **CJK** trails PaddleOCR by about 2.5 points.
-- **Urdu** in Nastaliq reads at about 38%.
+- **Live pages in scripts Vision reads.** yomi averages 0.8 points behind.
+  The largest gaps are BBC Thai (72.0% against 81.9%, a bold headline row
+  whose crop comes out a few pixels short), Arabic Wikipedia (61.4% against
+  67.0%), YouTube (77.5% against 82.3%) and apple.com (84.2% against 88.0%,
+  faint navigation at low contrast).
+- **Websites.** yomi reads 89% of the text Vision reads. Text in pictures,
+  behind dialogs and at a few pixels tall makes up most of the rest.
+- **Hindi** trails Vision by 1.5 to 2.4 points and **Arabic** by 2.8 at 2x.
+- **CJK** trails PaddleOCR by about 1.2 points.
+- **Lao, Armenian and Amharic** read 79 to 84%, and **Kannada, Telugu,
+  Tamil, Malayalam and Sinhala** 54 to 77% at 1x.
+- **Urdu** in Nastaliq reads about 37%.
 
 ## Checking the numbers
 
@@ -185,4 +221,7 @@ The evaluation pages, the baselines and the scripts that score them are in
 `train/`: `evalgen.py` builds the pages, `render.swift` renders them,
 `vision.swift`, `paddle.py`, `tesseract.c` and `winocr.ps1` read them with
 each engine, `yomi bench` reads them with yomi, and `pagescore.py` scores every
-run the same way.
+run the same way. `urlrender.swift` renders the sites listed in
+`urls-dev.txt` and `urls-heldout.txt`, and `webscore.py` scores the reads.
+The renders and the live captures stay out of the repository, since the
+sites are other people's pages and the captures are of a personal screen.

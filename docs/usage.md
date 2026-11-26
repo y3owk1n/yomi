@@ -161,8 +161,10 @@ fall back to plain Go elsewhere. [why.md](why.md) has the measurements.
   leaves layout to you.
 - Telling you a line's language. The router picks a recognizer, and it does
   not report its choice.
-- Display type far from interface fonts reads worse. A bold serif heading at
-  26 px is the clearest case measured so far.
+- Text inside pictures, and text dimmed behind a dialog, often goes unread. A
+  heading over a plain part of a picture reads, and one across a busy part
+  may not.
+- Text only a few pixels tall often goes unread.
 
 ## Privacy
 

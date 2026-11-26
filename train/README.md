@@ -10,6 +10,9 @@ oku). Run the scripts with `uv run python SCRIPT` from this directory.
 - `charsets.py` defines each model family's characters, `textsrc.py` the
   training text (wordfreq words with a held-out fifth, plus UI tokens), and
   `families.py` pairs them.
+- `prep.py` turns a line crop into the ink map a recognizer reads, the same
+  way `internal/prep` does in Go. A change to one needs the same change to
+  the other, or the models train on input the engine never gives them.
 - `synth.py` renders synthetic lines and non-text crops, `prerender.py`
   renders a fixed set on every core, `train.py` trains on MPS, and
   `export.py` folds batch norm and writes `model.json` and `weights.bin`

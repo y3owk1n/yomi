@@ -301,8 +301,8 @@ held-out 0.2 to 0.5 points of recall at each setting tried: tolerances of 6
 to 40 levels, 6 to 12 rows, gating on the row's background level, on
 persistent ground beside the run, and on the run's level repeating along
 the row. A photograph's flat patches persist no more than strokes, so the
-rule turned photos beside text into glyph-sized ink. It also fires in the
-main pass, not only the faint one.
+rule turned photos beside text into glyph-sized ink. Applying it in the main
+pass alone lost as much, so the faint pass is not the cause.
 
 So only a line with a member at least 16 px tall and ten times as wide,
 about one line in seven hundred, is found again from the region around it

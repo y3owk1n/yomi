@@ -1,10 +1,41 @@
 # yomi
 
-yomi reads text off screen frames: app windows, menus, terminals and web
-pages. It is pure Go with no cgo and no machine learning runtime. Each model
-package embeds its weights, nothing downloads, and the same engine runs on
-macOS, Linux and Windows. It is built for
-[Neru](https://github.com/y3owk1n/neru).
+yomi is an OCR engine for screens. Give it a capture of an app window, a
+menu, a terminal or a web page, and it returns each line of text with its
+words, a box for every word and every character, and a confidence per word.
+
+It is pure Go, with no cgo and no machine learning runtime. Each model is a
+Go package with its weights embedded, so nothing downloads, a program links
+only the scripts it imports, and it builds for macOS, Linux and Windows with
+`CGO_ENABLED=0`. The same pixels read to the same words on all three.
+
+yomi was built for [Neru](https://github.com/y3owk1n/neru), a keyboard tool
+that puts a hint on anything you can click and moves a cursor through any
+window's text with vim keys.
+
+## What it is for
+
+yomi fits a program that needs to know what text is on screen and where it
+is, between a key press and the response to it:
+
+- clicking, selecting or jumping to on-screen text from the keyboard, as
+  Neru does
+- finding or acting on text in a window whose accessibility tree has none
+- reading interface text in any of 24 scripts without asking the user which
+
+It reads what interfaces draw: text on flat colour, gradients and bars,
+headings over the plain part of a picture, faint grey labels, code, tables
+and web pages, at 1x, 2x and the scales between.
+
+It is not for photos, scanned documents, handwriting, or rotated or curved
+text. Text inside pictures, and text dimmed behind a dialog, often goes
+unread. It returns lines, not paragraphs or reading order.
+
+## Quick start
+
+```sh
+go get github.com/y3owk1n/yomi
+```
 
 ```go
 m, err := western.Model() // github.com/y3owk1n/yomi/models/western
@@ -12,7 +43,10 @@ if err != nil {
 	return err
 }
 e := yomi.New(m)
-lines, err := e.Read(ctx, frame, 2) // frame is an *image.RGBA, 2 on a HiDPI display, 1.25 or 1.5 on a scaled one
+lines, err := e.Read(ctx, frame, 2) // frame is an *image.RGBA, 2 on a Retina display
+if err != nil {
+	return err
+}
 for _, l := range lines {
 	for _, w := range l.Words {
 		fmt.Println(w.Text, w.Box, w.Confidence)
@@ -20,91 +54,101 @@ for _, l := range lines {
 }
 ```
 
-## Why yomi
+To read text without knowing its script, give one engine every recognizer
+and the router. The router names each line's script and that script's
+recognizer reads it.
 
-Operating systems each ship an OCR engine, and none fits a tool that has to
-read any window, in any script, within a keystroke, the same way on macOS,
-Linux and Windows. Vision's fast mode reads 37 to 57% of UI words across 17
-languages and its accurate mode takes up to 0.7 s a frame. tesseract takes 3
-to 12 times as long as yomi and needs a language package per script, and
-Windows.Media.Ocr needs an OCR pack per language. yomi reads only screens, so its models are small, and
-one pure-Go engine reads the same pixels to the same words everywhere.
+```go
+e := yomi.New(westernModel,
+	yomi.WithModel(cjkModel),
+	yomi.WithModel(rtlModel),
+	yomi.WithModel(indicModel),
+	yomi.WithModel(seaModel),
+	yomi.WithModel(caucasianModel),
+	yomi.WithRouter(routerModel))
+```
 
-In Neru's vim mode, on the same captures, yomi reads 91.7% of words right
-against Vision fast's 85.1% and Vision accurate's 88.4%, in 11 to 60 ms a
-frame against 22 to 75 ms and 193 to 696 ms. On Linux it reads more words than
-tesseract on every script but Hindi at 2x, at a fraction of the time.
-[docs/why.md](docs/why.md) compares it with every engine, says how it works,
-and lists where it is still behind.
+[docs/usage.md](docs/usage.md) covers choosing models, getting the scale
+right, what each field of a result means, concurrency, and the command line.
 
-[docs/usage.md](docs/usage.md) is the full guide: choosing models, getting
-the scale right, what each field of a result means, concurrency, and what
-yomi does not do.
+## How well it reads
 
-## Reading a frame
+Against Apple Vision's accurate mode, the best OCR macOS ships, with
+automatic language detection. 1x / 2x where both were measured.
 
-Read returns lines top to bottom. Each word has a box and one box per
-character, in logical pixels. Its confidence is the lowest probability the
-model gave any of its characters. An Engine is safe for concurrent use, and
-canceling the context stops lines not yet read. Frames and the text read from
-them are screen content, so yomi never logs them, writes them anywhere or
-keeps them past the call.
+| Text | yomi | Vision accurate |
+|---|---|---|
+| Apple's own UI strings, 17 Western languages, words | **95.4% / 95.8%** | 86.3% / 86.3% |
+| Chinese, Japanese and Korean UI, characters | **96.6% / 96.9%** | 94.1% / 93.7% |
+| Thai UI, characters | **97.8% / 98.0%** | 94.7% / 94.7% |
+| Hebrew UI, words | **86.1% / 86.5%** | 2.2% / 2.3% |
+| Arabic UI, words | **81.8%** / 84.5% | 81.6% / **87.3%** |
+| Hindi UI, words | 90.6% / 90.0% | **92.1% / 92.4%** |
+| Lao, Khmer, Myanmar, held-out text, characters at 1x | **84%, 91%, 87%** | 22%, 28%, 7% |
+| Georgian, Armenian, Amharic, held-out text, words at 1x | **94%, 84%, 79%** | 15%, 12%, 20% |
+| 28 live captures of apps and web pages in 15 languages, their accessibility text | **80.7%** | 65.5% |
+| Time per window or page | **30 to 40 ms** | 0.1 to 1.4 s |
+
+No training text comes from the UI strings, and the held-out text is a part
+of the word lists training never saw. On the 23 captures in scripts Vision
+reads, yomi reads 83.5% to Vision's 84.3%. On the five it does not (Bengali,
+Tamil, Hebrew, Georgian, Armenian), yomi reads 76.7%. On 77 websites
+held out from all development, yomi reads 89% of the text Vision reads, and
+81.0% / 81.3% of the pages' own text to Vision's 81.5% / 81.3%.
+
+[docs/why.md](docs/why.md) compares yomi with Vision, PaddleOCR, tesseract
+and Windows.Media.Ocr, says how it works, and lists where it is behind.
 
 ## Models
 
-A program links only the models it imports.
+| Package | Scripts | Size |
+|---|---|---|
+| `models/western` | Latin with European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB |
+| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB |
+| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB |
+| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB |
+| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB |
+| `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB |
+| `models/router` | names each line's script family | 0.1 MB |
+| `models/latin` | printable ASCII only | 0.6 MB |
 
-| Package | Scripts | Size | yomi (1x / 2x) | Vision accurate (1x / 2x) |
-|---|---|---|---|---|
-| `models/western` | Latin with the European, Turkish and Vietnamese letters, Cyrillic, Greek | 0.5 MB | 95.3% / 95.6% of UI words | 86.3% / 86.3% |
-| `models/cjk` | Simplified and Traditional Chinese, Japanese, Korean | 3.6 MB | 95.4% / 95.9% of UI characters | 94.1% / 93.7% |
-| `models/rtl` | Arabic with Persian and Urdu letters, Hebrew | 0.8 MB | Arabic 82.8% / 85.6%, Hebrew 86.0% / 86.9% of UI words | Arabic 81.6% / 87.3%, Hebrew 2.3% |
-| `models/indic` | Devanagari, Bengali, Gurmukhi, Gujarati, Tamil, Telugu, Kannada, Malayalam, Sinhala | 1.1 MB | Hindi 90.6% / 90.0% of UI words | 92.1% / 92.4% |
-| `models/sea` | Thai, Lao, Khmer, Myanmar | 0.5 MB | Thai 97.9% / 98.0% of UI characters | 94.7% / 94.7% |
-| `models/caucasian` | Georgian, Armenian, Ethiopic | 0.5 MB | 92.0%, 84.0% and 77.5% of held-out words at 1x | 15%, 12% and 20% |
-| `models/latin` | printable ASCII | 0.6 MB | English only | |
-| `models/router` | names each line's script family | 0.1 MB | | |
-
-UI pages hold Apple's own interface strings, rendered by WebKit at 11 to 16
-pixels in light and dark. No training source draws from them. Held-out pages
-use training-style text in fonts training never saw. Vision accurate is
-macOS's best mode, with automatic language detection. It reads Greek at 10%,
-where Western reads 95%, and Japanese at 78%, where CJK reads 92%.
-
-To read text without knowing its script, give one engine several
-recognizers and the router:
-
-```go
-e := yomi.New(westernModel, yomi.WithModel(cjkModel), yomi.WithModel(rtlModel), yomi.WithRouter(routerModel))
-```
-
-The router names each line's family, and that family's recognizer reads it.
-A line in a family the engine has no recognizer for goes to the model passed
-to New.
+Every recognizer also reads ASCII, so a Russian or Thai interface with
+English words in it reads with one model. Every family's recognizer and the
+router come to 7.1 MB.
 
 ## Try it
 
 ```sh
 go install github.com/y3owk1n/yomi/cmd/yomi@latest
-screencapture -i -x /tmp/shot.png                  # drag a box around some text
+screencapture -i -x /tmp/shot.png            # drag a box around some text
+yomi read -model auto -scale 2 /tmp/shot.png # every recognizer, routed
 yomi read -model western -scale 2 /tmp/shot.png
-yomi read -model cjk -scale 2 /tmp/shot.png
-yomi read -model auto -scale 2 /tmp/shot.png       # every recognizer, routed
 ```
 
 `-scale 2` is for a Retina capture, `-scale 1` for a standard display, and
 `-scale 1.25` or `-scale 1.5` for a display scaled between.
-`yomi bench DIR` times every page of an evaluation set.
 
 ## Status
 
-Western and CJK clear their bars against Vision, and Thai, Lao, Khmer and
-Georgian clear theirs. Arabic, Hebrew, the Indic scripts, Myanmar, Armenian
-and Ethiopic are packaged but below theirs. [docs/design.md](docs/design.md)
-holds the plan, the bar each model must clear and the measurements against
-Vision, PaddleOCR, tesseract and Windows.Media.Ocr.
+Each script family has a bar set before its model trained
+([docs/design.md](docs/design.md)). Western, CJK, Hebrew, Thai, Khmer,
+Myanmar and Georgian clear theirs, as do Marathi, Nepali, Bengali, Gujarati
+and Punjabi. Arabic clears its bar at 1x and is 2.8 points short at 2x.
+Hindi trails Vision by 1.5 to 2.4 points. Lao and Armenian read 84%,
+Amharic 79%, and Kannada, Telugu, Tamil, Malayalam and Sinhala 54 to 77% at
+1x. Urdu in Nastaliq reads 37%.
 
-`train/` holds the training pipeline. It renders synthetic lines from open
-fonts and trains with PyTorch.
+## Repository
+
+- [docs/usage.md](docs/usage.md): the guide to the API.
+- [docs/why.md](docs/why.md): why yomi exists and how it compares.
+- [docs/design.md](docs/design.md): the plan, the bars, and every
+  measurement and rejected idea, with dates.
+- `train/`: the training pipeline. It renders lines and web-like pages from
+  open fonts and trains with PyTorch. [train/README.md](train/README.md)
+  covers it.
+
+yomi makes no network calls and writes nothing. Frames and the text read
+from them exist only for the call.
 
 MIT licensed.
