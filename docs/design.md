@@ -273,6 +273,16 @@ BBC News goes 94.4 to 98.8% of its accessibility text and Korean Wikipedia
 characters 708 to 699. Four lines of the evaluation sets get a different
 crop and every set reads as before.
 
+Two other tight headlines stay misread, and both fixes tried cost more than
+they gained. BBC Thai's first row fuses into one wide blob that ends below
+the baseline, so its x-height comes from 8 px pieces and the crop cuts its
+marks. A floor of 0.55 of the ink height under thin evidence read that row
+but moved every short label's crop, for no net gain and five more held-out
+unseen lines. BBC Arabic's rows fuse on the left into a blob the tall pass
+gives to the lower row only. Widening every row such a blob touches read the
+upper row's left words but added 40 held-out strays and cost the SEA sets
+0.2 to 0.3 points.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and
