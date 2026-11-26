@@ -83,7 +83,7 @@ automatic language detection. 1x / 2x where both were measured.
 | Thai UI, characters | **97.8% / 98.0%** | 94.7% / 94.7% |
 | Hebrew UI, words | **86.1% / 86.5%** | 2.2% / 2.3% |
 | Arabic UI, words | **81.8%** / 84.5% | 81.6% / **87.3%** |
-| Hindi UI, words | 90.6% / 90.0% | **92.1% / 92.4%** |
+| Hindi UI, words | 90.2% / 91.0% | **92.1% / 92.4%** |
 | Lao, Khmer, Myanmar, held-out text, characters at 1x | **84%, 91%, 87%** | 22%, 28%, 7% |
 | Georgian, Armenian, Amharic, held-out text, words at 1x | **94%, 84%, 79%** | 15%, 12%, 20% |
 | 28 live captures of apps and web pages in 15 languages, their accessibility text | **80.8%** | 65.5% |
@@ -134,16 +134,16 @@ Against Vision accurate, tesseract and Windows.Media.Ocr, measured on
 2026-11-26, yomi reads every evaluation set as well or better, with fewer
 stray words and in a fraction of the time, with three exceptions. Arabic at
 2x trails Windows.Media.Ocr by 0.8 points and Vision by 2.8. Hindi trails
-tesseract at 2x by 0.6 and Vision by 1.5 to 2.4. Held-out Southeast Asian
-text at 2x trails tesseract by 0.2. It reads the same pixels to the same
+Vision by 1.9 / 1.4. Held-out Southeast Asian text at 2x trails tesseract by
+0.2. It reads the same pixels to the same
 words on macOS, Linux and Windows.
 
 Each script family has a bar set before its model trained
 ([docs/design.md](docs/design.md)). Western, CJK, Hebrew, Thai, Khmer,
 Myanmar and Georgian clear theirs, as do Marathi, Nepali, Bengali, Gujarati
 and Punjabi. Arabic clears its bar at 1x and is 2.8 points short at 2x.
-Hindi trails Vision by 1.5 to 2.4 points. Lao and Armenian read 84%,
-Amharic 79%, and Kannada, Telugu, Tamil, Malayalam and Sinhala 54 to 77% at
+Hindi trails Vision by 1.4 to 1.9 points. Lao and Armenian read 84%,
+Amharic 79%, and Kannada, Telugu, Tamil, Malayalam and Sinhala 55 to 77% at
 1x. Urdu in Nastaliq reads 37%.
 
 ## Repository

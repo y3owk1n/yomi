@@ -97,11 +97,11 @@ engines' from 2026-11-22.
 | CJK UI | 96.6% / 96.9% | 94.1% / 93.7% | **97.8% / 98.1%** |
 | Arabic UI | **81.8%** / 84.5% | 81.6% / **87.3%** | 64.1% / 78.9% |
 | Hebrew UI | **86.1% / 86.5%** | 2.2% / 2.3% | no recognizer |
-| Hindi UI | 90.6% / 90.0% | **92.1% / 92.4%** | 83.1% / 86.7% |
+| Hindi UI | 90.2% / 91.0% | **92.1% / 92.4%** | 83.1% / 86.7% |
 | Thai UI | **97.8% / 98.0%** | 94.7% / 94.7% | 97.2% / 93.3% |
 | Lao, Khmer, Myanmar, held out, 1x | **83.8%, 90.6%, 86.8%** | 22.1%, 28.2%, 7.2% | no recognizer |
 | Georgian, Armenian, Amharic, held out, 1x | **93.7%, 84.4%, 79.3%** | 15.2%, 12.4%, 19.9% | no recognizer |
-| Bengali, Tamil, Telugu, held out, 1x | **82.3%, 70.1%, 71.6%** | 18.8%, 12.5%, 15.4% | not run |
+| Bengali, Tamil, Telugu, held out, 1x | **82.3%, 71.7%, 71.3%** | 18.8%, 12.5%, 15.4% | not run |
 | App layouts, 11 scenes | **94.5% / 94.9%** | 90.2% / 92.4% | not run |
 
 ### On real websites and live captures
@@ -156,7 +156,7 @@ every page.
 | CJK UI | **96.6% / 96.9%** | 88.2% / 91.9% | 87 to 95 / 9,054 to 12,549 ms |
 | Right-to-left UI | **84.0% / 85.6%** | 65.2% / 77.9% | 43 / 1,167 to 1,655 ms |
 | Thai UI | **97.8% / 98.0%** | 89.8% / 91.2% | 65 to 79 / 8,409 to 10,033 ms |
-| Hindi UI | **90.6%** / 90.0% | 85.0% / **90.6%** | 45 / 2,065 to 3,022 ms |
+| Hindi UI | **90.2% / 91.0%** | 85.0% / 90.6% | 45 / 2,065 to 3,022 ms |
 | App layouts, stray words | **48 / 57** | 114 / 105 | 25 to 27 / 721 to 1,247 ms |
 
 ### On Windows, against Windows.Media.Ocr
@@ -206,10 +206,10 @@ read every evaluation set within 0.2 points of float32 and halve the size.
   low contrast) and BBC Thai (78.6% against 81.9%).
 - **Websites.** yomi reads 89% of the text Vision reads. Text in pictures,
   behind dialogs and at a few pixels tall makes up most of the rest.
-- **Hindi** trails Vision by 1.5 to 2.4 points and **Arabic** by 2.8 at 2x.
+- **Hindi** trails Vision by 1.4 to 1.9 points and **Arabic** by 2.8 at 2x.
 - **CJK** trails PaddleOCR by about 1.2 points.
 - **Lao, Armenian and Amharic** read 79 to 84%, and **Kannada, Telugu,
-  Tamil, Malayalam and Sinhala** 54 to 77% at 1x.
+  Tamil, Malayalam and Sinhala** 55 to 77% at 1x.
 - **Urdu** in Nastaliq reads about 37%.
 
 ## Checking the numbers

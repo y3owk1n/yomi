@@ -630,7 +630,7 @@ both VMs matched the Mac's word for word on every page of every set.
 | Criterion | macOS, against Vision accurate | Linux, against tesseract | Windows, against Windows.Media.Ocr |
 |---|---|---|---|
 | Neru's vision tests | pass, but for one that captures the live screen, which the terminal running them could not | pass | pass |
-| Accuracy, each set at 1x / 2x | short on Hindi by 1.5 / 2.4 points and Arabic at 2x by 2.8, ahead on every other set | short on Hindi at 2x by 0.6 and held-out Southeast Asian at 2x by 0.2 | short on Arabic at 2x by 0.8 |
+| Accuracy, each set at 1x / 2x | short on Hindi by 1.5 / 2.4 points and Arabic at 2x by 2.8, ahead on every other set | short on Hindi at 2x by 0.6 and held-out Southeast Asian at 2x by 0.2 (Hindi passes after the next section's model) | short on Arabic at 2x by 0.8 |
 | Layout stray words, at most 70 | 48 / 57 against 71 / 70 | 48 / 57 against 114 / 105 | 48 / 57 against 70 / 96 |
 | Speed per page | 16 to 57 ms against 85 to 1,840 ms | 23 to 95 ms against 0.7 to 12.5 s | 36 to 156 ms against 104 to 1,692 ms |
 | Fractional scales, within 2 points | pass after f2f0620 | | |
@@ -663,6 +663,29 @@ scales it restored nothing and added 25 to 50 stray characters on pictures.
 
 What stands between yomi and the gate on every platform is Arabic at 2x and
 Hindi, both recognizer accuracy rather than line finding.
+
+## Hindi interface text (measured 2026-11-26)
+
+Against Vision, yomi's Hindi gap is misreads, not missed lines: at 2x 8.3%
+of words come out wrong against Vision's 6.1%, and 44 of them are one letter
+off against Vision's 11. The commonest are ड read as ङ, and इ after a vowel
+sign, as in डिवाइस and आइटम, read as ड or ङ or with a stray virama. macOS sets
+Hindi in Kohinoor Devanagari, which training cannot use, but its renders sit
+close to Hind and Noto Sans Devanagari, a little heavier. A new indic-deva
+family draws Hindi, Marathi and Nepali lines in Devanagari UI sans at the
+weights interfaces use: all five of Hind, Medium and SemiBold cuts of Mukta,
+Yantramanav, Poppins, Palanquin, Khula and Martel Sans, and the variable
+Noto and Anek. Fine-tuning the shipped indic model on its old mix plus
+200,000 such lines took the UI set from 90.6% / 90.0% to 90.2% / 91.0% and
+the held-out font set from 76.6% / 79.7% to 77.2% / 80.0%. Web and live
+captures are unchanged, BBC Hindi goes 71.1 to 71.8% and BBC Tamil 85.3 to
+84.3%. ड read as ङ falls from 6 words to 2 at 2x. इ still misreads.
+
+A second round swapped one to three words in half the lines for words with
+those letters. It read the UI set at 90.0% / 89.6%, worse at both scales,
+and was not adopted. The gain of the first round is about the size a rerun
+of the same recipe moves, so Hindi now passes tesseract at 2x, 91.0% against
+90.6%, but its distance from Vision is not settled by more of this data.
 
 ## Against Windows.Media.Ocr (measured 2026-11-22)
 
