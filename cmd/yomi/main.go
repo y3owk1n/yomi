@@ -5,7 +5,8 @@
 //	yomi bench [-model NAME | -model-dir DIR] [-reps 3] DIR
 //	    reads DIR/pages.txt's NAME@1x.png and NAME@2x.png and writes one JSON
 //	    line per frame: {"page","scale","first_ms","median_ms",
-//	    "words":[[text,x,y,w,h,confidence]...]}, boxes in logical pixels
+//	    "words":[[text,x,y,w,h,confidence]...], "chars":[[[x,y,w,h]...]...]},
+//	    one box per character of each word, boxes in logical pixels
 //
 // NAME is a recognizer (latin, western, cjk, rtl, indic, sea, caucasian), or auto:
 // every recognizer, with the router choosing each line's.
@@ -177,15 +178,20 @@ func bench(e *yomi.Engine, dir string, reps int) error {
 			}
 			slices.Sort(times[1:])
 			med := times[len(times)/2]
-			var words [][]any
+			var words, chars [][]any
 			for _, l := range lines {
 				for _, w := range l.Words {
 					b := w.Box
 					words = append(words, []any{w.Text, b.Min.X, b.Min.Y, b.Dx(), b.Dy(), w.Confidence})
+					var cs []any
+					for _, c := range w.Chars {
+						cs = append(cs, []int{c.Min.X, c.Min.Y, c.Dx(), c.Dy()})
+					}
+					chars = append(chars, cs)
 				}
 			}
 			if err := enc.Encode(map[string]any{
-				"page": page, "scale": scale, "words": words,
+				"page": page, "scale": scale, "words": words, "chars": chars,
 				"first_ms":  float64(first.Microseconds()) / 1000,
 				"median_ms": float64(med.Microseconds()) / 1000,
 			}); err != nil {

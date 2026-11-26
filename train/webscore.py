@@ -4,7 +4,7 @@
 
 recall:  of the characters REF (Vision accurate) reads, the share a run reads
          at the same place (characters whose centres fall in the REF word's
-         box, in x order, aligned by edit distance).
+         box, in reading order, aligned by edit distance).
 unseen:  REF words of 2+ characters with no run character inside.
 dom:     character accuracy against the page's visible DOM words, the same
          alignment per DOM word.
@@ -23,12 +23,26 @@ def norm(t):
     return "".join(c for c in unicodedata.normalize("NFKC", t) if not c.isspace())
 
 
-def chars(words):
+def chars(words, boxes=None):
+    """Each character with its box: the engine's own when it gives one per
+    character (yomi), else an even share of its word's box (Vision)."""
     out = []
-    for w in words or []:
+    for i, w in enumerate(words or []):
+        if boxes and len(boxes[i]) == len(w[0]):
+            out += [(n, tuple(b)) for c, b in zip(w[0], boxes[i]) for n in norm(c)]
+            continue
         t, (x, y, wd, h) = norm(w[0]), w[1:5]
         out += [(c, (x + wd * k / len(t), y, wd / len(t), h)) for k, c in enumerate(t)]
     return out
+
+
+def rtl(t):
+    """Whether t's first strong character is right-to-left."""
+    for c in t:
+        b = unicodedata.bidirectional(c)
+        if b in ("L", "R", "AL"):
+            return b != "L"
+    return False
 
 
 def inside(pt, b, pad=2):
@@ -61,7 +75,8 @@ def match(truth_words, preds):
         if not t:
             continue
         box = w[1:5]
-        idx = sorted((i for i, c in enumerate(cent) if inside(c, box)), key=lambda i: preds[i][1][0])
+        sign = -1 if rtl(t) else 1
+        idx = sorted((i for i, c in enumerate(cent) if inside(c, box)), key=lambda i: sign * preds[i][1][0])
         used.update(idx)
         got += lcs(t, "".join(preds[i][0] for i in idx))
         tot += len(t)
@@ -82,7 +97,7 @@ def main():
         agg = collections.defaultdict(lambda: np.zeros(8))
         for (page, scale), r in sorted(run.items()):
             dom = [[d["t"], d["x"], d["y"], d["w"], d["h"]] for d in json.load(open(f"{page}.json"))]
-            preds = chars(r["words"])
+            preds = chars(r["words"], r.get("chars"))
             rw = [w for w in ref[(page, scale)]["words"]]
             g, t, u, used_r = match(rw, preds)
             dg, dt, _, used_d = match(dom, preds)
