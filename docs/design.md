@@ -214,6 +214,24 @@ crop. Refusing a blob over 2.2 times its line's core fixes that line but
 breaks large headings, whose core comes from the lowercase pieces, and cost
 the dev web pages 0.3 points.
 
+## A second read by colour (measured 2026-11-26, not adopted)
+
+Text that differs from what it sits on in colour more than in luma, as the
+blue half of the Hindi Wikipedia title over the grey globe, is invisible to a
+finder and recognizer that see only luma. A frame with each pixel grey at its
+brightest channel reads through the same code, since a grey pixel's luma is
+its value. Read that way and merged in where the first read found no words,
+keeping only words of two or more characters at confidence 0.8 or more,
+recall rose 0.1 to 0.2 points on the web sets and 0.4 on the captures,
+held-out unseen lines fell 273 to 265, and stray characters held. Without
+the confidence filter strays rose 30%.
+
+It cost about 35% more CPU per read, nearly all of it recognizing the second
+pass's lines. Reading only lines with coloured pixels, or only lines away
+from the first pass's, cut that cost to under 1% and the gain with it. The
+gain comes from reading most lines a second time, not from colour, so it is
+not worth its latency.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and
