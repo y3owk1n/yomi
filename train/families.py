@@ -1,5 +1,7 @@
 """The model families yomi trains. Each pairs a character set with the
 languages its training lines draw from and the font folders it renders in."""
+from functools import partial
+
 from charsets import ASCII, CAUCASIAN_ETHIOPIC, CJK, INDIC, RTL, SEA, WESTERN
 from synth import Generator
 from textsrc import (CAUCASIAN_ETHIOPIC_LANGS, CJK_LANGS, INDIC_LANGS, RTL_LANGS, SEA_LANGS, WESTERN_LANGS, cjk_line,
@@ -12,6 +14,11 @@ FAMILIES = {
     "latin": (ASCII, {"en": 1}, line, {"train": ["train"], "heldout": ["heldout"]}),
     "western": (WESTERN, WESTERN_LANGS, line, {"train": ["train"], "heldout": ["heldout"]}),
     "cjk": (CJK, CJK_LANGS, cjk_line, {"train": ["cjk-train"], "heldout": ["cjk-heldout"]}),
+    # CJK with twice the punctuation and less of it in ASCII, for fine-tuning
+    # on the curly quotes and full-width marks interfaces set, which the cjk
+    # set draws too rarely for the model to prefer them over ASCII.
+    "cjk-punct": (CJK, CJK_LANGS, partial(cjk_line, punct=0.16, ascii_punct=0.05),
+                  {"train": ["cjk-train"], "heldout": ["cjk-heldout"]}),
     "rtl": (RTL, RTL_LANGS, rtl_line, {"train": ["rtl-train"], "heldout": ["rtl-heldout"]}),
     # Urdu in Nastaliq only, mixed into the rtl family's training. Most rtl
     # fonts set Urdu in Naskh, as no Urdu reader's screen does.

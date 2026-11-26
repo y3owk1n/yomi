@@ -32,7 +32,7 @@ sentence that wraps counts line by line.
 | Set | yomi | Vision accurate | PaddleOCR |
 | :-- | :--- | :-------------- | :-------- |
 | Western, 17 languages | **95.4% / 95.8%** | 86.3% / 86.3% | 85.9% / 86.8% |
-| CJK | 96.9% / 97.1% | 92.6% / 92.4% | **98.4% / 98.8%** |
+| CJK | 97.0% / 97.1% | 92.6% / 92.4% | **98.4% / 98.8%** |
 | Arabic | **81.8%** / 84.5% | 81.6% / **87.3%** | 64.1% / 78.9% |
 | Hebrew | **86.1% / 86.5%** | 2.2% / 2.3% | no recognizer |
 | Hindi | 90.2% / 91.0% | **92.1% / 92.4%** | 83.1% / 86.7% |
@@ -53,7 +53,7 @@ used, reads Western interface text at 37% / 57% and the other scripts at
 | Text | yomi | Vision accurate |
 | :--- | :--- | :-------------- |
 | 17 Western languages | **98.2% / 98.5%** | 89.6% / 90.2% |
-| Chinese, Japanese, Korean | **98.2% / 98.5%** | 95.3% / 95.2% |
+| Chinese, Japanese, Korean | **98.4% / 98.6%** | 95.3% / 95.2% |
 | Arabic | 76.3% / 76.7% | **82.6% / 86.3%** |
 | Hebrew, Persian, Urdu, 1x | **91.9%, 68.8%, 79.0%** | 0.8%, 33.8%, 21.0% |
 | Hindi, Marathi, Nepali, 1x | **89.9%, 93.8%, 86.7%** | 89.2%, 92.9%, 85.5% |
@@ -106,7 +106,7 @@ matched the Mac's word for word on every page.
 | :-- | :--- | :-------- | :------------------------------ |
 | English, 1x | **99.0%** | 93.0% | 25 / 862 ms |
 | Western | **95.4% / 95.8%** | 85.9% / 91.0% | 27 / 1,684 to 2,584 ms |
-| CJK | **96.9% / 97.1%** | 82.2% / 85.4% | 87 to 95 / 9,054 to 12,549 ms |
+| CJK | **97.0% / 97.1%** | 82.2% / 85.4% | 87 to 95 / 9,054 to 12,549 ms |
 | Right-to-left | **84.0% / 85.6%** | 65.2% / 77.9% | 43 / 1,167 to 1,655 ms |
 | Thai | **98.0% / 98.1%** | 90.6% / 92.1% | 65 to 79 / 8,409 to 10,033 ms |
 | Hindi | **90.2% / 91.0%** | 85.0% / 90.6% | 45 / 2,065 to 3,022 ms |
@@ -123,7 +123,7 @@ word for word.
 | :-- | :--- | :---------------- | :---------------------------------- |
 | Code | **99.0% / 98.9%** | 88.9% / 98.1% | 37 / 192 ms |
 | Western, 15 languages | **95.8% / 96.1%** | 86.8% / 93.5% | 46 / 289 ms |
-| CJK | **96.9% / 97.1%** | 88.6% / 95.9% | 156 / 1,006 ms |
+| CJK | **97.0% / 97.1%** | 88.6% / 95.9% | 156 / 1,006 ms |
 | Arabic | **81.8%** / 84.5% | 54.9% / **85.3%** | 74 / 1,692 ms |
 | App layouts, stray words | **48 / 57** | 70 / 96 | 40 / 252 ms |
 
@@ -143,7 +143,8 @@ as macOS and GNOME downsample a scaled display, and read at their own scale.
 | Code | 99.0% / 98.9% | 98.4% | 99.1% | 98.9% |
 | App layouts | 94.5% / 94.9% | 94.3% | 94.7% | 94.2% |
 
-The Hindi row was read with the Indic model before its last fine-tune.
+The Hindi and CJK rows were read with those models before their last
+fine-tunes, which moved their whole-scale scores by under half a point.
 
 ## Speed on x86 and arm64
 
@@ -171,9 +172,9 @@ within 0.2 points of float32.
 - **Arabic** trails Vision by 2.8 points at 2x on interface text and by 6 to
   10 on the open set, and Windows.Media.Ocr by 0.8 at 2x.
 - **Hindi** trails Vision by 1.4 to 1.9 points.
-- **CJK** trails PaddleOCR by 1.5 to 1.7 points on interface text, nearly
-  all of it Simplified Chinese (96% against 99%). Korean trails Vision on the
-  open set by a point at 1x.
+- **CJK** trails PaddleOCR by 1.4 to 1.7 points on interface text, nearly
+  all of it Simplified Chinese (96% against 99%), and most of that is curly
+  quotes read as straight ones. Japanese reads ブ as プ at small sizes.
 - **Live pages in scripts Vision reads** average 0.6 points behind, worst on
   Arabic Wikipedia, YouTube and apple.com's faint navigation.
 - **Lao, Armenian and Amharic** read 79% to 84%, and Kannada, Telugu, Tamil,

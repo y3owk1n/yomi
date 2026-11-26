@@ -218,6 +218,15 @@ the usual bias toward frequent ones, so rare conjuncts such as the half ग of
 सेटिंग्स appear more. That read सेटिंग्स but broke other words, and Hindi at
 2x fell from 91.0 to 89.1%.
 
+**CJK punctuation (2026-11-27).** Simplified Chinese trailed PaddleOCR by
+three points, and most of it was curly quotes read as straight ones, which
+training drew far less often. A fine-tune from the shipped model with extra
+lines at twice the punctuation, nearly all of it CJK forms, took open CJK
+from 98.2 / 98.5% to 98.4 / 98.6% and Korean on the open set from 96.8 / 97.3%
+to 97.3 / 97.9%, with held-out website recall up 0.1 / 0.3 points and every
+other set unchanged. It fixed only 15 of the 108 quote swaps, and Japanese ブ
+read as プ did not move.
+
 **Not adopted: Arabic interface fonts (2026-11-26).** A fine-tune on Arabic
 interface sans left Arabic interface text flat and did not fix ح read as ج
 in Safari's Arabic font.

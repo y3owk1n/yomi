@@ -216,11 +216,12 @@ def _sets(charset):
     return _frozen[key][1], _frozen[key][2]
 
 
-def cjk_line(rng, langs, charset, split="train", n=None):
+def cjk_line(rng, langs, charset, split="train", n=None, punct=0.08, ascii_punct=0.2):
     """One line of Chinese, Japanese or Korean UI-like text: words run
     together (Korean mostly spaced), the language's punctuation with quotes and
     brackets around a word, and Latin tokens (numbers, acronyms, English words)
-    mixed in, as CJK interfaces write them."""
+    mixed in, as CJK interfaces write them. punct is the share of tokens that
+    are punctuation, and ascii_punct the share of those in ASCII."""
     names, weights = zip(*langs.items())
     lang = rng.choices(names, weights)[0]
     charset, with_han = _sets(charset)
@@ -235,10 +236,10 @@ def cjk_line(rng, langs, charset, split="train", n=None):
     parts = []
     for i in range(n):
         r = rng.random()
-        if r < 0.78:
+        if r < 0.86 - punct:
             tok = words.pick(rng)
         elif r < 0.86:
-            tok = rng.choice(_ASCII_PUNCT if rng.random() < 0.2 else _CJK_PUNCT[lang])
+            tok = rng.choice(_ASCII_PUNCT if rng.random() < ascii_punct else _CJK_PUNCT[lang])
             if tok in _PAIRS:
                 tok += words.pick(rng) + _PAIRS[tok]
             elif tok in _PAIRS.values():
