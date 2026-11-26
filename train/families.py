@@ -17,11 +17,14 @@ FAMILIES = {
     # fonts set Urdu in Naskh, as no Urdu reader's screen does.
     "rtl-urdu": (RTL, {"ur": 1}, rtl_line, {"train": ["rtl-nastaliq"], "heldout": ["rtl-heldout"]}),
     "indic": (INDIC, INDIC_LANGS, line, {"train": ["indic-train"], "heldout": ["indic-heldout"]}),
+    # Devanagari alone, in UI sans weights, for fine-tuning the indic model on
+    # Hindi interface text. Same alphabet as indic.
+    "indic-deva": (INDIC, {"hi": 4, "mr": 1, "ne": 1}, line, {"train": ["indic-deva"], "heldout": ["indic-heldout"]}),
     "sea": (SEA, SEA_LANGS, line, {"train": ["sea-train"], "heldout": ["sea-heldout"]}),
     "caucasian-ethiopic": (CAUCASIAN_ETHIOPIC, CAUCASIAN_ETHIOPIC_LANGS, line,
                            {"train": ["cau-train"], "heldout": ["cau-heldout"]}),
 }
-SHAPED = {"rtl", "rtl-urdu", "indic", "sea"}
+SHAPED = {"rtl", "rtl-urdu", "indic", "indic-deva", "sea"}
 
 
 def generator(family, split="train", blank_rate=0.08):

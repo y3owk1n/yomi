@@ -3,7 +3,7 @@
 # line says otherwise. fonts/LICENSES.md records name, licence and source URL.
 set -eu
 cd "$(dirname "$0")"
-mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout fonts/rtl-nastaliq fonts/display
+mkdir -p fonts/train fonts/heldout fonts/fallback fonts/cjk-train fonts/cjk-heldout fonts/rtl-train fonts/rtl-heldout fonts/indic-train fonts/indic-heldout fonts/indic-deva fonts/sea-train fonts/sea-heldout fonts/cau-train fonts/cau-heldout fonts/rtl-nastaliq fonts/display
 G=https://raw.githubusercontent.com/google/fonts/main
 : > fonts/LICENSES.md
 echo "| File | Split | Licence | Source |" >> fonts/LICENSES.md
@@ -167,6 +167,17 @@ for f in "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf" "ofl/hind/Hi
   "ofl/abhayalibre/AbhayaLibre-Regular.ttf" "ofl/abhayalibre/AbhayaLibre-Bold.ttf" "ofl/gemunulibre/GemunuLibre[wght].ttf" \
   "ofl/maname/Maname-Regular.ttf" "ofl/yaldevi/Yaldevi[wght].ttf"; do
   get indic-train "$f" OFL-1.1
+done
+# Devanagari UI sans in the weights interfaces set labels in, for the
+# indic-deva family. Hind comes from the foundry of Kohinoor Devanagari,
+# which macOS sets its Hindi interface in.
+for f in "ofl/hind/Hind-Light.ttf" "ofl/hind/Hind-Regular.ttf" "ofl/hind/Hind-Medium.ttf" "ofl/hind/Hind-SemiBold.ttf" \
+  "ofl/hind/Hind-Bold.ttf" "ofl/notosansdevanagari/NotoSansDevanagari[wdth,wght].ttf" \
+  "ofl/anekdevanagari/AnekDevanagari[wdth,wght].ttf" "ofl/mukta/Mukta-Regular.ttf" "ofl/mukta/Mukta-Medium.ttf" \
+  "ofl/mukta/Mukta-SemiBold.ttf" "ofl/yantramanav/Yantramanav-Regular.ttf" "ofl/yantramanav/Yantramanav-Medium.ttf" \
+  "ofl/poppins/Poppins-Medium.ttf" "ofl/poppins/Poppins-SemiBold.ttf" "ofl/palanquin/Palanquin-Medium.ttf" \
+  "ofl/palanquin/Palanquin-SemiBold.ttf" "ofl/khula/Khula-SemiBold.ttf" "ofl/martelsans/MartelSans-SemiBold.ttf"; do
+  get indic-deva "$f" OFL-1.1
 done
 for f in "ofl/ibmplexsansdevanagari/IBMPlexSansDevanagari-Regular.ttf" "ofl/notoserifbengali/NotoSerifBengali[wdth,wght].ttf" \
   "ofl/notoserifgurmukhi/NotoSerifGurmukhi[wght].ttf" "ofl/notoserifgujarati/NotoSerifGujarati[wght].ttf" \
