@@ -629,7 +629,7 @@ both VMs matched the Mac's word for word on every page of every set.
 
 | Criterion | macOS, against Vision accurate | Linux, against tesseract | Windows, against Windows.Media.Ocr |
 |---|---|---|---|
-| Neru's vision tests | pass, but for one that captures the live screen, which the terminal running them could not | pass | pass |
+| Neru's vision tests | pass | pass | pass |
 | Accuracy, each set at 1x / 2x | short on Hindi by 1.5 / 2.4 points and Arabic at 2x by 2.8, ahead on every other set | short on Hindi at 2x by 0.6 and held-out Southeast Asian at 2x by 0.2 (Hindi passes after the next section's model) | short on Arabic at 2x by 0.8 |
 | Layout stray words, at most 70 | 48 / 57 against 71 / 70 | 48 / 57 against 114 / 105 | 48 / 57 against 70 / 96 |
 | Speed per page | 16 to 57 ms against 85 to 1,840 ms | 23 to 95 ms against 0.7 to 12.5 s | 36 to 156 ms against 104 to 1,692 ms |
