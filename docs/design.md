@@ -194,6 +194,26 @@ unchanged, stray characters move under 3%, and every evaluation set is within
 0.1 points. The opening and closing take about 5% of a read's CPU time, and
 a dev page reads 1 to 3 ms slower, within the run-to-run spread.
 
+## Large type over a picture (measured 2026-11-26)
+
+Hindi Wikipedia sets its title in large blue type over the Wikipedia globe.
+Where the letters cross the globe's edge, the edge leaves fragments 5 px tall
+beside them in the line, and the three fragments outvoted the three 21 px
+glyphs for the baseline. The x-height came out as 5 px and the crop was a
+sliver. A member under half the median member's height no longer votes when
+it stands beside the others, not over or under one as a dot or vowel sign
+does. The right half of the title now reads, and Hindi, Armenian and Chinese
+Wikipedia gain 0.4 to 0.8 points of their accessibility text. Every other
+measure is within 0.1 points, held-out unseen lines go 275 to 273.
+
+The left half stays unread. Its blue is luma 130 on a globe of 88 to 110,
+under the line finder's edge of 40, and prep sees too little contrast to read
+even a box drawn by hand. That needs colour, not luma. The line below the
+title also stays unread: a 29 px tile of the globe joins it and stretches its
+crop. Refusing a blob over 2.2 times its line's core fixes that line but
+breaks large headings, whose core comes from the lowercase pieces, and cost
+the dev web pages 0.3 points.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and

@@ -603,11 +603,32 @@ func (l line) within(b blob) bool {
 // metrics returns a line's baseline (the lower median blob bottom) and the
 // heights of the blobs that sit on it, sorted. Of an even count the higher of
 // the middle two wins, so a comma or descender among two members never sets
-// the baseline below the glyph beside it.
+// the baseline below the glyph beside it. A member under half the median
+// member's height does not vote when it stands beside the others, not over
+// or under one as a dot or a vowel sign does. Where large type crosses the
+// edge of a picture behind it, the picture leaves fragments a few pixels
+// tall. They end at their own height, and as many of them as glyphs would
+// set the baseline.
 func (l line) metrics() (int, []int) {
-	bottoms := make([]int, len(l.members))
+	heights := make([]int, len(l.members))
 	for i, b := range l.members {
-		bottoms[i] = b.y1
+		heights[i] = b.h()
+	}
+	sort.Ints(heights)
+	median := heights[len(heights)/2]
+	beside := func(b blob) bool {
+		for _, m := range l.members {
+			if m.h() > b.h() && overlap(m.x0, m.x1, b.x0, b.x1) > 0 {
+				return false
+			}
+		}
+		return true
+	}
+	var bottoms []int
+	for _, b := range l.members {
+		if b.h()*2 >= median || !beside(b) {
+			bottoms = append(bottoms, b.y1)
+		}
 	}
 	sort.Ints(bottoms)
 	base := bottoms[(len(bottoms)-1)/2]
