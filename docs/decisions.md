@@ -213,7 +213,10 @@ second CJK round (flat), and routers that broke the routing tests.
 misreads, such as ड read as ङ. Fine-tuning on Devanagari interface sans at
 the weights interfaces use took Hindi from 90.6 / 90.0% to 90.2 / 91.0% and
 fixed most of that swap. Rejected: oversampling words with the confused
-letters, which made both scales worse.
+letters, which made both scales worse, and drawing training words without
+the usual bias toward frequent ones, so rare conjuncts such as the half ग of
+सेटिंग्स appear more. That read सेटिंग्स but broke other words, and Hindi at
+2x fell from 91.0 to 89.1%.
 
 **Not adopted: Arabic interface fonts (2026-11-26).** A fine-tune on Arabic
 interface sans left Arabic interface text flat and did not fix ح read as ج
