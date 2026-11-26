@@ -28,7 +28,7 @@ and how it measures against them, including where it is still behind.
 |---|---|---|
 | Vision (fast) | macOS | Reads Western UI text at 37% at 1x and 57% at 2x, since fast mode skips language correction |
 | Vision (accurate) | macOS | 0.2 to 0.7 s a frame, compiles its models for up to a minute the first time it meets a script, reads Greek at 10% and Hebrew at 2% |
-| tesseract | Linux | 3 to 12 times slower than yomi on the same machine, a cgo library and a language data package per script, and the user picks the languages |
+| tesseract | Linux | 30 to 140 times slower than yomi on the same machine, a cgo library and a language data package per script, and the user picks the languages |
 | Windows.Media.Ocr | Windows | Needs an OCR pack per language, gives no per-word confidence, reads only the languages the account lists |
 | PaddleOCR | anywhere | The most accurate on Chinese, but needs ONNX Runtime or ncnn through cgo, and takes 4 to 10 s a page |
 | Vision-language models | anywhere | Hundreds of millions of parameters, where each yomi recognizer has 0.2 to 1.8 million |
@@ -127,55 +127,53 @@ type. Two sets measure that, both read with every recognizer and the router.
 What Vision reads and yomi does not is mostly text inside pictures, text
 dimmed behind a cookie or sign-in dialog, and text a few pixels tall.
 
-### In Neru's vim mode, against Vision
+### In Neru, against Vision
 
-### In Neru's vim mode, against Vision
+The 28 live captures read through Neru's own path, as its hints and vim mode
+use the text, and scored against each window's accessibility tree. Neru
+without yomi reads them with Vision, fast for hints and accurate for vim.
 
-Measured 2026-11-22. The same captures through Neru's line-reading path, on one M5 with nothing
-else running. Accuracy is over 11 app scenes (mail, chat, editor, Finder,
-settings, tables, a dashboard, an article), and the times cover those and a
-GitHub page.
-
-| | Vision fast | yomi | Vision accurate |
-|---|---|---|---|
-| Words read right | 85.1% | **91.7%** | 88.4% |
-| Stray words | 53 | **33** | 71 |
-| Time per 1280x800 frame | 22 to 75 ms | **11 to 60 ms** | 193 to 696 ms |
-
-yomi reads code in an editor at 98.7%, where Vision reads 62 to 66%, and
-tables at 87 to 88%, where Vision reads 76 to 81%.
+| | Neru with Vision | Neru with yomi |
+|---|---|---|
+| Characters of the accessibility text read | 65.5% | **80.6%** |
+| Clickable elements whose text was read | 29.7% | **44.7%** |
+| Vim cursor at the right character | 65.4% | **86.6%** |
+| Stray reads away from text, on pictures | **108**, 79 | 182, **51** |
+| Time per vim read, median | 726 ms | **36 to 41 ms** |
 
 ### On Linux, against tesseract
 
-Both read the same pages in the same Linux VM. tesseract runs as Neru ran it,
-LSTM only and sparse text, with each page's own language data, its best case.
-Measured 2026-11-22 with that day's build, which read the same pixels to the
-same words on every platform. The Mac hosting the VM was busy while they ran,
-so the times compare the two engines rather than measure either.
+Both read the same pages in the same Linux VM, tesseract as Neru ran it,
+LSTM only and sparse text, with each page's own language data, its best
+case. yomi was measured on 2026-11-26 in an idle VM, tesseract on 2026-11-22
+with the host busy. yomi's output there matched the Mac's word for word on
+every page.
 
 | Set | yomi | tesseract | Time per page, yomi / tesseract |
 |---|---|---|---|
-| English, 1x | **98.8%** | 93.0% | 0.25 s / 1.3 to 2.2 s |
-| Western UI | **95.3% / 95.5%** | 85.9% / 91.0% | 0.27 s / 1.7 to 2.6 s |
-| CJK UI | **95.4% / 95.5%** | 88.2% / 91.9% | 1.1 s / 9 to 12.5 s |
-| Right-to-left UI | **84.8% / 86.6%** | 65.2% / 77.9% | |
-| Thai UI | **97.3% / 97.5%** | 89.8% / 91.2% | |
-| Hindi UI | **89.5%** / 89.3% | 85.0% / **90.6%** | 0.35 s / 2.1 to 3.0 s |
-| App layouts, stray words | **50 / 46** | 114 / 105 | 0.2 s / 0.7 to 1.2 s |
+| English, 1x | **99.0%** | 93.0% | 25 / 862 ms |
+| Western UI | **95.4% / 95.8%** | 85.9% / 91.0% | 27 / 1,684 to 2,584 ms |
+| CJK UI | **96.6% / 96.9%** | 88.2% / 91.9% | 87 to 95 / 9,054 to 12,549 ms |
+| Right-to-left UI | **84.0% / 85.6%** | 65.2% / 77.9% | 43 / 1,167 to 1,655 ms |
+| Thai UI | **97.8% / 98.0%** | 89.8% / 91.2% | 65 to 79 / 8,409 to 10,033 ms |
+| Hindi UI | **90.6%** / 90.0% | 85.0% / **90.6%** | 45 / 2,065 to 3,022 ms |
+| App layouts, stray words | **48 / 57** | 114 / 105 | 25 to 27 / 721 to 1,247 ms |
 
 ### On Windows, against Windows.Media.Ocr
 
-Both read the same pages in a Windows 11 VM on 2026-11-22, Windows.Media.Ocr
-with each page's own language pack. Windows has no pack for Hebrew, Ukrainian or
-Vietnamese, so those pages are left out.
+Both read the same pages in a Windows 11 arm64 VM, Windows.Media.Ocr with
+each page's own language pack, its best case. Windows has no pack for
+Hebrew, Ukrainian or Vietnamese, so those pages are left out. yomi was
+measured on 2026-11-26, Windows.Media.Ocr on 2026-11-22. yomi's output there
+matched the Mac's word for word on every page.
 
 | Set | yomi | Windows.Media.Ocr | Time per page at 2x, yomi / Windows |
 |---|---|---|---|
-| Code | **98.6% / 98.7%** | 88.9% / 98.1% | 138 / 192 ms |
-| Western UI, 15 languages | **95.6% / 95.9%** | 86.8% / 93.5% | 94 / 289 ms |
-| CJK UI | **95.4% / 95.5%** | 87.4% / 94.6% | 417 / 1,006 ms |
-| Arabic UI | **83.1% / 86.0%** | 54.9% / 85.3% | 133 / 1,692 ms |
-| App layouts, stray words | **45 / 43** | 70 / 96 | 100 / 252 ms |
+| Code | **99.0% / 98.9%** | 88.9% / 98.1% | 37 / 192 ms |
+| Western UI, 15 languages | **95.8% / 96.1%** | 86.8% / 93.5% | 46 / 289 ms |
+| CJK UI | **96.6% / 96.9%** | 87.4% / 94.6% | 156 / 1,006 ms |
+| Arabic UI | **81.8%** / 84.5% | 54.9% / **85.3%** | 74 / 1,692 ms |
+| App layouts, stray words | **48 / 57** | 70 / 96 | 40 / 252 ms |
 
 ### Speed on x86
 

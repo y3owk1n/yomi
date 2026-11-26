@@ -619,6 +619,51 @@ languages, Windows' OCR engines and Vision's languages.
 Vision has two baselines on macOS. Vision fast is what hints read with and
 Vision accurate is what vim reads with.
 
+## Milestone 6 gate, re-run (measured 2026-11-26)
+
+The gate above, measured again with the build after the day's line finder
+and prep work. The native engines and the pages have not changed, so their
+runs from 2026-11-22 stand, and only yomi was read again: on the Mac, and
+from cross-compiled binaries in the Linux and Windows VMs. yomi's output in
+both VMs matched the Mac's word for word on every page of every set.
+
+| Criterion | macOS, against Vision accurate | Linux, against tesseract | Windows, against Windows.Media.Ocr |
+|---|---|---|---|
+| Neru's vision tests | pass, but for one that captures the live screen, which the terminal running them could not | pass | pass |
+| Accuracy, each set at 1x / 2x | short on Hindi by 1.5 / 2.4 points and Arabic at 2x by 2.8, ahead on every other set | short on Hindi at 2x by 0.6 and held-out Southeast Asian at 2x by 0.2 | short on Arabic at 2x by 0.8 |
+| Layout stray words, at most 70 | 48 / 57 against 71 / 70 | 48 / 57 against 114 / 105 | 48 / 57 against 70 / 96 |
+| Speed per page | 16 to 57 ms against 85 to 1,840 ms | 23 to 95 ms against 0.7 to 12.5 s | 36 to 156 ms against 104 to 1,692 ms |
+| Fractional scales, within 2 points | pass after f2f0620 | | |
+
+Vision fast, what hints read with, reads Western UI at 37% / 57% and the
+other scripts at 3 to 8%, so yomi passes it on accuracy everywhere. It is
+about as fast as yomi on small pages, within a few milliseconds either way
+with the machine under load, and its 53 stray words at 2x on the layouts
+are 4 fewer than yomi's 57.
+
+The re-run found a regression. c3a4305's opening, which measures ink against
+the background under each pixel, broke reads of downsampled frames: a
+Lanczos filter leaves a halo beside every stroke, and every window of a line
+holds one, so the line's whole background moved by the halo's depth.
+Right-to-left UI at 1.25 to 1.75x fell from about 85% to 66-68% and CJK by
+3.5 points. Every benchmark that day read whole scales, so none showed it.
+f2f0620 counts a background up to 32 lumas past the crop's own, away from
+the ink, as the crop's own, in fractional frames only. Applied at whole
+scales it restored nothing and added 25 to 50 stray characters on pictures.
+
+| Set | 1x / 2x | 1.25x | 1.5x | 1.75x |
+|---|---|---|---|---|
+| Western UI | 95.4% / 95.8% | 95.3% | 95.5% | 95.5% |
+| CJK UI | 96.6% / 96.9% | 96.4% | 96.9% | 96.8% |
+| Right-to-left UI | 84.0% / 85.6% | 85.0% | 85.0% | 85.9% |
+| Hindi UI | 90.6% / 90.0% | 90.5% | 90.5% | 89.7% |
+| Thai UI | 97.8% / 98.0% | 97.1% | 97.0% | 97.0% |
+| Code | 99.0% / 98.9% | 98.4% | 99.1% | 98.9% |
+| App layouts | 94.5% / 94.9% | 94.3% | 94.7% | 94.2% |
+
+What stands between yomi and the gate on every platform is Arabic at 2x and
+Hindi, both recognizer accuracy rather than line finding.
+
 ## Against Windows.Media.Ocr (measured 2026-11-22)
 
 The evaluation sets read in the Windows 11 arm64 VM by `train/winocr.ps1`,

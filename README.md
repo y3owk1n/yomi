@@ -130,6 +130,14 @@ yomi read -model western -scale 2 /tmp/shot.png
 
 ## Status
 
+Against Vision accurate, tesseract and Windows.Media.Ocr, measured on
+2026-11-26, yomi reads every evaluation set as well or better, with fewer
+stray words and in a fraction of the time, with three exceptions. Arabic at
+2x trails Windows.Media.Ocr by 0.8 points and Vision by 2.8. Hindi trails
+tesseract at 2x by 0.6 and Vision by 1.5 to 2.4. Held-out Southeast Asian
+text at 2x trails tesseract by 0.2. It reads the same pixels to the same
+words on macOS, Linux and Windows.
+
 Each script family has a bar set before its model trained
 ([docs/design.md](docs/design.md)). Western, CJK, Hebrew, Thai, Khmer,
 Myanmar and Georgian clear theirs, as do Marathi, Nepali, Bengali, Gujarati
