@@ -25,6 +25,7 @@ import torch.nn.functional as F
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from families import generator  # noqa: E402
+from exported import load_exported  # noqa: E402
 from model import Recognizer  # noqa: E402
 from prerender import Set  # noqa: E402
 
@@ -140,10 +141,12 @@ def validation(family, batch, hstride):
 
 
 def init_from(model, path, meta):
-    """Loads the checkpoint at path into model. Its network must be the same
-    shape. Characters of the new alphabet that the checkpoint knows keep their
-    output rows, and new ones start untrained. Returns how many were kept."""
-    ck = torch.load(path, map_location="cpu", weights_only=False)
+    """Loads the checkpoint at path into model, or the exported model when path
+    is a directory such as models/indic. Its network must be the same shape.
+    Characters of the new alphabet that the checkpoint knows keep their output
+    rows, and new ones start untrained. Returns how many were kept, and
+    whether the batch norms must stay frozen."""
+    ck = load_exported(path) if os.path.isdir(path) else torch.load(path, map_location="cpu", weights_only=False)
     for k in ("width", "arch", "head"):
         if ck[k] != meta[k]:
             sys.exit(f"--init {path}: its {k} is {ck[k]}, this run's is {meta[k]}")
@@ -164,7 +167,7 @@ def init_from(model, path, meta):
         for i, j in kept:
             v[i + off] = old[k][j + off]
     model.load_state_dict(new)
-    return len(kept)
+    return len(kept), ck.get("frozen_bn", False)
 
 
 def main():
@@ -172,7 +175,7 @@ def main():
     ap.add_argument("out")
     ap.add_argument("--family", required=True)
     ap.add_argument("--data", required=True, nargs="+", help="pre-rendered sets from prerender.py")
-    ap.add_argument("--init", help="checkpoint to fine-tune from")
+    ap.add_argument("--init", help="checkpoint, or exported model directory such as ../models/indic, to fine-tune from")
     ap.add_argument("--resume", action="store_true", help="continue OUTDIR's run from its last.pt")
     ap.add_argument("--width", type=float, default=0.8)
     ap.add_argument("--arch", default="ctx", choices=["base", "ctx"])
@@ -197,7 +200,7 @@ def main():
     meta = {"width": a.width, "arch": a.arch, "head": a.head, "rank": a.rank, "hstride": a.hstride, "classes": classes,
             "alphabet": chars, "family": a.family}
     if a.init:
-        kept = init_from(model, a.init, meta)
+        kept, meta["frozen_bn"] = init_from(model, a.init, meta)
         print(json.dumps({"init": a.init, "chars_kept": kept, "chars": len(chars)}), flush=True)
     model.to(dev)
     # Four times each bucket's lines train 1.5 times as fast as one on an M5
@@ -214,7 +217,7 @@ def main():
         # optimizer was saved restarts its moments and steps the schedule
         # forward to the same place.
         ck = torch.load(os.path.join(a.out, "last.pt"), map_location="cpu", weights_only=False)
-        init_from(model, os.path.join(a.out, "last.pt"), meta)
+        _, meta["frozen_bn"] = init_from(model, os.path.join(a.out, "last.pt"), meta)
         start = ck["step"]
         if start >= a.steps:
             sys.exit(f"--resume: {a.out} already ran {start} of {a.steps} steps")
@@ -232,6 +235,12 @@ def main():
     t0, run = time.time(), 0.0
     for step, (x, tg, il, tl, _) in enumerate(prefetched(Fixed(a.data, seed=start, hstride=a.hstride)), start + 1):
         model.train()
+        if meta.get("frozen_bn"):
+            # An exported model's batch norms are folded identities. Batch
+            # statistics would renormalize every layer, so they stay in eval.
+            for mod in model.modules():
+                if isinstance(mod, nn.BatchNorm2d):
+                    mod.eval()
         logp = model(x.to(dev), il)
         loss = ctc_loss(logp, tg, il, tl, dev)
         opt.zero_grad(set_to_none=True)

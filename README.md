@@ -152,6 +152,8 @@ Amharic 79%, and Kannada, Telugu, Tamil, Malayalam and Sinhala 55 to 77% at
 - [docs/why.md](docs/why.md): why yomi exists and how it compares.
 - [docs/design.md](docs/design.md): the plan, the bars, and every
   measurement and rejected idea, with dates.
+- [docs/contributing.md](docs/contributing.md): reporting misreads, adding
+  fonts and words, and training a model to send back.
 - `train/`: the training pipeline. It renders lines and web-like pages from
   open fonts and trains with PyTorch. [train/README.md](train/README.md)
   covers it.

@@ -17,6 +17,8 @@ oku). Run the scripts with `uv run python SCRIPT` from this directory.
   renders a fixed set on every core, `train.py` trains on MPS, and
   `export.py` folds batch norm and writes `model.json` and `weights.bin`
   with the reference crops `internal/nn` tests against.
+  `exported.py` loads an exported model back, so `train.py --init
+  ../models/FAMILY` fine-tunes the model that ships.
 - `uistrings.py` collects the Mac's own interface strings per language,
   `evalgen.py` builds evaluation pages from them, `render.swift` renders the
   pages in WebKit with exact word boxes, and `mklines.py` cuts line crops.
