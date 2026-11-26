@@ -190,7 +190,9 @@ func bands(n int, fn func(lo, hi int)) {
 // is ink. Then it clears straight runs of at least RunMax (horizontal) or
 // RunMaxV (vertical) marked pixels, which rules, borders and outlines make
 // and glyphs at text sizes do not. Rows, then columns, run in parallel bands.
-func edges(l []uint8, w, h int, p Params) []bool {
+// With strokes set, as refind sets it, a short run whose level does not
+// persist down its column is ink too.
+func edges(l []uint8, w, h int, p Params, strokes bool) []bool {
 	e := make([]bool, w*h)
 	clear := make([]bool, w*h)
 	bands(h, func(y0, y1 int) {
@@ -238,6 +240,14 @@ func edges(l []uint8, w, h int, p Params) []bool {
 					(absInt(runs[k].level-bg.level) <= p.Edge || runs[k].e-runs[k].s > strokeRun)
 			}
 			for k, r := range runs {
+				// The tops of a row of bold glyphs set without spaces, as Thai is,
+				// are flat runs at the ink's level, a few rows deep, between gaps
+				// too narrow to be runs. Taken for background, they make the gaps
+				// ink, which joins the row into one blob. Background persists
+				// down its column, and a stroke does not.
+				if strokes && r.e-r.s <= strokeRun && !persists(l, w, h, (r.s+r.e)/2, y, r.level) {
+					continue
+				}
 				// A short run whose level differs from the runs on both sides,
 				// which agree with each other and are background, is the inside
 				// of a stroke too wide to be anything but even, as in large bold
@@ -329,6 +339,26 @@ func edges(l []uint8, w, h int, p Params) []bool {
 	}
 	bridge(e, clear, l, w, h, p.Edge)
 	return e
+}
+
+// persistRows is how many rows a flat run's level must hold down its column
+// for persists to call it background, and persistSpread how far it may drift.
+const (
+	persistRows   = 12
+	persistSpread = 20
+)
+
+// persists reports whether column x holds within persistSpread of level for
+// persistRows rows through row y.
+func persists(l []uint8, w, h, x, y, level int) bool {
+	k := 1
+	for i := y - 1; i >= 0 && k < persistRows && absInt(int(l[i*w+x])-level) <= persistSpread; i-- {
+		k++
+	}
+	for i := y + 1; i < h && k < persistRows && absInt(int(l[i*w+x])-level) <= persistSpread; i++ {
+		k++
+	}
+	return k >= persistRows
 }
 
 // bridgeInk is the tallest stroke on either side of a cut that bridge
@@ -684,7 +714,8 @@ type Box struct {
 func Find(img *image.RGBA, scale float64, p Params) []Box {
 	l, w, h := luma1x(img, scale)
 	if p.LowEdge >= p.Edge {
-		return find(l, w, h, p)
+		out, _ := find(l, w, h, p, false)
+		return out
 	}
 	// Faint text, as grey on white or white on a light bar, differs from its
 	// background by less than Edge. A second pass at LowEdge, run alongside
@@ -695,8 +726,9 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 	lp.Edge = p.LowEdge
 	var faint []Box
 	var wg sync.WaitGroup
-	wg.Go(func() { faint = find(l, w, h, lp) })
-	out := find(l, w, h, p)
+	wg.Go(func() { faint, _ = find(l, w, h, lp, false) })
+	out, fused := find(l, w, h, p, false)
+	out = refind(l, w, h, p, out, fused)
 	wg.Wait()
 	first := len(out)
 	var inks []image.Rectangle
@@ -711,6 +743,39 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 		}
 	}
 	return out
+}
+
+// refind finds the lines of each fused box again, from the region around its
+// ink with strokes on, and puts the lines whose ink centres fall in the box's
+// ink in its place. Where the ground around the box is not plain, as in a
+// photograph, it keeps the box, since strokes would turn the photograph's
+// flat patches into ink.
+func refind(l []uint8, w, h int, p Params, out []Box, fused []bool) []Box {
+	var inks []image.Rectangle
+	for _, b := range out {
+		inks = append(inks, b.Ink)
+	}
+	var keep []Box
+	for i, b := range out {
+		if !fused[i] || !quiet(l, w, h, b.Ink, inks, p.QuietRing) {
+			keep = append(keep, b)
+			continue
+		}
+		r := b.Ink.Inset(-b.Ink.Dy()).Intersect(image.Rect(0, 0, w, h))
+		sub := make([]uint8, r.Dx()*r.Dy())
+		for y := r.Min.Y; y < r.Max.Y; y++ {
+			copy(sub[(y-r.Min.Y)*r.Dx():], l[y*w+r.Min.X:y*w+r.Max.X])
+		}
+		found, _ := find(sub, r.Dx(), r.Dy(), p, true)
+		for _, f := range found {
+			f.Crop, f.Ink = f.Crop.Add(r.Min), f.Ink.Add(r.Min)
+			c := f.Ink.Min.Add(f.Ink.Max).Div(2)
+			if c.In(b.Ink) {
+				keep = append(keep, f)
+			}
+		}
+	}
+	return keep
 }
 
 func overlapsAny(r image.Rectangle, boxes []Box) bool {
@@ -768,10 +833,20 @@ func quiet(l []uint8, w, h int, ink image.Rectangle, inks []image.Rectangle, spr
 	return float64(k) >= quietShare*float64(n)
 }
 
+// A member at least fusedHeight tall and fusedWidth times as wide makes find
+// report its line as fused. BBC Thai's first headline row is one member of
+// 283 by 24 px. About one line in seven hundred of the evaluation sets and
+// development pages has one.
+const (
+	fusedWidth  = 10
+	fusedHeight = 16
+)
+
 // find runs the finder over l, the frame's luma at one pixel per logical
-// pixel, with p.Edge.
-func find(l []uint8, w, h int, p Params) []Box {
-	bs := blobs(edges(l, w, h, p), w, h)
+// pixel, with p.Edge, and reports which lines look fused: one member of large
+// type as wide as a word or more.
+func find(l []uint8, w, h int, p Params, strokes bool) ([]Box, []bool) {
+	bs := blobs(edges(l, w, h, p, strokes), w, h)
 
 	var big, small []blob
 	for _, b := range bs {
@@ -1013,7 +1088,11 @@ func find(l []uint8, w, h int, p Params) []Box {
 	}
 
 	out := make([]Box, 0, len(lines))
+	fused := make([]bool, len(lines))
 	for i, ln := range lines {
+		for _, m := range ln.members {
+			fused[i] = fused[i] || m.h() >= fusedHeight && m.w() >= fusedWidth*m.h()
+		}
 		xh := xhs[i]
 		top := min(ln.y0-1, bases[i]-int(aboveXH*xh+0.5))
 		bot := max(ln.y1+2, bases[i]+1+int(belowXH*xh+0.5))
@@ -1023,5 +1102,5 @@ func find(l []uint8, w, h int, p Params) []Box {
 			Ink:  image.Rect(ln.x0, ln.y0, ln.x1+1, ln.y1+1),
 		})
 	}
-	return out
+	return out, fused
 }
