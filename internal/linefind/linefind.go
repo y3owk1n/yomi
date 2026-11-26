@@ -844,7 +844,7 @@ const (
 
 // find runs the finder over l, the frame's luma at one pixel per logical
 // pixel, with p.Edge, and reports which lines look fused: one member of large
-// type as wide as a word or more.
+// type as wide as a word or more, and the rows stacked on such a line.
 func find(l []uint8, w, h int, p Params, strokes bool) ([]Box, []bool) {
 	bs := blobs(edges(l, w, h, p, strokes), w, h)
 
@@ -1102,5 +1102,47 @@ func find(l []uint8, w, h int, p Params, strokes bool) ([]Box, []bool) {
 			Ink:  image.Rect(ln.x0, ln.y0, ln.x1+1, ln.y1+1),
 		})
 	}
+	stacked(lines, fused)
 	return out, fused
+}
+
+// stackedTallest is the shortest tallest member a line stacked on a fused
+// line needs to be refound with it. Body text at 16 px stays under it.
+const stackedTallest = 20
+
+// tallest returns the height of the line's tallest member.
+func (l line) tallest() int {
+	t := 0
+	for _, m := range l.members {
+		t = max(t, m.h())
+	}
+	return t
+}
+
+// stacked marks as fused every line set directly above or below a fused line,
+// within its tallest member's height and overlapping it in x, whose tallest
+// member is at least stackedTallest and within half again of the fused
+// line's. Those are the other rows of the same headline. They share its type,
+// so their bold tops lose ink the same way even where no blob ran together.
+// BBC Thai's second headline row measured a 13 px x-height for 16 px glyphs.
+func stacked(lines []line, fused []bool) {
+	for grew := true; grew; {
+		grew = false
+		for i, a := range lines {
+			if !fused[i] {
+				continue
+			}
+			ta := a.tallest()
+			for j, b := range lines {
+				if fused[j] || overlap(a.x0, a.x1, b.x0, b.x1) == 0 {
+					continue
+				}
+				gap := max(b.y0-a.y1, a.y0-b.y1)
+				tb := b.tallest()
+				if gap >= 0 && gap <= ta && tb >= stackedTallest && tb*3 >= ta*2 && ta*3 >= tb*2 {
+					fused[j], grew = true, true
+				}
+			}
+		}
+	}
 }
