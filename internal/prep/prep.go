@@ -5,14 +5,15 @@ package prep
 import (
 	"image"
 	"math"
+	"slices"
 )
 
 // bgBand is how far either side of a luma the background's band reaches.
 const bgBand = 8
 
 // Prepare reproduces train/prep.py: integer luma, ink strength against the
-// crop's commonest luma, underlines erased, integer box downsample when the
-// crop is at least twice Height, then bilinear (half-pixel centres, edge
+// background under each pixel, underlines erased, integer box downsample when
+// the crop is at least twice Height, then bilinear (half-pixel centres, edge
 // clamp) to Height rows.
 func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 	return PrepareBlanked(img, r, height, image.Rectangle{}, nil)
@@ -20,7 +21,7 @@ func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
 
 // PrepareBlanked is Prepare with the pixels in blank, other lines' marks
 // that reach into r, set to the background before the ink map is made,
-// except those in keep, the line's own marks. The background and contrast
+// except those in keep, the line's own marks. The polarity and contrast
 // still come from the whole crop. A tight line spacing puts the bottom of the line above
 // and the top of the one below inside a line's crop, and the recognizer,
 // trained on crops no other word reached into, misreads the line for them.
@@ -75,7 +76,6 @@ func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.R
 	if bg-lo >= hi-bg {
 		far, sign = lo, 1
 	}
-	span := float32(max(32, abs32(bg-far)))
 	for _, b := range blank {
 		b = b.Intersect(r)
 		for y := b.Min.Y; y < b.Max.Y; y++ {
@@ -88,9 +88,24 @@ func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.R
 			}
 		}
 	}
+	// The background under each pixel is the crop opened, for ink lighter
+	// than the background, or closed, for darker, by a rectangle half the
+	// crop tall and twice as wide. No stroke is thick enough and no icon wide
+	// enough to hold the rectangle, so both stay ink. A bar or gradient under
+	// the text, as a grey bar running out of a dark page, holds it and
+	// becomes background. On a flat background, as nearly every crop has,
+	// the result is bg itself.
+	kh, kw := h/4*2+1, h/2*4+1
+	// On a flat background the first pass already gives bg everywhere, and
+	// so would the second, so the second runs only when the first does not.
+	b := morph(g, h, w, kh, kw, sign > 0)
+	if slices.ContainsFunc(b, func(v uint8) bool { return int32(v) != bg }) {
+		b = morph(b, h, w, kh, kw, sign < 0)
+	}
 	x := make([]float32, h*w)
 	for i, v := range g {
-		x[i] = min(1, max(0, (float32(bg)-float32(v))*sign/span))
+		span := float32(max(32, abs32(int32(b[i])-far)))
+		x[i] = min(1, max(0, (float32(b[i])-float32(v))*sign/span))
 	}
 	eraseRules(x, h, w)
 
@@ -113,6 +128,89 @@ func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.R
 	}
 	ow := max(4, int(math.RoundToEven(float64(w)*float64(height)/float64(h))))
 	return bilinear(x, h, w, height, ow), ow
+}
+
+// morph returns g, h rows of w, with each pixel the largest, when hi is set,
+// or else the smallest of the kh rows by kw columns around it, cut at the
+// crop's edges. kh and kw are odd. The smallest is the largest of the
+// inverted values, inverted back.
+func morph(g []uint8, h, w, kh, kw int, hi bool) []uint8 {
+	out := slices.Clone(g)
+	if !hi {
+		invert(out)
+	}
+	pre, suf := make([]uint8, w+kw), make([]uint8, w+kw)
+	for y := range h {
+		dilateRow(out[y*w:y*w+w], pre, suf, kw)
+	}
+	dilateCols(out, h, w, kh)
+	if !hi {
+		invert(out)
+	}
+	return out
+}
+
+func invert(g []uint8) {
+	for i, v := range g {
+		g[i] = 255 - v
+	}
+}
+
+// dilateRow sets each value of row to the largest within kw/2 of it, by van
+// Herk / Gil-Werman. It splits the row into blocks of kw and keeps running
+// maxima forward and backward within each. A window's largest is the larger
+// of the backward maximum at its start and the forward maximum at its end.
+// pre and suf are scratch, at least len(row)+kw long.
+func dilateRow(row, pre, suf []uint8, kw int) {
+	r, n := kw/2, len(row)
+	m := n + 2*r
+	pre, suf = pre[:m], suf[:m]
+	clear(pre)
+	copy(pre[r:], row)
+	copy(suf, pre)
+	for s := 0; s < m; s += kw {
+		e := min(s+kw, m)
+		for j := s + 1; j < e; j++ {
+			pre[j] = max(pre[j-1], pre[j])
+		}
+		for j := e - 2; j >= s; j-- {
+			suf[j] = max(suf[j+1], suf[j])
+		}
+	}
+	for i := range row {
+		row[i] = max(suf[i], pre[i+kw-1])
+	}
+}
+
+// dilateCols is dilateRow down the columns of g, h rows of w, a row at a time.
+func dilateCols(g []uint8, h, w, kh int) {
+	r := kh / 2
+	m := h + 2*r
+	pre, suf := make([]uint8, m*w), make([]uint8, m*w)
+	copy(pre[r*w:], g)
+	copy(suf, pre)
+	for j := 1; j < m; j++ {
+		if j%kh != 0 {
+			cur, prev := pre[j*w:j*w+w], pre[(j-1)*w:j*w]
+			for x := range cur {
+				cur[x] = max(prev[x], cur[x])
+			}
+		}
+	}
+	for j := m - 2; j >= 0; j-- {
+		if j%kh != kh-1 {
+			cur, next := suf[j*w:j*w+w], suf[(j+1)*w:(j+2)*w]
+			for x := range cur {
+				cur[x] = max(next[x], cur[x])
+			}
+		}
+	}
+	for y := range h {
+		out, a, b := g[y*w:y*w+w], suf[y*w:y*w+w], pre[(y+kh-1)*w:(y+kh)*w]
+		for x := range out {
+			out[x] = max(a[x], b[x])
+		}
+	}
 }
 
 // eraseRules clears long runs of ink in the crop's bottom quarter, below the

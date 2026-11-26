@@ -4,7 +4,11 @@ integer luma and plain loops.
 1. Luma per pixel, Neru's formula: (299 R + 587 G + 114 B) / 1000, integer.
 2. Background: the luma most of the crop's pixels have, the lowest on a tie.
    A crop fitted to text is mostly background, while its border can run past
-   the button or field the text sits in. Ink: the pixel farthest from it. Ink strength x = clip((bg - v) * sign / max(32, |bg - ink|), 0, 1),
+   the button or field the text sits in. Ink: the pixel farthest from it.
+   The background under each pixel is the crop opened, when ink is lighter,
+   or closed, when darker, by a rectangle h // 4 * 2 + 1 tall and
+   h // 2 * 4 + 1 wide. That is bg where the background is flat, and the bar
+   or gradient under the text where it is not. Ink strength x = clip((b - v) * sign / max(32, |b - ink|), 0, 1),
    so ink is 1 and background 0 whatever the polarity.
 3. Underlines: in the crop's bottom quarter, runs of x >= 0.5 at least the
    crop's height long that touch neither side, in a band of rows at most a
@@ -31,9 +35,24 @@ def ink(gray):
     lo = max(0, band - 8)
     bg = lo + int(hist[lo:band + 9].argmax())
     far = gray.min() if bg - gray.min() >= gray.max() - bg else gray.max()
-    span = max(32, abs(bg - int(far)))
     sign = 1 if far < bg else -1
-    return np.clip((bg - gray.astype(np.float32)) * sign / span, 0, 1)
+    # The background under each pixel: the crop opened (ink lighter) or
+    # closed (ink darker) by a rectangle half its height tall and twice as
+    # wide (prep.go).
+    h = gray.shape[0]
+    kh, kw = h // 4 * 2 + 1, h // 2 * 4 + 1
+    b = morph(morph(gray, kh, kw, sign > 0), kh, kw, sign < 0).astype(np.int64)
+    span = np.maximum(32, np.abs(b - int(far))).astype(np.float32)
+    return np.clip((b.astype(np.float32) - gray.astype(np.float32)) * sign / span, 0, 1)
+
+
+def morph(g, kh, kw, hi):
+    """Largest (hi) or smallest of the kh rows by kw columns around each
+    pixel, cut at the edges."""
+    f = np.max if hi else np.min
+    sw = np.lib.stride_tricks.sliding_window_view
+    g = f(sw(np.pad(g, ((0, 0), (kw // 2, kw // 2)), mode="edge"), kw, axis=1), axis=-1)
+    return f(sw(np.pad(g, ((kh // 2, kh // 2), (0, 0)), mode="edge"), kh, axis=0), axis=-1)
 
 
 def box_down(x, k):

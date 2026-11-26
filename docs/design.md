@@ -171,6 +171,28 @@ only from a crop with a fifth of its height below the ink. A minimum of that
 much costs Thai UI pages 0.9 points and right-to-left 0.6, so the crop stays
 and the fix belongs in training, with larger and bolder type.
 
+## Text on bars (measured 2026-11-26)
+
+Arabic Wikipedia sets its section headings in white on a grey bar that fades
+into the dark page. The crop's background was the page, so the whole bar
+became ink, and both headings read as nothing. Prepare now measures ink
+against the background under each pixel. That background is the crop opened,
+for ink lighter than the background, or closed, for darker, by a rectangle
+half the crop tall and twice as wide. No stroke is thick enough and no icon
+wide enough to hold the rectangle, so both stay ink, while a bar or gradient
+becomes background. On a flat background the result is the crop's background,
+so at most 73 lines of any evaluation set get a different input. On the dev
+web pages half the lines get a different input somewhere in the crop, nearly
+always in a picture or icon. A square half the crop tall also fit inside
+icons, and the outlines it left read as letters.
+
+Both Arabic Wikipedia headings now read right, and its errors fall from 490
+to 473. Over the captures, accuracy against the accessibility text goes 80.2
+to 80.4% and stray characters 341 to 279. Web lines read as nothing fall 318
+to 279 at 1x on the dev sites and 293 to 275 on the held-out ones. Recall is
+unchanged, stray characters move under 3%, and every evaluation set is within
+0.1 points. The opening and closing take about 5% of a read's CPU time.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and
