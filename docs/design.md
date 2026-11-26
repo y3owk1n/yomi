@@ -181,8 +181,8 @@ for ink lighter than the background, or closed, for darker, by a rectangle
 half the crop tall and twice as wide. No stroke is thick enough and no icon
 wide enough to hold the rectangle, so both stay ink, while a bar or gradient
 becomes background. On a flat background the result is the crop's background,
-so at most 73 lines of any evaluation set get a different input. On the dev
-web pages half the lines get a different input somewhere in the crop, nearly
+so at most 40 lines of any evaluation set get a different input. On the dev
+web pages 39% of lines get a different input somewhere in the crop, nearly
 always in a picture or icon. A square half the crop tall also fit inside
 icons, and the outlines it left read as letters.
 
@@ -191,7 +191,8 @@ to 473. Over the captures, accuracy against the accessibility text goes 80.2
 to 80.4% and stray characters 341 to 279. Web lines read as nothing fall 318
 to 279 at 1x on the dev sites and 293 to 275 on the held-out ones. Recall is
 unchanged, stray characters move under 3%, and every evaluation set is within
-0.1 points. The opening and closing take about 5% of a read's CPU time.
+0.1 points. The opening and closing take about 5% of a read's CPU time, and
+a dev page reads 1 to 3 ms slower, within the run-to-run spread.
 
 ## Underlined links in body text (measured 2026-11-22)
 
