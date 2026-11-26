@@ -1,50 +1,60 @@
-# Training
+# train
 
-The pipeline that trains yomi's recognizers and exports them for the Go
-engine. `just train-setup` installs its Python and packages with uv (from
-oku). Run the scripts with `uv run python SCRIPT` from this directory.
+The pipeline that trains yomi's recognizers and router and exports them for
+the Go engine. [docs/training.md](../docs/training.md) explains how the
+pieces fit together. `just train-setup` installs the Python packages, and
+every script runs from this directory with `uv run python SCRIPT`.
+Everything generated goes to `data/` and `runs/`, which stay out of the
+repository.
 
-- `fetch_fonts.sh` downloads the open fonts: the training set, the held-out
-  set used for validation, and the fallback fonts for signs a font lacks.
-  `fonts/LICENSES.md` records each licence and source.
-- `charsets.py` defines each model family's characters, `textsrc.py` the
-  training text (wordfreq words with a held-out fifth, plus UI tokens), and
-  `families.py` pairs them.
-- `prep.py` turns a line crop into the ink map a recognizer reads, the same
-  way `internal/prep` does in Go. A change to one needs the same change to
-  the other, or the models train on input the engine never gives them.
-- `synth.py` renders synthetic lines and non-text crops, `prerender.py`
-  renders a fixed set on every core, `train.py` trains on MPS, and
-  `export.py` folds batch norm and writes `model.json` and `weights.bin`
-  with the reference crops `internal/nn` tests against.
-  `exported.py` loads an exported model back, so `train.py --init
-  ../models/FAMILY` fine-tunes the model that ships.
-- `uistrings.py` collects the Mac's own interface strings per language,
-  `evalgen.py` builds evaluation pages from them, `render.swift` renders the
-  pages in WebKit with exact word boxes, and `mklines.py` cuts line crops.
-- `openstrings.py` collects Firefox's interface strings (MPL-2.0) per
-  language, `evalgen.py open:LANGS` builds pages from them in the held-out
-  open fonts, and `render_pw.py` renders those in headless Chromium on any
-  platform. The rendered open set is published as the `evals-open-v1`
-  release, and `fetch_evals.py` downloads it into `data/`.
-- `vision.swift` reads the pages with Apple's Vision for the baseline,
-  `yomi bench` reads them with yomi, and `pagescore.py` scores both.
-  `tesseract.c` and `winocr.ps1` give the baselines Neru has on Linux and
-  Windows, and `paddle.py` gives PaddleOCR's.
-- `pagegen.py` writes training pages laid out like web UIs: headlines and
-  promos in the `display` fonts, text over gradients, textured thumbnails and
-  scrims, chips, and plain body text. `pagerender.swift` renders each page
-  twice, once with its text hidden. `pagecrops.py` cuts the lines yomi's own
-  line finder finds (`go build -o bin/crops ./train/crops` from the repo root
-  builds it) and labels them from the DOM. It drops any word whose pixels
-  match the textless render, since that word does not show. Fine-tune from
-  the shipped checkpoint with the page set at about a sixth of `--data`.
-- `urlrender.swift` renders the public sites in `urls-dev.txt` and
-  `urls-heldout.txt` offscreen and saves their visible DOM words.
-  `vision.swift` and `yomi bench` read them, and `webscore.py` scores a run
-  against Vision accurate and the DOM. Never train or tune on the held-out
-  sites.
-- `evalall.sh` scores a binary on every eval set. `ft-eval.sh` exports
-  checkpoints into a scratch binary and runs every benchmark on it.
+## Data
 
-Everything generated goes to `data/`, which stays out of the repository.
+| Script | Does | Usage |
+| :----- | :--- | :---- |
+| `fetch_fonts.sh` | Downloads the open fonts into `fonts/` and rewrites `fonts/LICENSES.md` | `sh fetch_fonts.sh` |
+| `wikitext.py` | Fetches Wikipedia words for languages wordfreq lacks | `wikitext.py LANG [LANG ...]` |
+| `charsets.py` | Each family's characters | module |
+| `textsrc.py` | Training text: words, interface tokens, held-out fifth | module |
+| `families.py` | Pairs each family's characters, languages, text and fonts | module |
+| `shaping.py` | HarfBuzz and FreeType rendering for complex scripts | module |
+| `synth.py` | Renders one synthetic line as screens draw it | module |
+| `prep.py` | A crop to the 32-row ink map, as `internal/prep` does in Go | module |
+| `prerender.py` | Renders a fixed set of lines to disk on every core | `prerender.py FAMILY OUT COUNT [SEED]` |
+| `pagegen.py` | Writes web-like training pages | `pagegen.py OUTDIR COUNT [SEED] [FAMILY,...]` |
+| `pagerender.swift` | Renders pages in WebKit, with and without text (macOS) | `./pagerender DIR [LIST]` |
+| `pagecrops.py` | Cuts the lines yomi finds on rendered pages and labels them | `pagecrops.py PAGEDIR OUT [NEG_KEEP]` |
+| `crops/` | The Go line finder `pagecrops.py` runs | `go build -o bin/crops ./train/crops` |
+
+## Training
+
+| Script | Does | Usage |
+| :----- | :--- | :---- |
+| `model.py` | The recognizer network | module |
+| `train.py` | Trains or fine-tunes a recognizer | `train.py OUT --family F --data SET... [--init CKPT_OR_DIR]` |
+| `train_router.py` | Trains the router | `train_router.py OUTDIR --data data/router` |
+| `exported.py` | Loads an exported model back into PyTorch, and prints its flags | `exported.py ../models/FAMILY` |
+| `export.py` | Writes `model.json`, `weights.bin` and reference outputs | `export.py CHECKPOINT OUTDIR [FAMILY]` |
+
+## Evaluation
+
+| Script | Does | Usage |
+| :----- | :--- | :---- |
+| `fetch_evals.py` | Downloads the open evaluation set into `data/` | `fetch_evals.py` |
+| `openstrings.py` | Collects Firefox's interface strings for the open set | `openstrings.py L10NDIR OUT.json` |
+| `uistrings.py` | Collects the Mac's own interface strings (macOS) | `uistrings.py OUT.json` |
+| `evalgen.py` | Writes evaluation pages | `evalgen.py OUTDIR SOURCE [PAGES_PER_LANG] [SEED]` |
+| `render_pw.py` | Renders pages in headless Chromium, any platform | `render_pw.py DIR` |
+| `render.swift` | Renders pages in WebKit (macOS) | `./render DIR` |
+| `mklines.py` | Cuts ground-truth line crops from evaluation pages | `mklines.py EVALDIR OUTDIR` |
+| `urlrender.swift` | Renders the sites in `urls-dev.txt` and `urls-heldout.txt` (macOS) | `./urlrender URLS DIR` |
+| `pagescore.py` | Scores reads of evaluation pages | `pagescore.py PAGESDIR RUN.jsonl... [--by-lang] [--chars]` |
+| `webscore.py` | Scores reads of the website sets | `webscore.py REF.jsonl RUN.jsonl... [--by-page]` |
+| `evalall.sh` | Reads and scores every set in `data/` with a yomi binary | `./evalall.sh TAG [BIN]` |
+| `ft-eval.sh` | Builds yomi with new checkpoints and scores everything | `./ft-eval.sh TAG FAMILY=CKPT...` |
+| `vision.swift` | Reads pages with Apple's Vision (macOS) | `./vision DIR fast\|accurate auto\|en-US REPS` |
+| `paddle.py` | Reads pages with PaddleOCR | `uv run --group teacher python paddle.py EVALDIR` |
+| `tesseract.c` | Reads pages with tesseract (Linux) | `tesseract-bench TESSDATA EVALDIR [REPS]` |
+| `winocr.ps1` | Reads pages with Windows.Media.Ocr (Windows) | `powershell -File winocr.ps1 EVALDIR [REPS]` |
+
+Never train or tune on the held-out words, the held-out websites, or any
+evaluation set.

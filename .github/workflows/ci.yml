@@ -25,8 +25,8 @@ jobs:
       - run: go test ./...
 
   # Times the fixture reads on the x86 runners, ubuntu-latest and
-  # windows-latest, beside arm64. Every timing in docs/design.md comes from
-  # Apple Silicon.
+  # windows-latest, beside arm64. The other timings in docs/benchmarks.md
+  # come from Apple Silicon.
   bench:
     strategy:
       fail-fast: false
