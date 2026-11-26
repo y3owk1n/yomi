@@ -1,7 +1,7 @@
 # Benchmarks
 
 How yomi compares with the OCR each platform ships, and with PaddleOCR. yomi's
-numbers are from 2026-11-26. The other engines' runs are from 2026-11-22 on
+numbers are from 2026-11-27. The other engines' runs are from 2026-11-22 on
 the same pages, unless a section says otherwise. Results read as 1x / 2x.
 
 ## The sets
@@ -70,8 +70,8 @@ scripts score lowest.
 
 | | yomi | Vision accurate |
 | :- | :--- | :-------------- |
-| Held-out websites: share of Vision's text yomi also reads | 89.4% / 89.2% | |
-| Held-out websites: the pages' own text | 81.0% / 81.3% | **81.5%** / 81.3% |
+| Held-out websites: share of Vision's text yomi also reads | 89.6% / 89.5% | |
+| Held-out websites: the pages' own text | 81.2% / **81.5%** | **81.5%** / 81.3% |
 | Held-out websites: time per page | **31 to 33 ms** | 505 to 566 ms |
 | Live captures, all 28 | **80.8%** | 65.5% |
 | Live captures in scripts Vision reads, 23 | 83.7% | **84.3%** |

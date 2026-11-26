@@ -235,6 +235,21 @@ Latin font. A second round with such lines took interface CJK from 97.0 /
 97.1% to 97.2 / 97.4% and Simplified Chinese from 96.1% to 97.0% at 2x, and
 curly quotes read as straight ones fell from 93 to 27.
 
+**Not adopted: Japanese curly quotes and the ⋯ ellipsis (2026-11-27).**
+Apple's Japanese interfaces quote names with curly marks, which Japanese
+training lines never drew, and its Traditional Chinese ones set the ellipsis
+as ⋯. A third round with both took interface CJK to 97.4 / 97.5% and cut
+Japanese quote swaps from 43 to 26, but the open CJK set read 11 characters
+worse at 2x, most of them Korean, and the ⋯ misreads did not move.
+
+**Not adopted: tighter crops below the baseline (2026-11-27).** Japanese ブ
+read as プ flips with a pixel or two of vertical crop and with the line's
+width, so it is a close call for the recognizer, not a framing mismatch:
+training lines sit at the same ink height as the line finder's crops.
+Cutting the padding below the baseline from 0.85 to 0.6 x-heights took
+interface CJK to 97.5 / 97.8% but cost Western 0.7 points, Thai 0.9 to 1.0
+and Korean on the open set 0.5 to 1.1.
+
 **Not adopted: Arabic interface fonts (2026-11-26).** A fine-tune on Arabic
 interface sans left Arabic interface text flat and did not fix ح read as ج
 in Safari's Arabic font.
