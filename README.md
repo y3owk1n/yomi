@@ -97,7 +97,10 @@ held out from all development, yomi reads 89% of the text Vision reads, and
 81.0% / 81.3% of the pages' own text to Vision's 81.5% / 81.3%.
 
 [docs/why.md](docs/why.md) compares yomi with Vision, PaddleOCR, tesseract
-and Windows.Media.Ocr, says how it works, and lists where it is behind.
+and Windows.Media.Ocr, says how it works, and lists where it is behind. The
+open evaluation set, 127 pages in 42 languages from Firefox's interface
+strings, lets anyone score yomi on any platform
+([docs/contributing.md](docs/contributing.md)).
 
 ## Models
 

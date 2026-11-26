@@ -104,6 +104,29 @@ engines' from 2026-11-22.
 | Bengali, Tamil, Telugu, held out, 1x | **82.3%, 71.7%, 71.3%** | 18.8%, 12.5%, 15.4% | not run |
 | App layouts, 11 scenes | **94.5% / 94.9%** | 90.2% / 92.4% | not run |
 
+### On the open set, against Vision
+
+The open set is 127 interface pages in 42 languages, built from Firefox's
+translations and drawn in fonts training never saw, and anyone can download
+it (`train/fetch_evals.py`). Words, or characters for CJK and Southeast
+Asian scripts, at 1x and 2x.
+
+| Text | yomi | Vision accurate |
+|---|---|---|
+| 17 Western languages | **98.2% / 98.5%** | 89.6% / 90.2% |
+| Chinese, Japanese, Korean | 94.4% / 94.6% | **95.8% / 96.8%** |
+| Arabic | 76.3% / 76.7% | **82.6% / 86.3%** |
+| Hebrew, Persian, Urdu | **91.9%, 68.8%, 79.0%** at 1x | 0.8%, 33.8%, 21.0% |
+| Hindi, Marathi, Nepali | **89.9%, 93.8%, 86.7%** at 1x | 89.2%, 92.9%, 85.5% |
+| Eight other Indic scripts | **48 to 83%** | 0 to 5% |
+| Thai | 91.7% / 92.3% | **93.4% / 95.6%** |
+| Lao, Khmer, Myanmar | **92.4%, 77.6%, 53.2%** at 1x | 3.1%, 1.3%, 0.2% |
+| Georgian, Armenian | **96.1%, 78.1%** at 1x | 1.7%, 0.7% |
+
+The held-out fonts for Bengali, Tamil, Telugu, Kannada, Malayalam, Sinhala,
+Lao, Khmer and Myanmar are serifs, a style training does not render. Those
+scripts score lowest.
+
 ### On real websites and live captures
 
 The UI sets are clean text on plain ground. Real pages put text on photos,
@@ -218,7 +241,8 @@ The evaluation pages, the baselines and the scripts that score them are in
 `train/`: `evalgen.py` builds the pages, `render.swift` renders them,
 `vision.swift`, `paddle.py`, `tesseract.c` and `winocr.ps1` read them with
 each engine, `yomi bench` reads them with yomi, and `pagescore.py` scores every
-run the same way. `urlrender.swift` renders the sites listed in
+run the same way. `fetch_evals.py` downloads the open set on any platform.
+`urlrender.swift` renders the sites listed in
 `urls-dev.txt` and `urls-heldout.txt`, and `webscore.py` scores the reads.
 The renders and the live captures stay out of the repository, since the
 sites are other people's pages and the captures are of a personal screen.

@@ -55,11 +55,15 @@ them, so the scores measure text the models have not learned.
 The pipeline is in `train/`, and [train/README.md](../train/README.md)
 describes each script. You need:
 
-- macOS on Apple silicon to build the evaluation pages, which are rendered
-  in WebKit from the Mac's own interface strings. Training runs on Apple's
-  GPU (MPS) or on CUDA.
+- macOS, Linux or Windows. Training runs on Apple's GPU (MPS), on CUDA, or
+  slowly on the CPU. The shell scripts need bash, so on Windows run them in
+  Git Bash or WSL.
 - [oku](https://github.com/y3owk1n/oku) for the toolchain: `oku sync`, then
   `just train-setup` for the Python packages.
+- The open evaluation set: `uv run python fetch_evals.py` downloads it into
+  `train/data`. It has 127 pages in 42 languages, made from Firefox's
+  interface strings (MPL-2.0) in held-out open fonts. Everyone scores the
+  same pixels, so your numbers compare with anyone's.
 
 A run fine-tunes the shipped model, with `indic` standing for any family in
 `train/families.py`:
@@ -67,6 +71,7 @@ A run fine-tunes the shipped model, with `indic` standing for any family in
 ```sh
 cd train
 sh fetch_fonts.sh
+uv run python fetch_evals.py
 uv run python exported.py ../models/indic      # prints the flags this model needs
 uv run python prerender.py indic data/indic-200000 200000 1
 uv run python train.py runs/my-indic --init ../models/indic --data data/indic-200000 \
@@ -83,10 +88,11 @@ not render. `ft-eval.sh` builds a yomi with the new model in place, scores it
 on every evaluation set in `train/data`, and puts the committed models back
 when it is done.
 
-A model replaces the shipped one when its own family's sets read better at
-1x and 2x on average and no other set reads worse. The maintainer also runs
-it over a private set of live captures and two sets of real websites before
-merging. To send one:
+A model replaces the shipped one when its own family's open sets read
+better at 1x and 2x on average and no other set reads worse. Before merging,
+the maintainer also scores it on sets built from macOS's own interface
+strings, which cannot be published, on live captures, and on two sets of
+real websites. To send one:
 
 1. Export it: `uv run python export.py runs/my-indic/best.pt data/export-mine`.
 2. Copy `model.json` and `weights.bin` into `models/indic/`, and the files in

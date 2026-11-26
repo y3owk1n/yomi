@@ -6,6 +6,9 @@ Sources:
   ui:fr,de,ru,...   interface strings of this Mac's apps (uistrings.py), never
                     used in training
   heldout:FAMILY    training-style lines over the held-out half of the words
+  open:fr,hi,...    Firefox's interface strings (openstrings.py) in the
+                    held-out open fonts, for the open set render_pw.py renders
+                    on any platform
 
 Usage: python evalgen.py OUTDIR SOURCE [PAGES_PER_LANG] [SEED]
 """
@@ -17,6 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from families import FAMILIES  # noqa: E402
+from synth import coverage_of  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,6 +37,53 @@ class UIStrings:
 
     def token(self, rng):
         return rng.choice([s for s in (rng.choice(self.strings) for _ in range(8)) if len(s.split()) <= 2] or ["OK"]).split()[0]
+
+
+# The held-out font each language's open pages are set in. IBM Plex Sans,
+# held out too, follows it for the Latin letters a string borrows.
+OPEN_FONTS = {
+    **{k: "heldout/IBMPlexSanswdth_wght.ttf" for k in
+       ("cs", "de", "el", "en", "es", "fr", "hu", "it", "nl", "pl", "pt_BR", "ro", "ru", "sv", "tr", "uk", "vi")},
+    "zh_CN": "cjk-heldout/NotoSansHKwght.ttf", "zh_TW": "cjk-heldout/NotoSansHKwght.ttf",
+    "ja": "cjk-heldout/IBMPlexSansJP-Regular.ttf", "ko": "cjk-heldout/IBMPlexSansKR-Regular.ttf",
+    "ar": "rtl-heldout/IBMPlexSansArabic-Regular.ttf", "fa": "rtl-heldout/IBMPlexSansArabic-Regular.ttf",
+    "ur": "rtl-heldout/IBMPlexSansArabic-Regular.ttf", "he": "rtl-heldout/IBMPlexSansHebrew-Regular.ttf",
+    "hi": "indic-heldout/IBMPlexSansDevanagari-Regular.ttf", "mr": "indic-heldout/IBMPlexSansDevanagari-Regular.ttf",
+    "ne": "indic-heldout/IBMPlexSansDevanagari-Regular.ttf", "bn": "indic-heldout/NotoSerifBengaliwdth_wght.ttf",
+    "gu": "indic-heldout/NotoSerifGujaratiwght.ttf", "pa": "indic-heldout/NotoSerifGurmukhiwght.ttf",
+    "kn": "indic-heldout/NotoSerifKannadawght.ttf", "ml": "indic-heldout/NotoSerifMalayalamwght.ttf",
+    "si": "indic-heldout/NotoSerifSinhalawdth_wght.ttf", "ta": "indic-heldout/NotoSerifTamilwdth_wght.ttf",
+    "te": "indic-heldout/NotoSerifTeluguwght.ttf", "th": "sea-heldout/IBMPlexSansThai-Regular.ttf",
+    "lo": "sea-heldout/NotoSerifLaowdth_wght.ttf", "km": "sea-heldout/NotoSerifKhmerwdth_wght.ttf",
+    "my": "sea-heldout/NotoSerifMyanmar-Regular.ttf", "ka": "cau-heldout/NotoSerifGeorgianwdth_wght.ttf",
+    "hy": "cau-heldout/NotoSerifArmenianwdth_wght.ttf",
+}
+OPEN_LATIN = "heldout/IBMPlexSanswdth_wght.ttf"
+OPEN_MONO = "heldout/IBMPlexMono-Regular.ttf"
+
+
+class OpenStrings(UIStrings):
+    """Firefox's strings for lang that its open fonts draw in full, so no page
+    falls back to a font of the machine rendering it."""
+
+    def __init__(self, lang):
+        have = coverage_of(os.path.join(HERE, "fonts", OPEN_FONTS[lang])) | coverage_of(os.path.join(HERE, "fonts", OPEN_LATIN))
+        with open(os.path.join(HERE, "data", "openstrings.json"), encoding="utf-8") as f:
+            strings = json.load(f)[lang]
+        self.strings = [t for t in strings if all(ord(c) in have for c in t if not c.isspace())]
+
+
+def open_css(out, lang):
+    """@font-face rules for lang's open fonts, copied next to the pages."""
+    import shutil
+    os.makedirs(os.path.join(out, "fonts"), exist_ok=True)
+    faces = []
+    for name, rel in (("open-text", OPEN_FONTS[lang]), ("open-latin", OPEN_LATIN), ("open-mono", OPEN_MONO)):
+        base = os.path.basename(rel)
+        shutil.copyfile(os.path.join(HERE, "fonts", rel), os.path.join(out, "fonts", base))
+        faces.append(f"@font-face{{font-family:{name};src:url('fonts/{base}')}}")
+    return "".join(faces) + ("body{font-family:open-text,open-latin}"
+                             ".mono{font-family:open-mono,open-text,open-latin}")
 
 
 class HeldOut:
@@ -122,7 +173,7 @@ def esc(s):
     return html.escape(s, quote=False)
 
 
-def page(rng, src, lang, size, dark):
+def page(rng, src, lang, size, dark, css=""):
     ph, tok = src.phrase, src.token
     nav = "".join(f'<div class="{"on" if i == 3 else ""}">{esc(ph(rng, rng.randint(1, 2)))}</div>'
                   for i in range(rng.randint(10, 22)))
@@ -138,7 +189,7 @@ def page(rng, src, lang, size, dark):
     body.append("<div class='card mono'>" + "<br>".join(esc(ph(rng, rng.randint(3, 8))) for _ in range(rng.randint(3, 5))) + "</div>")
     body.append(f"<p class=mut>{esc(ph(rng, rng.randint(10, 20)))}</p>")
     cls = "dark" if dark else ""
-    return (f"<!doctype html><html lang={lang}><head><meta charset=utf-8><style>{CSS} body{{font-size:{size}px}}</style>"
+    return (f"<!doctype html><html lang={lang}><head><meta charset=utf-8><style>{CSS} {css} body{{font-size:{size}px}}</style>"
             f"<script>{JS}</script></head><body class='{cls}'><nav>{nav}</nav><main>{''.join(body)}</main></body></html>")
 
 
@@ -148,9 +199,9 @@ def main():
     rng = random.Random(int(sys.argv[4]) if len(sys.argv) > 4 else 20261122)
     kind, arg = source.split(":", 1)
     os.makedirs(out, exist_ok=True)
-    if kind == "ui":
+    if kind in ("ui", "open"):
         langs = arg.split(",")
-        make = UIStrings
+        make = UIStrings if kind == "ui" else OpenStrings
     else:
         family = arg
         langs = list(FAMILIES[family][1])
@@ -159,11 +210,12 @@ def main():
     names = []
     for lang in langs:
         src = make(lang)
+        css = open_css(out, lang) if kind == "open" else ""
         for i in range(per):
             size, dark = rng.choice(sizes), i % 2 == 1
             name = f"{lang}-{i}-{size}px{'-dark' if dark else ''}"
             with open(os.path.join(out, name + ".html"), "w") as f:
-                f.write(page(rng, src, lang.split("_")[0], size, dark))
+                f.write(page(rng, src, lang.split("_")[0], size, dark, css))
             names.append(name)
     with open(os.path.join(out, "pages.txt"), "w") as f:
         f.write("\n".join(names) + "\n")

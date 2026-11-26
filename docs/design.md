@@ -664,6 +664,29 @@ scales it restored nothing and added 25 to 50 stray characters on pictures.
 What stands between yomi and the gate on every platform is Arabic at 2x and
 Hindi, both recognizer accuracy rather than line finding.
 
+## The open evaluation set (measured 2026-11-26)
+
+Every evaluation set until now was built on a Mac from the system apps'
+own interface strings and rendered by WebKit in Apple's fonts. Nobody else
+could build them, and they cannot be published, so a contributor could not
+score a model. The open set takes interface strings from Firefox's
+translations (mozilla-l10n/firefox-l10n, MPL-2.0): about 2,300 to 7,600 per
+language once strings with placeholders and untranslated English fallbacks
+are dropped. It sets them in each script's held-out open fonts, all OFL-1.1,
+keeping only strings those fonts cover in full so no page falls back to a
+font of the machine rendering it. Headless Chromium renders the pages
+through Playwright on macOS, Linux and Windows. The rendered pages are
+published as the evals-open-v1 release, with the MPL licence, the extracted
+strings and the source commit, so everyone scores the same pixels.
+
+The set has 127 pages in 42 languages. Amharic is missing, since Firefox has
+no Amharic translation. Simplified Chinese keeps only the 1,526 strings Noto
+Sans HK covers. yomi reads its Western pages at 98.2% / 98.5% against Vision
+accurate's 89.6% / 90.2%, trails Vision on CJK by 1.4 to 2.2 points and on
+Arabic by 6 to 10, and reads the scripts Vision does not at 48 to 96%. The
+lowest scores are the nine Indic and Southeast Asian scripts whose held-out
+fonts are serifs, a style training does not render. why.md has the table.
+
 ## Hindi interface text (measured 2026-11-26)
 
 Against Vision, yomi's Hindi gap is misreads, not missed lines: at 2x 8.3%

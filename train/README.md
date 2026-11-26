@@ -22,6 +22,11 @@ oku). Run the scripts with `uv run python SCRIPT` from this directory.
 - `uistrings.py` collects the Mac's own interface strings per language,
   `evalgen.py` builds evaluation pages from them, `render.swift` renders the
   pages in WebKit with exact word boxes, and `mklines.py` cuts line crops.
+- `openstrings.py` collects Firefox's interface strings (MPL-2.0) per
+  language, `evalgen.py open:LANGS` builds pages from them in the held-out
+  open fonts, and `render_pw.py` renders those in headless Chromium on any
+  platform. The rendered open set is published as the `evals-open-v1`
+  release, and `fetch_evals.py` downloads it into `data/`.
 - `vision.swift` reads the pages with Apple's Vision for the baseline,
   `yomi bench` reads them with yomi, and `pagescore.py` scores both.
   `tesseract.c` and `winocr.ps1` give the baselines Neru has on Linux and
