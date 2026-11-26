@@ -684,8 +684,14 @@ func Find(img *image.RGBA, scale float64, p Params) []Box {
 	out := find(l, w, h, p)
 	wg.Wait()
 	first := len(out)
+	var inks []image.Rectangle
+	for _, bs := range [][]Box{out, faint} {
+		for _, b := range bs {
+			inks = append(inks, b.Ink)
+		}
+	}
 	for _, b := range faint {
-		if !overlapsAny(b.Ink, out[:first]) && quiet(l, w, h, b.Ink, p.QuietRing) {
+		if !overlapsAny(b.Ink, out[:first]) && quiet(l, w, h, b.Ink, inks, p.QuietRing) {
 			out = append(out, b)
 		}
 	}
@@ -701,16 +707,30 @@ func overlapsAny(r image.Rectangle, boxes []Box) bool {
 	return false
 }
 
+// quietShare is the least share of the ring around a faint line that must
+// sit within QuietRing of the ring's commonest luma.
+const quietShare = 0.8
+
 // quiet reports whether the ring of pixels around ink, half its height wide,
-// spreads over at most spread luma levels, the 5th to the 95th percentile.
-func quiet(l []uint8, w, h int, ink image.Rectangle, spread int) bool {
+// is plain: at least quietShare of it within spread of its commonest luma.
+// Pixels inside any line's ink in inks are left out, so the text beside a
+// line, or the other pieces of a large heading, do not count against it,
+// while a photograph's texture does.
+func quiet(l []uint8, w, h int, ink image.Rectangle, inks []image.Rectangle, spread int) bool {
 	m := max(2, ink.Dy()/2)
 	o := ink.Inset(-m).Intersect(image.Rect(0, 0, w, h))
+	var near []image.Rectangle
+	for _, r := range inks {
+		if r.Overlaps(o) {
+			near = append(near, r)
+		}
+	}
 	var hist [256]int
 	n := 0
 	for y := o.Min.Y; y < o.Max.Y; y++ {
 		for x := o.Min.X; x < o.Max.X; x++ {
-			if image.Pt(x, y).In(ink) {
+			pt := image.Pt(x, y)
+			if pt.In(ink) || slices.ContainsFunc(near, pt.In) {
 				continue
 			}
 			hist[l[y*w+x]]++
@@ -720,18 +740,17 @@ func quiet(l []uint8, w, h int, ink image.Rectangle, spread int) bool {
 	if n == 0 {
 		return false
 	}
-	lo, hi, c := -1, 0, 0
-	for v, k := range hist {
-		c += k
-		if lo < 0 && c*20 > n {
-			lo = v
-		}
-		if c*20 >= n*19 {
-			hi = v
-			break
+	mode := 0
+	for v := range hist {
+		if hist[v] > hist[mode] {
+			mode = v
 		}
 	}
-	return hi-lo <= spread
+	k := 0
+	for v := max(0, mode-spread); v <= min(255, mode+spread); v++ {
+		k += hist[v]
+	}
+	return float64(k) >= quietShare*float64(n)
 }
 
 // find runs the finder over l, the frame's luma at one pixel per logical

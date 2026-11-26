@@ -232,6 +232,30 @@ from the first pass's, cut that cost to under 1% and the gain with it. The
 gain comes from reading most lines a second time, not from colour, so it is
 not worth its latency.
 
+## Faint text beside other text (measured 2026-11-26)
+
+The faint pass keeps a line only where the background around it is plain.
+That ring had to spread over at most 8 luma levels from its 5th to 95th
+percentile, so text near it failed: a faint heading's subtitle, the pieces
+the faint pass splits a large heading into, or a bar the ring reached. On
+apple.com caught mid fade-in, "Amazing Mac. Surprising price." and most of
+the faint headings read as nothing for that reason. The ring now leaves out
+every line's ink, both passes', and needs four fifths of what remains within
+8 levels of its commonest luma. A photograph's texture still fails it.
+
+apple.com goes 74.5 to 84.2% of its accessibility text, with no other
+capture changed. Held-out recall goes 88.9 to 89.3% at 1x and 88.7 to 89.1%
+at 2x, unseen lines 273 to 253, and stray characters 702 to 708. On the dev
+sites unseen lines fall 281 to 256 and strays rise 376 to 413, most of them
+low-confidence reads of an article dimmed behind a consent dialog. Every
+evaluation set is unchanged.
+
+A stricter share of 0.85 or 0.9 kept the strays and lost some of the gain.
+The large "iPhone" heading still splits into pieces, since its long
+horizontal strokes count as background, and most of apple.com's navigation,
+21 levels from its bar, fades below the faint pass's edge at one pixel per
+point.
+
 ## Underlined links in body text (measured 2026-11-22)
 
 The underline eraser looked only at the bottom quarter of a line's crop and
