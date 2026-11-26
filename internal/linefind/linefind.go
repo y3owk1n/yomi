@@ -578,6 +578,14 @@ func oneRow(lines []line, hits []int, best int) bool {
 	return true
 }
 
+// pieceOf reports whether the line lies inside b's bounds and is under a
+// third of its height, as the dots, loops and detached tail of a large Arabic
+// word do. Such a line is part of b's glyphs, not a row of its own. Where
+// marks fuse across two rows, each row's line is at least half b's height.
+func (l line) pieceOf(b blob) bool {
+	return l.x0 >= b.x0 && l.x1 <= b.x1 && l.y0 >= b.y0 && l.y1 <= b.y1 && l.h()*3 <= b.h()
+}
+
 // mergeLines folds the lines in hits, which are in ascending order, into the
 // first of them and drops the rest.
 func mergeLines(lines []line, hits []int) []line {
@@ -866,12 +874,15 @@ func find(l []uint8, w, h int, p Params) []Box {
 	// A tall blob joins the line whose core it overlaps most, as the first
 	// pass would have. A blob overlapping two lines' cores on different rows
 	// is marks fused across them, so it widens its line without making it
-	// taller. Lines on one row that it spans, as the halves of a heading in
-	// large type split at a wide gap, merge with it. A blob overlapping none,
-	// such as a heading's glyph, seeds a line.
+	// taller. Lines that are pieces of the blob itself, as the dots and
+	// detached tail of a large Arabic word, do not count as rows. Lines on
+	// one row that it spans, as the halves of a heading in large type split
+	// at a wide gap, merge with it. A blob overlapping none, such as a
+	// heading's glyph, seeds a line.
 	sort.Slice(tall, func(i, j int) bool { return tall[i].x0 < tall[j].x0 })
 	for _, b := range tall {
 		best, bestOv, hits := -1, 0, []int(nil)
+		row, rowOv, rows := -1, 0, []int(nil)
 		for i, ln := range lines {
 			c0, c1 := ln.core()
 			ch := c1 - c0 + 1
@@ -887,8 +898,14 @@ func find(l []uint8, w, h int, p Params) []Box {
 			if ov > bestOv {
 				best, bestOv = i, ov
 			}
+			if !lines[i].pieceOf(b) {
+				rows = append(rows, i)
+				if ov > rowOv {
+					row, rowOv = i, ov
+				}
+			}
 		}
-		if len(hits) > 1 && oneRow(lines, hits, best) {
+		if len(hits) > 1 && (len(rows) < 2 || oneRow(lines, rows, row)) {
 			lines = mergeLines(lines, hits)
 			best, hits = hits[0], hits[:1]
 		}
@@ -896,7 +913,7 @@ func find(l []uint8, w, h int, p Params) []Box {
 		case best < 0:
 			lines = append(lines, line{b.x0, b.y0, b.x1, b.y1, b.y0, b.y1, 1, []blob{b}})
 		case len(hits) > 1:
-			ln := &lines[best]
+			ln := &lines[row]
 			ln.x0, ln.x1 = min(ln.x0, b.x0), max(ln.x1, b.x1)
 		default:
 			ln := &lines[best]
