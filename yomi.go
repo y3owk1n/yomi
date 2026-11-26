@@ -225,7 +225,8 @@ func (e *Engine) prepare(frame *image.RGBA, boxes []linefind.Box, i int, scale f
 		}
 	}
 	// Every model reads the same input: an ink map 32 rows tall.
-	x, w := prep.PrepareBlanked(frame, r, e.model.net.Height, px(ink), blank)
+	resampled := math.Abs(scale-math.Round(scale)) > 0.01
+	x, w := prep.PrepareBlanked(frame, r, e.model.net.Height, px(ink), blank, resampled)
 	if x == nil || w < e.model.net.Stride {
 		return prepared{}
 	}

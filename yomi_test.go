@@ -341,15 +341,20 @@ func TestEngine_Read_ReadsFaintText(t *testing.T) {
 // TestEngine_Read_ReadsFractionalScales reads the tight Thai rows captured at
 // 1.25 and 1.5 pixels per point, as a display scaled to 125% or 150% draws
 // them. Read as a whole 2x frame, the text comes out at 0.625 or 0.75 of its
-// size and yields nothing.
+// size and yields nothing. It also reads an Arabic page downsampled from 2x
+// to 1.5x with a Lanczos filter, as a scaled display is. The filter leaves a
+// halo beside every stroke, and measured against it the gaps between letters
+// read as ink and the words come out as other letters.
 func TestEngine_Read_ReadsFractionalScales(t *testing.T) {
 	e := routedEngine(t)
 	for _, tt := range []struct {
 		frame string
 		scale float64
+		want  []string
 	}{
-		{"thai-tight@1.25x.png", 1.25},
-		{"thai-tight@1.5x.png", 1.5},
+		{"thai-tight@1.25x.png", 1.25, []string{"ค้นหาของฉัน", "iPhone"}},
+		{"thai-tight@1.5x.png", 1.5, []string{"ค้นหาของฉัน", "iPhone"}},
+		{"arabic-yeh@1.5x.png", 1.5, []string{"مغلق", "سيارة", "تعديل"}},
 	} {
 		t.Run(tt.frame, func(t *testing.T) {
 			lines, err := e.Read(context.Background(), loadFrame(t, "testdata/fixtures/"+tt.frame), tt.scale)
@@ -357,7 +362,7 @@ func TestEngine_Read_ReadsFractionalScales(t *testing.T) {
 				t.Fatal(err)
 			}
 			got := text(lines)
-			for _, want := range []string{"ค้นหาของฉัน", "iPhone"} {
+			for _, want := range tt.want {
 				if !strings.Contains(got, want) {
 					t.Errorf("did not read %q; read:\n%s", want, got)
 				}

@@ -8,24 +8,31 @@ import (
 	"slices"
 )
 
-// bgBand is how far either side of a luma the background's band reaches.
-const bgBand = 8
+// bgBand is how far either side of a luma the background's band reaches, and
+// bgSnap how far past the crop's background, away from the ink, the
+// background under a pixel may sit and still count as it.
+const (
+	bgBand = 8
+	bgSnap = 32
+)
 
 // Prepare reproduces train/prep.py: integer luma, ink strength against the
 // background under each pixel, underlines erased, integer box downsample when
 // the crop is at least twice Height, then bilinear (half-pixel centres, edge
 // clamp) to Height rows.
 func Prepare(img *image.RGBA, r image.Rectangle, height int) ([]float32, int) {
-	return PrepareBlanked(img, r, height, image.Rectangle{}, nil)
+	return PrepareBlanked(img, r, height, image.Rectangle{}, nil, false)
 }
 
 // PrepareBlanked is Prepare with the pixels in blank, other lines' marks
 // that reach into r, set to the background before the ink map is made,
 // except those in keep, the line's own marks. The polarity and contrast
-// still come from the whole crop. A tight line spacing puts the bottom of the line above
+// still come from the whole crop. resampled says the frame was scaled from
+// another resolution, as a fractional display scale is, which train/prep.py
+// never sees. A tight line spacing puts the bottom of the line above
 // and the top of the one below inside a line's crop, and the recognizer,
 // trained on crops no other word reached into, misreads the line for them.
-func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.Rectangle, blank []image.Rectangle) ([]float32, int) {
+func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.Rectangle, blank []image.Rectangle, resampled bool) ([]float32, int) {
 	r = r.Intersect(img.Rect)
 	h, w := r.Dy(), r.Dx()
 	if h < 2 || w < 2 {
@@ -101,6 +108,22 @@ func PrepareBlanked(img *image.RGBA, r image.Rectangle, height int, keep image.R
 	b := morph(g, h, w, kh, kw, sign > 0)
 	if slices.ContainsFunc(b, func(v uint8) bool { return int32(v) != bg }) {
 		b = morph(b, h, w, kh, kw, sign < 0)
+	}
+	// A resampled frame, as a scaled display downsampled with a Lanczos
+	// filter, rings: beside every stroke sits a halo a little past the
+	// background, on the side away from the ink. A line has strokes
+	// everywhere, so every window holds a halo and the opening moves the
+	// whole line's background by its depth, which turns the gaps between
+	// letters into faint ink. In such a frame a background up to bgSnap past
+	// bg on that side is bg. A bar under the text, the case the opening is
+	// for, lies toward the ink. A frame at its own resolution has no halos,
+	// and there the snap would only add strays on pictures.
+	if resampled {
+		for i, v := range b {
+			if d := (int32(v) - bg) * int32(sign); d > 0 && d <= bgSnap {
+				b[i] = uint8(bg)
+			}
+		}
 	}
 	x := make([]float32, h*w)
 	for i, v := range g {
